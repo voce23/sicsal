@@ -15,7 +15,6 @@ on:
 jobs:
   ci:
     runs-on: ubuntu-latest
-    environment: Testing
     strategy:
       fail-fast: false
       matrix:
@@ -41,9 +40,6 @@ jobs:
 
       - name: Install Node Dependencies
         run: npm ci
-
-      - name: Add Flux Credentials
-        run: composer config http-basic.composer.fluxui.dev "${{ secrets.FLUX_USERNAME }}" "${{ secrets.FLUX_LICENSE_KEY }}"
 
       - name: Install PHP Dependencies
         run: composer install --no-interaction --prefer-dist --optimize-autoloader
