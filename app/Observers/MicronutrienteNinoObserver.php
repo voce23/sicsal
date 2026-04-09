@@ -20,14 +20,16 @@ class MicronutrienteNinoObserver
     private function sincronizar(MicronutrienteNino $micro, int $delta): void
     {
         $persona = $micro->persona;
-        if (!$persona) return;
+        if (! $persona) {
+            return;
+        }
 
         $row = PrestMicronutriente::firstOrCreate(
             [
                 'centro_salud_id' => $persona->centro_salud_id,
-                'mes'             => $micro->mes,
-                'anio'            => $micro->anio,
-                'tipo'            => $micro->tipo,
+                'mes' => $micro->mes,
+                'anio' => $micro->anio,
+                'tipo' => $micro->tipo,
             ],
             ['cantidad' => 0]
         );

@@ -13,7 +13,6 @@ use Filament\Resources\Resource;
 use Filament\Schemas\Schema;
 use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 
 class CentroSaludResource extends Resource
 {
@@ -56,10 +55,9 @@ class CentroSaludResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListCentroSaluds::route('/'),
+            'index' => ListCentroSaluds::route('/'),
             'create' => CreateCentroSalud::route('/create'),
-            'edit'   => EditCentroSalud::route('/{record}/edit'),
+            'edit' => EditCentroSalud::route('/{record}/edit'),
         ];
     }
 }
-

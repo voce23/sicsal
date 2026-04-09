@@ -38,10 +38,10 @@ class DefuncionsTable
                     ->badge()
                     ->formatStateUsing(fn (string $state) => match ($state) {
                         'establecimiento' => 'Establecimiento',
-                        'domicilio'       => 'Domicilio',
-                        'referido'        => 'Referido',
-                        'en_transito'     => 'En tránsito',
-                        default           => $state,
+                        'domicilio' => 'Domicilio',
+                        'referido' => 'Referido',
+                        'en_transito' => 'En tránsito',
+                        default => $state,
                     })
                     ->label('Lugar'),
                 TextColumn::make('grupo_etareo_defuncion')
@@ -55,18 +55,18 @@ class DefuncionsTable
                 SelectFilter::make('lugar')
                     ->options([
                         'establecimiento' => 'Establecimiento',
-                        'domicilio'       => 'Domicilio',
-                        'referido'        => 'Referido',
-                        'en_transito'     => 'En tránsito',
+                        'domicilio' => 'Domicilio',
+                        'referido' => 'Referido',
+                        'en_transito' => 'En tránsito',
                     ])
                     ->label('Lugar'),
                 SelectFilter::make('grupo_etareo_defuncion')
                     ->options([
-                        'neonatal'         => 'Neonatal',
+                        'neonatal' => 'Neonatal',
                         'infantil_menor_1' => 'Infantil <1 año',
-                        'menor_5'          => 'Menor de 5 años',
-                        '5_a_59'           => '5 a 59 años',
-                        'adulto_mayor'     => 'Adulto mayor (≥60)',
+                        'menor_5' => 'Menor de 5 años',
+                        '5_a_59' => '5 a 59 años',
+                        'adulto_mayor' => 'Adulto mayor (≥60)',
                     ])
                     ->label('Grupo etáreo'),
             ])

@@ -3,9 +3,9 @@
 use App\Livewire\Blog;
 use App\Livewire\CausasConsulta;
 use App\Livewire\ComunidadesPoblacion;
-use App\Livewire\PostView;
 use App\Livewire\InformeCAI;
 use App\Livewire\Poblacion;
+use App\Livewire\PostView;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Route;
 
@@ -25,7 +25,7 @@ Route::get('/', function () {
     // ── Config de grupos para la pirámide ──
     $gruposConfig = [
         ['label' => '<1 año', 'ine' => ['menor_1'],                              'min' => -1,  'max' => 0],
-        ['label' => '1-4',   'ine' => ['1_anio','2_anios','3_anios','4_anios'], 'min' => 1,   'max' => 4],
+        ['label' => '1-4',   'ine' => ['1_anio', '2_anios', '3_anios', '4_anios'], 'min' => 1,   'max' => 4],
         ['label' => '5-9',   'ine' => ['5_9'],                                  'min' => 5,   'max' => 9],
         ['label' => '10-14', 'ine' => ['10_14'],                                'min' => 10,  'max' => 14],
         ['label' => '15-19', 'ine' => ['15_19'],                                'min' => 15,  'max' => 19],
@@ -52,7 +52,7 @@ Route::get('/', function () {
         ->select('centro_salud_id', 'sexo', DB::raw(
             DB::getDriverName() === 'sqlite'
                 ? "CAST((julianday('now') - julianday(fecha_nacimiento)) / 365.25 AS INTEGER) AS edad"
-                : "TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) AS edad"
+                : 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) AS edad'
         ))
         ->get()
         ->groupBy('centro_salud_id');
@@ -68,7 +68,8 @@ Route::get('/', function () {
     foreach ($centrosIds as $cid) {
         $metasCentro = $todasMetas->get($cid, collect())->keyBy('grupo_etareo');
 
-        $ineM = []; $ineF = [];
+        $ineM = [];
+        $ineF = [];
         foreach ($gruposConfig as $g) {
             $total = 0;
             foreach ($g['ine'] as $ge) {
@@ -79,50 +80,49 @@ Route::get('/', function () {
         }
 
         $personasCentro = $todasPersonas->get($cid, collect());
-        $tieneReal      = $personasCentro->isNotEmpty();
+        $tieneReal = $personasCentro->isNotEmpty();
 
-        $realM = []; $realF = [];
+        $realM = [];
+        $realF = [];
         if ($tieneReal) {
             foreach ($gruposConfig as $g) {
-                $realM[] = $personasCentro->filter(fn($p) =>
-                    $p->sexo === 'M' && (
-                        $g['min'] === -1
-                            ? $p->edad < 1
-                            : ($p->edad >= $g['min'] && $p->edad <= $g['max'])
-                    )
+                $realM[] = $personasCentro->filter(fn ($p) => $p->sexo === 'M' && (
+                    $g['min'] === -1
+                        ? $p->edad < 1
+                        : ($p->edad >= $g['min'] && $p->edad <= $g['max'])
+                )
                 )->count();
-                $realF[] = $personasCentro->filter(fn($p) =>
-                    $p->sexo === 'F' && (
-                        $g['min'] === -1
-                            ? $p->edad < 1
-                            : ($p->edad >= $g['min'] && $p->edad <= $g['max'])
-                    )
+                $realF[] = $personasCentro->filter(fn ($p) => $p->sexo === 'F' && (
+                    $g['min'] === -1
+                        ? $p->edad < 1
+                        : ($p->edad >= $g['min'] && $p->edad <= $g['max'])
+                )
                 )->count();
             }
         }
 
         $centro = $centrosDb->get($cid);
         $piramides[] = [
-            'id'        => $cid,
-            'nombre'    => $centro?->nombre ?? "Centro $cid",
-            'totalIne'  => array_sum($ineM) + array_sum($ineF),
-            'labels'    => $labels,
-            'ineM'      => $ineM,
-            'ineF'      => $ineF,
+            'id' => $cid,
+            'nombre' => $centro?->nombre ?? "Centro $cid",
+            'totalIne' => array_sum($ineM) + array_sum($ineF),
+            'labels' => $labels,
+            'ineM' => $ineM,
+            'ineF' => $ineF,
             'tieneReal' => $tieneReal,
-            'realM'     => $realM,
-            'realF'     => $realF,
+            'realM' => $realM,
+            'realF' => $realF,
         ];
     }
 
     // ── Centros con coordenadas para el mapa ──
-    $centrosMapas = $centrosDb->filter(fn($c) => $c->latitud && $c->longitud)
-        ->map(fn($c) => [
-            'id'      => $c->id,
-            'nombre'  => $c->nombre,
-            'snis'    => $c->codigo_snis,
-            'lat'     => (float) $c->latitud,
-            'lng'     => (float) $c->longitud,
+    $centrosMapas = $centrosDb->filter(fn ($c) => $c->latitud && $c->longitud)
+        ->map(fn ($c) => [
+            'id' => $c->id,
+            'nombre' => $c->nombre,
+            'snis' => $c->codigo_snis,
+            'lat' => (float) $c->latitud,
+            'lng' => (float) $c->longitud,
         ])->values();
 
     return view('public.inicio', compact('poblacionTotal', 'piramides', 'centrosMapas', 'centrosDb'));
@@ -145,6 +145,7 @@ Route::middleware(['auth'])->get('/pendiente', function () {
     if (auth()->user()->activo) {
         return redirect('/');
     }
+
     return view('public.pendiente');
 })->name('pendiente');
 

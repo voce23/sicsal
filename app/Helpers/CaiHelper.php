@@ -355,8 +355,8 @@ class CaiHelper
             ->whereIn('tipo', $tipos)->sum('cantidad');
 
         // Metas INE por grupo etáreo exacto (del Excel — cada año independiente)
-        $ineM1  = $metasIne->where('grupo_etareo', 'menor_1')->sum('cantidad');
-        $ine1a  = $metasIne->where('grupo_etareo', '1_anio')->sum('cantidad');
+        $ineM1 = $metasIne->where('grupo_etareo', 'menor_1')->sum('cantidad');
+        $ine1a = $metasIne->where('grupo_etareo', '1_anio')->sum('cantidad');
         $ine2_4 = $metasIne->where('grupo_etareo', '2_4')->sum('cantidad');
         $ineM60 = $metasIne->where('grupo_etareo', 'mayor_60')->sum('cantidad');
 
@@ -424,7 +424,7 @@ class CaiHelper
         // Atendidos = promedio mensual entregado en el período
         // Así: si doy a 6 de 12 niños cada mes → 50% de cobertura
         $nutri6_11Total = $sumMicro(['nutribebe_menor_1']);
-        $nutri1aTotal   = $sumMicro(['nutribebe_1anio']);
+        $nutri1aTotal = $sumMicro(['nutribebe_1anio']);
 
         // 6-11 meses: meta = mitad del grupo menor_1 (aprox. los que ya tienen ≥6m)
         $metaNutri6_11 = (int) round($ineM1 / 2);

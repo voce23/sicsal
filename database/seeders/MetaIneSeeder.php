@@ -44,9 +44,9 @@ class MetaIneSeeder extends Seeder
             MetaIne::firstOrCreate(
                 [
                     'centro_salud_id' => $centro->id,
-                    'anio'            => 2026,
-                    'grupo_etareo'    => $meta['grupo_etareo'],
-                    'sexo'            => $meta['sexo'],
+                    'anio' => 2026,
+                    'grupo_etareo' => $meta['grupo_etareo'],
+                    'sexo' => $meta['sexo'],
                 ],
                 ['cantidad' => $meta['cantidad']]
             );

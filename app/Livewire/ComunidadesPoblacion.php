@@ -21,22 +21,22 @@ class ComunidadesPoblacion extends Component
     public string $tab = 'resumen';
 
     private const PLANILLA_GRUPOS = [
-        'menor_1'  => ['label' => '<1 año',  'filter' => 'fecha_nacimiento > DATE_SUB(CURDATE(), INTERVAL 1 YEAR)'],
-        '1_2'      => ['label' => '1-2',     'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 1 AND 2'],
-        '3_5'      => ['label' => '3-5',     'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 3 AND 5'],
-        '6_9'      => ['label' => '6-9',     'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 6 AND 9'],
-        '10_14'    => ['label' => '10-14',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 10 AND 14'],
-        '15_19'    => ['label' => '15-19',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 15 AND 19'],
-        '20_29'    => ['label' => '20-29',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 20 AND 29'],
-        '30_39'    => ['label' => '30-39',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 30 AND 39'],
-        '40_49'    => ['label' => '40-49',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 40 AND 49'],
-        '50_59'    => ['label' => '50-59',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 50 AND 59'],
+        'menor_1' => ['label' => '<1 año',  'filter' => 'fecha_nacimiento > DATE_SUB(CURDATE(), INTERVAL 1 YEAR)'],
+        '1_2' => ['label' => '1-2',     'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 1 AND 2'],
+        '3_5' => ['label' => '3-5',     'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 3 AND 5'],
+        '6_9' => ['label' => '6-9',     'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 6 AND 9'],
+        '10_14' => ['label' => '10-14',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 10 AND 14'],
+        '15_19' => ['label' => '15-19',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 15 AND 19'],
+        '20_29' => ['label' => '20-29',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 20 AND 29'],
+        '30_39' => ['label' => '30-39',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 30 AND 39'],
+        '40_49' => ['label' => '40-49',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 40 AND 49'],
+        '50_59' => ['label' => '50-59',   'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 50 AND 59'],
         'mayor_60' => ['label' => '60+',     'filter' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) >= 60'],
     ];
 
     private const RATIO_MASCULINIDAD = [
         'menor_1' => 1.05, '1_4' => 1.05, '5_9' => 1.04, '10_14' => 1.04,
-        '15_19'   => 1.02, '20_39' => 0.96, '40_49' => 0.94, '50_59' => 0.92,
+        '15_19' => 1.02, '20_39' => 0.96, '40_49' => 0.94, '50_59' => 0.92,
         'mayor_60' => 0.88,
     ];
 
@@ -209,7 +209,7 @@ class ComunidadesPoblacion extends Component
             return;
         }
         $datos = $this->datos;
-        $nombre = 'ComunidadesPoblacion_' . str_replace(' ', '_', $datos['centro']->nombre ?? 'Centro') . '.xlsx';
+        $nombre = 'ComunidadesPoblacion_'.str_replace(' ', '_', $datos['centro']->nombre ?? 'Centro').'.xlsx';
 
         return Excel::download(new ComunidadesPoblacionExport($datos), $nombre);
     }
@@ -220,7 +220,7 @@ class ComunidadesPoblacion extends Component
             return;
         }
         $datos = $this->datos;
-        $nombre = 'ComunidadesPoblacion_' . str_replace(' ', '_', $datos['centro']->nombre ?? 'Centro') . '.pdf';
+        $nombre = 'ComunidadesPoblacion_'.str_replace(' ', '_', $datos['centro']->nombre ?? 'Centro').'.pdf';
 
         $pdf = Pdf::loadView('pdf.comunidades-poblacion', ['datos' => $datos])
             ->setPaper('legal', 'landscape')
@@ -229,20 +229,20 @@ class ComunidadesPoblacion extends Component
             ->setOption('margin-left', 10)
             ->setOption('margin-right', 10);
 
-        return response()->streamDownload(fn () => print($pdf->output()), $nombre);
+        return response()->streamDownload(fn () => print ($pdf->output()), $nombre);
     }
 
     private function getAgeFilter(string $grupo): string
     {
         return match ($grupo) {
-            'menor_1'  => 'fecha_nacimiento > DATE_SUB(CURDATE(), INTERVAL 1 YEAR)',
-            '1_4'      => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 1 AND 4',
-            '5_9'      => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 5 AND 9',
-            '10_14'    => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 10 AND 14',
-            '15_19'    => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 15 AND 19',
-            '20_39'    => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 20 AND 39',
-            '40_49'    => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 40 AND 49',
-            '50_59'    => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 50 AND 59',
+            'menor_1' => 'fecha_nacimiento > DATE_SUB(CURDATE(), INTERVAL 1 YEAR)',
+            '1_4' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 1 AND 4',
+            '5_9' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 5 AND 9',
+            '10_14' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 10 AND 14',
+            '15_19' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 15 AND 19',
+            '20_39' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 20 AND 39',
+            '40_49' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 40 AND 49',
+            '50_59' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 50 AND 59',
             'mayor_60' => 'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) >= 60',
         };
     }
@@ -307,7 +307,7 @@ class ComunidadesPoblacion extends Component
             return;
         }
         $planilla = $this->planilla;
-        $nombre = 'PlanillaCenso_' . str_replace(' ', '_', $planilla['centro']->nombre ?? 'Centro') . '_' . date('Y') . '.xlsx';
+        $nombre = 'PlanillaCenso_'.str_replace(' ', '_', $planilla['centro']->nombre ?? 'Centro').'_'.date('Y').'.xlsx';
 
         return Excel::download(new ComunidadesPoblacionExport($this->datos, $planilla), $nombre);
     }
@@ -318,7 +318,7 @@ class ComunidadesPoblacion extends Component
             return;
         }
         $planilla = $this->planilla;
-        $nombre = 'PlanillaCenso_' . str_replace(' ', '_', $planilla['centro']->nombre ?? 'Centro') . '_' . date('Y') . '.pdf';
+        $nombre = 'PlanillaCenso_'.str_replace(' ', '_', $planilla['centro']->nombre ?? 'Centro').'_'.date('Y').'.pdf';
 
         $pdf = Pdf::loadView('pdf.planilla-censo', ['planilla' => $planilla])
             ->setPaper('legal', 'landscape')
@@ -327,7 +327,7 @@ class ComunidadesPoblacion extends Component
             ->setOption('margin-left', 5)
             ->setOption('margin-right', 5);
 
-        return response()->streamDownload(fn () => print($pdf->output()), $nombre);
+        return response()->streamDownload(fn () => print ($pdf->output()), $nombre);
     }
 
     public function render()

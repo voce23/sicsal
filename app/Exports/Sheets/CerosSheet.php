@@ -10,7 +10,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-class CerosSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
+class CerosSheet implements FromArray, WithColumnWidths, WithEvents, WithTitle
 {
     use EstiloExcel;
 
@@ -72,9 +72,9 @@ class CerosSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
                 }
 
                 $ultimaFila = 2 + $nFilas;
-                $this->bordeExterno($sheet, 'A2:D' . $ultimaFila);
+                $this->bordeExterno($sheet, 'A2:D'.$ultimaFila);
                 $this->fijarFila($sheet, 'A3');
-                $sheet->getStyle('A1:D' . $ultimaFila)->getFont()->setName('Calibri');
+                $sheet->getStyle('A1:D'.$ultimaFila)->getFont()->setName('Calibri');
             },
         ];
     }

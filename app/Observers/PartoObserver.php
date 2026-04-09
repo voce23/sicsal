@@ -26,14 +26,16 @@ class PartoObserver
     private function sincronizar(Parto $parto, int $delta): void
     {
         $embarazo = $parto->embarazo()->with('persona')->first();
-        if (!$embarazo?->persona) return;
+        if (! $embarazo?->persona) {
+            return;
+        }
 
-        $persona      = $embarazo->persona;
-        $centroId     = $persona->centro_salud_id;
-        $fechaParto   = $parto->fecha_parto instanceof Carbon
+        $persona = $embarazo->persona;
+        $centroId = $persona->centro_salud_id;
+        $fechaParto = $parto->fecha_parto instanceof Carbon
             ? $parto->fecha_parto
             : Carbon::parse($parto->fecha_parto);
-        $mes  = (int) $fechaParto->format('n');
+        $mes = (int) $fechaParto->format('n');
         $anio = (int) $fechaParto->format('Y');
 
         // Grupo etáreo de la madre al momento del parto
@@ -44,12 +46,12 @@ class PartoObserver
         $rowParto = PrestParto::firstOrCreate(
             [
                 'centro_salud_id' => $centroId,
-                'mes'             => $mes,
-                'anio'            => $anio,
-                'tipo'            => $parto->tipo,
-                'lugar'           => $parto->lugar,
-                'atendido_por'    => $parto->atendido_por,
-                'grupo_etareo'    => $grupoEtareo,
+                'mes' => $mes,
+                'anio' => $anio,
+                'tipo' => $parto->tipo,
+                'lugar' => $parto->lugar,
+                'atendido_por' => $parto->atendido_por,
+                'grupo_etareo' => $grupoEtareo,
             ],
             ['cantidad' => 0]
         );
@@ -81,10 +83,10 @@ class PartoObserver
             $rowBcg = PrestVacuna::firstOrCreate(
                 [
                     'centro_salud_id' => $centroId,
-                    'mes'             => $mes,
-                    'anio'            => $anio,
-                    'tipo_vacuna'     => 'BCG',
-                    'grupo_etareo'    => 'menor_1',
+                    'mes' => $mes,
+                    'anio' => $anio,
+                    'tipo_vacuna' => 'BCG',
+                    'grupo_etareo' => 'menor_1',
                 ],
                 ['dentro_m' => 0, 'dentro_f' => 0, 'fuera_m' => 0, 'fuera_f' => 0]
             );

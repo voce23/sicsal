@@ -16,13 +16,13 @@ class CentroSaludFactory extends Factory
     public function definition(): array
     {
         return [
-            'municipio_id'  => Municipio::factory(),
-            'nombre'        => fake()->company(),
-            'codigo_snis'   => null,
-            'subsector'     => 'Público',
-            'red_salud'     => null,
+            'municipio_id' => Municipio::factory(),
+            'nombre' => fake()->company(),
+            'codigo_snis' => null,
+            'subsector' => 'Público',
+            'red_salud' => null,
             'poblacion_ine' => 0,
-            'activo'        => true,
+            'activo' => true,
         ];
     }
 }

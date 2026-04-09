@@ -30,6 +30,7 @@ class ImportarVes extends Command
     // ── Sufijos de tablas en el MDB del .ves ─────────────────────────────────
     // Tablas de formulario: 301_CAB05, 301G01_DAT05, etc.
     private const SUFIJO_FORM = '05';
+
     // Tablas de referencia: EstabGest2005, municipio2005, t_transfer2005, etc.
     private const SUFIJO_REF = '2005';
 
@@ -48,6 +49,7 @@ class ImportarVes extends Command
         '16' => '15_19',      '17' => '20_39',       '18' => '40_49',
         '19' => '50_59',
     ];
+
     private const CE_TIPO = ['01' => 'nueva', '02' => 'repetida', '03' => 'primera'];
 
     private const REF_TIPO = [
@@ -65,6 +67,7 @@ class ImportarVes extends Command
         '24' => 'cirugia_menor',      '25' => 'cirugia_mediana',
         '26' => 'fracturas_dentoalveolares', '27' => 'TOIT', '28' => 'rayos_x',
     ];
+
     private const ODONTO_GRUPO = [
         '01' => 'menor_5', '02' => '5_9', '03' => '15_19',
         '04' => '20_39',   '05' => 'mayor_60',
@@ -74,10 +77,11 @@ class ImportarVes extends Command
         '07' => 'nueva_1er_trim',  '08' => 'nueva_2do_trim', '09' => 'nueva_3er_trim',
         '10' => 'repetida',        '11' => 'con_4to_control',
     ];
+
     private const PRENATAL_GRUPO = [
         '01' => 'menor_10', '02' => 'menor_10', '03' => '10_14', '04' => '10_14',
         '05' => '15_19',    '06' => '15_19',    '07' => '20_34', '08' => '20_34',
-        '09' => '35_49',    '10' => '35_49',    '11' => '50_mas','12' => '50_mas',
+        '09' => '35_49',    '10' => '35_49',    '11' => '50_mas', '12' => '50_mas',
     ];
 
     // Form 301 filas 74-97 (anticoncepción):
@@ -102,15 +106,16 @@ class ImportarVes extends Command
         '46' => ['AQV_masculino',         'nueva'],
         '51' => ['pildora_emergencia',    'nueva'],
     ];
+
     private const ANTICON_GRUPO = [
         '01' => '10_14', '02' => '15_19', '03' => '20_34',
-        '04' => '35_49', '05' => '50_mas','06' => 'menor_10',
+        '04' => '35_49', '05' => '50_mas', '06' => 'menor_10',
     ];
 
     private const CREC_GRUPO = [
         '04' => 'menor_1_dentro', '05' => 'menor_1_fuera',
-        '06' => '1_menor_2_dentro','07' => '1_menor_2_fuera',
-        '08' => '2_menor_5_dentro','09' => '2_menor_5_fuera',
+        '06' => '1_menor_2_dentro', '07' => '1_menor_2_fuera',
+        '08' => '2_menor_5_dentro', '09' => '2_menor_5_fuera',
     ];
 
     private const ENF_TIPO = [
@@ -207,6 +212,7 @@ class ImportarVes extends Command
         '21' => 'Antiamarilica',
         '22' => 'Influenza_unica_ninos', '23' => 'Influenza_enf_cronicas_ninos',
     ];
+
     private const VAC_MENORES5_COL = [
         '01' => ['menor_1',  true],  '02' => ['menor_1',  false],
         '03' => ['12_23m',   true],  '04' => ['12_23m',   false],
@@ -227,10 +233,11 @@ class ImportarVes extends Command
         '23' => 'COVID_1', '24' => 'COVID_2', '25' => 'COVID_3',
         '26' => 'COVID_anual', '27' => 'COVID_unica', '28' => 'COVID_refuerzo',
     ];
+
     private const VAC_OTRAS_COL = [
         '01' => ['5_9',     true],  '02' => ['5_9',     false],
-        '03' => ['10_anios',true],  '04' => ['10_anios',false],
-        '05' => ['11_anios',true],  '06' => ['11_anios',false],
+        '03' => ['10_anios', true],  '04' => ['10_anios', false],
+        '05' => ['11_anios', true],  '06' => ['11_anios', false],
         '07' => ['12_20',   true],  '08' => ['12_20',   false],
         '09' => ['21_59',   true],  '10' => ['21_59',   false],
         '11' => ['60_mas',  true],  '12' => ['60_mas',  false],
@@ -239,6 +246,7 @@ class ImportarVes extends Command
     // ─────────────────────────────────────────────────────────────────────────
 
     private VesMdbReader $reader;
+
     private array $stats = [];
 
     public function handle(): int
@@ -247,6 +255,7 @@ class ImportarVes extends Command
 
         if (! $archivoVes) {
             $this->error('Debe indicar --archivo con la ruta del .ves');
+
             return self::FAILURE;
         }
 
@@ -265,7 +274,7 @@ class ImportarVes extends Command
         }
 
         $anio = $metadatos['anio'];
-        $mes  = $metadatos['mes'];
+        $mes = $metadatos['mes'];
 
         $this->info("Municipio: {$metadatos['municipio']} | Año: {$anio} | Mes: {$mes}");
         $this->newLine();
@@ -274,16 +283,18 @@ class ImportarVes extends Command
         $centrosMap = $this->mapearCentros($anio);
         if (empty($centrosMap)) {
             $this->error('No se encontraron centros de salud mapeados. Verifique que los centros tengan "código SNIS" configurado.');
+
             return self::FAILURE;
         }
 
         // Filtrar por --solo-centro si se indicó
         $soloCentro = $this->option('solo-centro');
         if ($soloCentro) {
-            $prefijo   = substr((string) $anio, -2);
-            $corrFiltro = $prefijo . $soloCentro;
+            $prefijo = substr((string) $anio, -2);
+            $corrFiltro = $prefijo.$soloCentro;
             if (! isset($centrosMap[$corrFiltro])) {
                 $this->error("No se encontró el centro con código SNIS {$soloCentro} mapeado.");
+
                 return self::FAILURE;
             }
             $centrosMap = [$corrFiltro => $centrosMap[$corrFiltro]];
@@ -296,9 +307,9 @@ class ImportarVes extends Command
 
         // ── 5. Importar por centro ─────────────────────────────────────────
         $this->stats = array_fill_keys([
-            'consulta_externa','referencias','odontologia','prenatales',
-            'anticoncepcion','crecimiento','enfermeria','micronutrientes',
-            'actividades','vacunas','recien_nacidos','internaciones',
+            'consulta_externa', 'referencias', 'odontologia', 'prenatales',
+            'anticoncepcion', 'crecimiento', 'enfermeria', 'micronutrientes',
+            'actividades', 'vacunas', 'recien_nacidos', 'internaciones',
         ], 0);
 
         DB::beginTransaction();
@@ -307,25 +318,26 @@ class ImportarVes extends Command
                 $centro = CentroSalud::find($centroId);
                 $this->info("  → {$centro->nombre} (SNIS: {$snisCorr})");
 
-                $this->stats['consulta_externa']  += $this->importarG01($snisCorr, $mes, $centroId, $anio);
-                $this->stats['referencias']        += $this->importarG02($snisCorr, $mes, $centroId, $anio);
-                $this->stats['odontologia']        += $this->importarG03($snisCorr, $mes, $centroId, $anio);
-                $this->stats['prenatales']         += $this->importarG04($snisCorr, $mes, $centroId, $anio);
-                $this->stats['anticoncepcion']     += $this->importarG05($snisCorr, $mes, $centroId, $anio);
-                $this->stats['crecimiento']        += $this->importarG06($snisCorr, $mes, $centroId, $anio);
-                $this->stats['enfermeria']         += $this->importarG07($snisCorr, $mes, $centroId, $anio);
-                $this->stats['micronutrientes']    += $this->importarG08($snisCorr, $mes, $centroId, $anio);
-                $this->stats['actividades']        += $this->importarG09($snisCorr, $mes, $centroId, $anio);
-                $this->stats['vacunas']            += $this->importarG37($snisCorr, $mes, $centroId, $anio);
-                $this->stats['vacunas']            += $this->importarG38($snisCorr, $mes, $centroId, $anio);
-                $this->stats['internaciones']      += $this->importarG12($snisCorr, $mes, $centroId, $anio);
-                $this->stats['recien_nacidos']     += $this->importarG18($snisCorr, $mes, $centroId, $anio);
+                $this->stats['consulta_externa'] += $this->importarG01($snisCorr, $mes, $centroId, $anio);
+                $this->stats['referencias'] += $this->importarG02($snisCorr, $mes, $centroId, $anio);
+                $this->stats['odontologia'] += $this->importarG03($snisCorr, $mes, $centroId, $anio);
+                $this->stats['prenatales'] += $this->importarG04($snisCorr, $mes, $centroId, $anio);
+                $this->stats['anticoncepcion'] += $this->importarG05($snisCorr, $mes, $centroId, $anio);
+                $this->stats['crecimiento'] += $this->importarG06($snisCorr, $mes, $centroId, $anio);
+                $this->stats['enfermeria'] += $this->importarG07($snisCorr, $mes, $centroId, $anio);
+                $this->stats['micronutrientes'] += $this->importarG08($snisCorr, $mes, $centroId, $anio);
+                $this->stats['actividades'] += $this->importarG09($snisCorr, $mes, $centroId, $anio);
+                $this->stats['vacunas'] += $this->importarG37($snisCorr, $mes, $centroId, $anio);
+                $this->stats['vacunas'] += $this->importarG38($snisCorr, $mes, $centroId, $anio);
+                $this->stats['internaciones'] += $this->importarG12($snisCorr, $mes, $centroId, $anio);
+                $this->stats['recien_nacidos'] += $this->importarG18($snisCorr, $mes, $centroId, $anio);
             }
 
             DB::commit();
         } catch (\Throwable $e) {
             DB::rollBack();
-            $this->error('Error durante la importación: ' . $e->getMessage());
+            $this->error('Error durante la importación: '.$e->getMessage());
+
             return self::FAILURE;
         } finally {
             // Limpiar MDB temporal
@@ -340,7 +352,7 @@ class ImportarVes extends Command
                 fn ($v, $k) => [str_replace('_', ' ', ucfirst($k)), $v]
             )->values()->toArray()
         );
-        $this->info('Total: ' . array_sum($this->stats) . ' registros importados.');
+        $this->info('Total: '.array_sum($this->stats).' registros importados.');
 
         return self::SUCCESS;
     }
@@ -353,13 +365,14 @@ class ImportarVes extends Command
     {
         if (! file_exists($vesPath)) {
             $this->error("No se encontró el archivo: {$vesPath}");
+
             return false;
         }
 
-        $tmpDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'sicsal_ves_' . uniqid();
+        $tmpDir = sys_get_temp_dir().DIRECTORY_SEPARATOR.'sicsal_ves_'.uniqid();
         mkdir($tmpDir, 0700, true);
 
-        $mdbDest = $tmpDir . DIRECTORY_SEPARATOR . 'transfer.mdb';
+        $mdbDest = $tmpDir.DIRECTORY_SEPARATOR.'transfer.mdb';
 
         if (PHP_OS_FAMILY === 'Windows') {
             $expandExe = 'C:\\Windows\\System32\\expand.exe';
@@ -371,27 +384,30 @@ class ImportarVes extends Command
             );
             exec($cmd, $output, $code);
 
-            if ($code !== 0 || ! file_exists($tmpDir . DIRECTORY_SEPARATOR . 'transfer.sql')) {
+            if ($code !== 0 || ! file_exists($tmpDir.DIRECTORY_SEPARATOR.'transfer.sql')) {
                 $this->error("Error extrayendo el .ves (código {$code}).");
+
                 return false;
             }
 
             // Renombrar transfer.sql → transfer.mdb
-            rename($tmpDir . DIRECTORY_SEPARATOR . 'transfer.sql', $mdbDest);
+            rename($tmpDir.DIRECTORY_SEPARATOR.'transfer.sql', $mdbDest);
         } else {
             // Linux: usa cabextract
             $cmd = sprintf('cabextract -d %s %s 2>&1', escapeshellarg($tmpDir), escapeshellarg($vesPath));
             exec($cmd, $output, $code);
 
-            if ($code !== 0 || ! file_exists($tmpDir . DIRECTORY_SEPARATOR . 'transfer.sql')) {
+            if ($code !== 0 || ! file_exists($tmpDir.DIRECTORY_SEPARATOR.'transfer.sql')) {
                 $this->error("Error extrayendo el .ves. ¿Está instalado 'cabextract'?");
+
                 return false;
             }
 
-            rename($tmpDir . DIRECTORY_SEPARATOR . 'transfer.sql', $mdbDest);
+            rename($tmpDir.DIRECTORY_SEPARATOR.'transfer.sql', $mdbDest);
         }
 
         $this->line("  Extraído: {$mdbDest}");
+
         return $mdbDest;
     }
 
@@ -406,14 +422,15 @@ class ImportarVes extends Command
         // Leer municipio desde municipio2005
         $munis = $this->reader->tabla("municipio{$r}");
         if (empty($munis)) {
-            $this->error('No se encontraron datos en la tabla municipio' . $r);
+            $this->error('No se encontraron datos en la tabla municipio'.$r);
+
             return false;
         }
         $municipio = trim($munis[0]['nommunicip'] ?? 'Desconocido');
 
         // El año más confiable es idgestion de EstabGest2005 (ej: 2026)
-        $estab = $this->reader->tabla('EstabGest' . $r);
-        $anio  = (int) ($estab[0]['idgestion'] ?? 0);
+        $estab = $this->reader->tabla('EstabGest'.$r);
+        $anio = (int) ($estab[0]['idgestion'] ?? 0);
 
         // Si idgestion tiene formato fecha YYYYMMDD, extraer solo el año
         if ($anio > 9999) {
@@ -425,11 +442,12 @@ class ImportarVes extends Command
         }
 
         // El mes viene de la tabla CAB del formulario 301
-        $cab = $this->reader->tabla('301_CAB' . self::SUFIJO_FORM);
+        $cab = $this->reader->tabla('301_CAB'.self::SUFIJO_FORM);
         $mes = (int) ($cab[0]['mes'] ?? 0);
 
         if ($mes === 0 || $anio === 0) {
             $this->error('No se pudo determinar el año/mes del archivo .ves');
+
             return false;
         }
 
@@ -452,17 +470,17 @@ class ImportarVes extends Command
         }
 
         // Leer establecimientos del .ves para confirmar qué hay
-        $establecimientos = $this->reader->tabla('EstabGest' . self::SUFIJO_REF);
+        $establecimientos = $this->reader->tabla('EstabGest'.self::SUFIJO_REF);
         $enVes = [];
         foreach ($establecimientos as $e) {
             $enVes[trim($e['codestabl'] ?? '')] = trim($e['nomestabl'] ?? '');
         }
 
         $prefijo = substr((string) $anio, -2);
-        $map     = [];
+        $map = [];
 
         foreach ($centrosSicsal as $codigoSnis => $centroId) {
-            $corrEstabgest = $prefijo . $codigoSnis;
+            $corrEstabgest = $prefijo.$codigoSnis;
 
             if (isset($enVes[$codigoSnis])) {
                 $map[$corrEstabgest] = $centroId;
@@ -509,7 +527,8 @@ class ImportarVes extends Command
     /** Devuelve filas de una tabla G?? del formulario 301, filtradas por corr+mes */
     private function queryGrupo(string $grupo, string $corr, int $mes): array
     {
-        $tabla = "301{$grupo}_DAT" . self::SUFIJO_FORM;
+        $tabla = "301{$grupo}_DAT".self::SUFIJO_FORM;
+
         return $this->reader->tabla(
             $tabla,
             "corr_estabgest='{$corr}' AND mes={$mes}"
@@ -528,16 +547,18 @@ class ImportarVes extends Command
     // ── G01: CONSULTA EXTERNA ─────────────────────────────────────────────────
     private function importarG01(string $corr, int $mes, int $centroId, int $anio): int
     {
-        $rows    = $this->queryGrupo('G01', $corr, $mes);
+        $rows = $this->queryGrupo('G01', $corr, $mes);
         $grouped = [];
 
         foreach ($rows as $row) {
-            $cs  = trim($row['codsubvar'] ?? '');
+            $cs = trim($row['codsubvar'] ?? '');
             $var = substr($cs, 5, 2);
             $sub = substr($cs, 7, 2);
-            $grp = self::CE_GRUPO[$var]  ?? null;
-            $tip = self::CE_TIPO[$sub]   ?? null;
-            if (! $grp || ! $tip) continue;
+            $grp = self::CE_GRUPO[$var] ?? null;
+            $tip = self::CE_TIPO[$sub] ?? null;
+            if (! $grp || ! $tip) {
+                continue;
+            }
 
             if (! isset($grouped[$grp])) {
                 $grouped[$grp] = ['primera_m' => 0, 'primera_f' => 0, 'nueva_m' => 0, 'nueva_f' => 0, 'repetida_m' => 0, 'repetida_f' => 0];
@@ -548,13 +569,16 @@ class ImportarVes extends Command
 
         $count = 0;
         foreach ($grouped as $grp => $vals) {
-            if (array_sum($vals) === 0) continue;
+            if (array_sum($vals) === 0) {
+                continue;
+            }
             DB::table('prest_consulta_externa')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'grupo_etareo' => $grp],
                 array_merge($vals, ['updated_at' => now()])
             );
             $count++;
         }
+
         return $count;
     }
 
@@ -563,18 +587,23 @@ class ImportarVes extends Command
     {
         $count = 0;
         foreach ($this->queryGrupo('G02', $corr, $mes) as $row) {
-            $var  = substr(trim($row['codsubvar'] ?? ''), 5, 2);
+            $var = substr(trim($row['codsubvar'] ?? ''), 5, 2);
             $tipo = self::REF_TIPO[$var] ?? null;
-            if (! $tipo) continue;
+            if (! $tipo) {
+                continue;
+            }
             $v = $this->v($row, 'V');
             $m = $this->v($row, 'M');
-            if ($v + $m === 0) continue;
+            if ($v + $m === 0) {
+                continue;
+            }
             DB::table('prest_referencias')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'tipo' => $tipo],
                 ['masculino' => $v, 'femenino' => $m, 'updated_at' => now()]
             );
             $count++;
         }
+
         return $count;
     }
 
@@ -583,21 +612,26 @@ class ImportarVes extends Command
     {
         $count = 0;
         foreach ($this->queryGrupo('G03', $corr, $mes) as $row) {
-            $cs   = trim($row['codsubvar'] ?? '');
-            $var  = substr($cs, 5, 2);
-            $sub  = substr($cs, 7, 2);
-            $proc = self::ODONTO_PROC[$var]  ?? null;
-            $grp  = self::ODONTO_GRUPO[$sub] ?? null;
-            if (! $proc || ! $grp) continue;
+            $cs = trim($row['codsubvar'] ?? '');
+            $var = substr($cs, 5, 2);
+            $sub = substr($cs, 7, 2);
+            $proc = self::ODONTO_PROC[$var] ?? null;
+            $grp = self::ODONTO_GRUPO[$sub] ?? null;
+            if (! $proc || ! $grp) {
+                continue;
+            }
             $v = $this->v($row, 'V');
             $m = $this->v($row, 'M');
-            if ($v + $m === 0) continue;
+            if ($v + $m === 0) {
+                continue;
+            }
             DB::table('prest_odontologia')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'procedimiento' => $proc, 'grupo_etareo' => $grp],
                 ['masculino' => $v, 'femenino' => $m, 'updated_at' => now()]
             );
             $count++;
         }
+
         return $count;
     }
 
@@ -606,22 +640,28 @@ class ImportarVes extends Command
     {
         $grouped = [];
         foreach ($this->queryGrupo('G04', $corr, $mes) as $row) {
-            $cs   = trim($row['codsubvar'] ?? '');
-            $var  = substr($cs, 5, 2);
-            $sub  = substr($cs, 7, 2);
-            $tipo = self::PRENATAL_TIPO[$var]  ?? null;
-            $grp  = self::PRENATAL_GRUPO[$sub] ?? null;
-            if (! $tipo || ! $grp) continue;
+            $cs = trim($row['codsubvar'] ?? '');
+            $var = substr($cs, 5, 2);
+            $sub = substr($cs, 7, 2);
+            $tipo = self::PRENATAL_TIPO[$var] ?? null;
+            $grp = self::PRENATAL_GRUPO[$sub] ?? null;
+            if (! $tipo || ! $grp) {
+                continue;
+            }
             $isDentro = ((int) $sub) % 2 === 1;
-            $total    = $this->v($row, 'V') + $this->v($row, 'M');
+            $total = $this->v($row, 'V') + $this->v($row, 'M');
             $key = "{$tipo}|{$grp}";
-            if (! isset($grouped[$key])) $grouped[$key] = ['dentro' => 0, 'fuera' => 0];
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = ['dentro' => 0, 'fuera' => 0];
+            }
             $grouped[$key][$isDentro ? 'dentro' : 'fuera'] += $total;
         }
 
         $count = 0;
         foreach ($grouped as $key => $vals) {
-            if ($vals['dentro'] + $vals['fuera'] === 0) continue;
+            if ($vals['dentro'] + $vals['fuera'] === 0) {
+                continue;
+            }
             [$tipo, $grp] = explode('|', $key);
             DB::table('prest_prenatales')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'tipo_control' => $tipo, 'grupo_etareo' => $grp],
@@ -629,6 +669,7 @@ class ImportarVes extends Command
             );
             $count++;
         }
+
         return $count;
     }
 
@@ -637,21 +678,26 @@ class ImportarVes extends Command
     {
         $count = 0;
         foreach ($this->queryGrupo('G05', $corr, $mes) as $row) {
-            $cs    = trim($row['codsubvar'] ?? '');
-            $var   = substr($cs, 5, 2);
-            $sub   = substr($cs, 7, 2);
-            $entry = self::ANTICON_MAP[$var]   ?? null;
-            $grp   = self::ANTICON_GRUPO[$sub] ?? null;
-            if (! $entry || ! $grp) continue;
+            $cs = trim($row['codsubvar'] ?? '');
+            $var = substr($cs, 5, 2);
+            $sub = substr($cs, 7, 2);
+            $entry = self::ANTICON_MAP[$var] ?? null;
+            $grp = self::ANTICON_GRUPO[$sub] ?? null;
+            if (! $entry || ! $grp) {
+                continue;
+            }
             [$metodo, $tipoU] = $entry;
             $cantidad = $this->v($row, 'V');
-            if ($cantidad === 0) continue;
+            if ($cantidad === 0) {
+                continue;
+            }
             DB::table('prest_anticoncepcion')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'metodo' => $metodo, 'tipo_usuaria' => $tipoU, 'grupo_etareo' => $grp],
                 ['cantidad' => $cantidad, 'updated_at' => now()]
             );
             $count++;
         }
+
         return $count;
     }
 
@@ -660,15 +706,19 @@ class ImportarVes extends Command
     {
         $grouped = [];
         foreach ($this->queryGrupo('G06', $corr, $mes) as $row) {
-            $cs  = trim($row['codsubvar'] ?? '');
+            $cs = trim($row['codsubvar'] ?? '');
             $var = substr($cs, 5, 2);
             $sub = substr($cs, 7, 2);
             $grp = self::CREC_GRUPO[$var] ?? null;
-            if (! $grp) continue;
-            if (! isset($grouped[$grp])) $grouped[$grp] = ['nuevos_m' => 0, 'nuevos_f' => 0, 'repetidos_m' => 0, 'repetidos_f' => 0];
+            if (! $grp) {
+                continue;
+            }
+            if (! isset($grouped[$grp])) {
+                $grouped[$grp] = ['nuevos_m' => 0, 'nuevos_f' => 0, 'repetidos_m' => 0, 'repetidos_f' => 0];
+            }
             if ($sub === '01') {
-                $grouped[$grp]['nuevos_m']    += $this->v($row, 'V');
-                $grouped[$grp]['nuevos_f']    += $this->v($row, 'M');
+                $grouped[$grp]['nuevos_m'] += $this->v($row, 'V');
+                $grouped[$grp]['nuevos_f'] += $this->v($row, 'M');
             } else {
                 $grouped[$grp]['repetidos_m'] += $this->v($row, 'V');
                 $grouped[$grp]['repetidos_f'] += $this->v($row, 'M');
@@ -677,13 +727,16 @@ class ImportarVes extends Command
 
         $count = 0;
         foreach ($grouped as $grp => $vals) {
-            if (array_sum($vals) === 0) continue;
+            if (array_sum($vals) === 0) {
+                continue;
+            }
             DB::table('prest_crecimiento')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'grupo_etareo' => $grp],
                 array_merge($vals, ['updated_at' => now()])
             );
             $count++;
         }
+
         return $count;
     }
 
@@ -692,17 +745,22 @@ class ImportarVes extends Command
     {
         $count = 0;
         foreach ($this->queryGrupo('G07', $corr, $mes) as $row) {
-            $var  = substr(trim($row['codsubvar'] ?? ''), 5, 2);
+            $var = substr(trim($row['codsubvar'] ?? ''), 5, 2);
             $tipo = self::ENF_TIPO[$var] ?? null;
-            if (! $tipo) continue;
+            if (! $tipo) {
+                continue;
+            }
             $cantidad = $this->v($row, 'V');
-            if ($cantidad === 0) continue;
+            if ($cantidad === 0) {
+                continue;
+            }
             DB::table('prest_enfermeria')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'tipo' => $tipo],
                 ['cantidad' => $cantidad, 'updated_at' => now()]
             );
             $count++;
         }
+
         return $count;
     }
 
@@ -711,21 +769,26 @@ class ImportarVes extends Command
     {
         $grouped = [];
         foreach ($this->queryGrupo('G08', $corr, $mes) as $row) {
-            $var  = substr(trim($row['codsubvar'] ?? ''), 5, 2);
+            $var = substr(trim($row['codsubvar'] ?? ''), 5, 2);
             $tipo = self::MICRO_TIPO[$var] ?? null;
-            if (! $tipo) continue;
+            if (! $tipo) {
+                continue;
+            }
             $grouped[$tipo] = ($grouped[$tipo] ?? 0) + $this->v($row, 'V') + $this->v($row, 'M');
         }
 
         $count = 0;
         foreach ($grouped as $tipo => $cantidad) {
-            if ($cantidad === 0) continue;
+            if ($cantidad === 0) {
+                continue;
+            }
             DB::table('prest_micronutrientes')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'tipo' => $tipo],
                 ['cantidad' => $cantidad, 'updated_at' => now()]
             );
             $count++;
         }
+
         return $count;
     }
 
@@ -734,17 +797,22 @@ class ImportarVes extends Command
     {
         $count = 0;
         foreach ($this->queryGrupo('G09', $corr, $mes) as $row) {
-            $var  = substr(trim($row['codsubvar'] ?? ''), 5, 2);
+            $var = substr(trim($row['codsubvar'] ?? ''), 5, 2);
             $tipo = self::ACT_TIPO[$var] ?? null;
-            if (! $tipo) continue;
+            if (! $tipo) {
+                continue;
+            }
             $cantidad = $this->v($row, 'V');
-            if ($cantidad === 0) continue;
+            if ($cantidad === 0) {
+                continue;
+            }
             DB::table('prest_actividades_comunidad')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'tipo_actividad' => $tipo],
                 ['cantidad' => $cantidad, 'updated_at' => now()]
             );
             $count++;
         }
+
         return $count;
     }
 
@@ -763,15 +831,19 @@ class ImportarVes extends Command
     {
         $grouped = [];
         foreach ($this->queryGrupo($grupo, $corr, $mes) as $row) {
-            $cs  = trim($row['codsubvar'] ?? '');
+            $cs = trim($row['codsubvar'] ?? '');
             $var = substr($cs, 5, 2);
             $sub = substr($cs, 7, 2);
-            $tip = $tipoMap[$var]  ?? null;
-            $col = $colMap[$sub]   ?? null;
-            if (! $tip || ! $col) continue;
+            $tip = $tipoMap[$var] ?? null;
+            $col = $colMap[$sub] ?? null;
+            if (! $tip || ! $col) {
+                continue;
+            }
             [$grp, $isDentro] = $col;
             $key = "{$tip}|{$grp}";
-            if (! isset($grouped[$key])) $grouped[$key] = ['dentro_m' => 0, 'dentro_f' => 0, 'fuera_m' => 0, 'fuera_f' => 0];
+            if (! isset($grouped[$key])) {
+                $grouped[$key] = ['dentro_m' => 0, 'dentro_f' => 0, 'fuera_m' => 0, 'fuera_f' => 0];
+            }
             if ($isDentro) {
                 $grouped[$key]['dentro_m'] += $this->v($row, 'V');
                 $grouped[$key]['dentro_f'] += $this->v($row, 'M');
@@ -783,7 +855,9 @@ class ImportarVes extends Command
 
         $count = 0;
         foreach ($grouped as $key => $vals) {
-            if (array_sum($vals) === 0) continue;
+            if (array_sum($vals) === 0) {
+                continue;
+            }
             [$tip, $grp] = explode('|', $key);
             DB::table('prest_vacunas')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'tipo_vacuna' => $tip, 'grupo_etareo' => $grp],
@@ -791,6 +865,7 @@ class ImportarVes extends Command
             );
             $count++;
         }
+
         return $count;
     }
 
@@ -801,21 +876,26 @@ class ImportarVes extends Command
     {
         $grouped = [];
         foreach ($this->queryGrupo('G12', $corr, $mes) as $row) {
-            $var  = substr(trim($row['codsubvar'] ?? ''), 5, 2);
+            $var = substr(trim($row['codsubvar'] ?? ''), 5, 2);
             $tipo = self::INT_TIPO[$var] ?? null;
-            if (! $tipo) continue;
+            if (! $tipo) {
+                continue;
+            }
             $grouped[$tipo] = ($grouped[$tipo] ?? 0) + $this->v($row, 'V') + $this->v($row, 'M');
         }
 
         $count = 0;
         foreach ($grouped as $tipo => $cantidad) {
-            if ($cantidad === 0) continue;
+            if ($cantidad === 0) {
+                continue;
+            }
             DB::table('prest_internaciones')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'indicador' => $tipo],
                 ['cantidad' => $cantidad, 'updated_at' => now()]
             );
             $count++;
         }
+
         return $count;
     }
 
@@ -827,15 +907,19 @@ class ImportarVes extends Command
     {
         $grouped = [];
         foreach ($this->queryGrupo('G18', $corr, $mes) as $row) {
-            $var  = substr(trim($row['codsubvar'] ?? ''), 5, 2);
+            $var = substr(trim($row['codsubvar'] ?? ''), 5, 2);
             $tipo = self::RN_TIPO[$var] ?? null;
-            if (! $tipo) continue;
+            if (! $tipo) {
+                continue;
+            }
             $grouped[$tipo] = ($grouped[$tipo] ?? 0) + $this->v($row, 'V') + $this->v($row, 'M');
         }
 
         $count = 0;
         foreach ($grouped as $tipo => $cantidad) {
-            if ($cantidad === 0) continue;
+            if ($cantidad === 0) {
+                continue;
+            }
             // nacidos_vivos_total → lo guardamos como nacidos_vivos_servicio
             // (desglose por proveedor en VV=06/07/08 si existen)
             $indicador = $tipo === 'nacidos_vivos_total' ? 'nacidos_vivos_servicio' : $tipo;
@@ -845,6 +929,7 @@ class ImportarVes extends Command
             );
             $count++;
         }
+
         return $count;
     }
 

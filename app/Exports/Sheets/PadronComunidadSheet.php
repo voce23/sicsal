@@ -15,7 +15,7 @@ use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class PadronComunidadSheet implements FromArray, WithTitle, WithStyles, WithColumnWidths
+class PadronComunidadSheet implements FromArray, WithColumnWidths, WithStyles, WithTitle
 {
     private ?Collection $personas = null;
 
@@ -45,9 +45,9 @@ class PadronComunidadSheet implements FromArray, WithTitle, WithStyles, WithColu
     {
         $personas = $this->getPersonas();
 
-        $rows   = [];
-        $rows[] = ['PADRÓN COMUNAL — ' . mb_strtoupper($this->comunidad->nombre)];
-        $rows[] = ['Centro: ' . ($this->centro->nombre ?? '')];
+        $rows = [];
+        $rows[] = ['PADRÓN COMUNAL — '.mb_strtoupper($this->comunidad->nombre)];
+        $rows[] = ['Centro: '.($this->centro->nombre ?? '')];
         $rows[] = ['#', 'Apellidos', 'Nombres', 'Sexo', 'Edad', 'Comunidad'];
 
         $n = 1;
@@ -62,7 +62,7 @@ class PadronComunidadSheet implements FromArray, WithTitle, WithStyles, WithColu
             ];
         }
 
-        $rows[] = ['Total: ' . ($n - 1), '', '', '', '', ''];
+        $rows[] = ['Total: '.($n - 1), '', '', '', '', ''];
 
         return $rows;
     }
@@ -70,14 +70,14 @@ class PadronComunidadSheet implements FromArray, WithTitle, WithStyles, WithColu
     public function styles(Worksheet $sheet): array
     {
         $numPersonas = $this->getPersonas()->count();
-        $headerRow   = 3;
+        $headerRow = 3;
         $lastDataRow = $headerRow + $numPersonas;
-        $totalRow    = $lastDataRow + 1;
+        $totalRow = $lastDataRow + 1;
 
         // Encabezado de columnas — fondo ámbar oscuro
         $sheet->getStyle("A{$headerRow}:F{$headerRow}")->applyFromArray([
-            'font'      => ['bold' => true, 'size' => 9, 'color' => ['rgb' => 'FFFFFF']],
-            'fill'      => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'B45309']],
+            'font' => ['bold' => true, 'size' => 9, 'color' => ['rgb' => 'FFFFFF']],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['rgb' => 'B45309']],
             'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
         ]);
 
@@ -114,12 +114,12 @@ class PadronComunidadSheet implements FromArray, WithTitle, WithStyles, WithColu
         }
 
         // Panel congelado bajo el encabezado
-        $sheet->freezePane('A' . ($headerRow + 1));
+        $sheet->freezePane('A'.($headerRow + 1));
 
         return [
-            1          => ['font' => ['bold' => true, 'size' => 13]],
-            2          => ['font' => ['italic' => true, 'size' => 10]],
-            $totalRow  => ['font' => ['bold' => true]],
+            1 => ['font' => ['bold' => true, 'size' => 13]],
+            2 => ['font' => ['italic' => true, 'size' => 10]],
+            $totalRow => ['font' => ['bold' => true]],
         ];
     }
 

@@ -34,11 +34,17 @@ class FormularioMaterna extends Page
     const SECCION = 'Salud Materna';
 
     public array $prenatales = [];
+
     public array $partos = [];
+
     public array $puerperio = [];
+
     public array $recienNacidos = [];
+
     public array $anticoncepcion = [];
+
     public array $cancerPrevencion = [];
+
     public array $ile = [];
 
     public static array $metodosAnticoncepcion = [
@@ -179,7 +185,9 @@ class FormularioMaterna extends Page
 
     public function guardarPrenatales(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach ($this->prenatales as $key => $datos) {
@@ -196,7 +204,9 @@ class FormularioMaterna extends Page
 
     public function guardarPartosYPuerperio(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach (self::$partosConfig as [$tipo, $lugar, $atendido, $label]) {
@@ -229,7 +239,9 @@ class FormularioMaterna extends Page
 
     public function guardarAnticoncepcion(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach (array_keys(self::$metodosAnticoncepcion) as $metodo) {
@@ -249,7 +261,9 @@ class FormularioMaterna extends Page
 
     public function guardarCancerPrevencion(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach ($this->cancerPrevencion as $ind => $cantidad) {
@@ -264,7 +278,9 @@ class FormularioMaterna extends Page
 
     public function guardarIle(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach ($this->ile as $ind => $cantidad) {

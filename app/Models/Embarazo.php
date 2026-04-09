@@ -17,9 +17,9 @@ class Embarazo extends Model
     protected function casts(): array
     {
         return [
-            'fecha_inicio'         => 'date',
+            'fecha_inicio' => 'date',
             'fecha_probable_parto' => 'date',
-            'activo'               => 'boolean',
+            'activo' => 'boolean',
         ];
     }
 

@@ -53,11 +53,11 @@ class VesMdbReader
     /**
      * Devuelve todos los registros de una tabla como array asociativo.
      *
-     * @param  string  $tabla        Nombre exacto de la tabla en el MDB
+     * @param  string  $tabla  Nombre exacto de la tabla en el MDB
      * @param  string  $filtroWhere  Cláusula WHERE opcional (sin la palabra WHERE)
      * @return array<int, array<string, mixed>>
      *
-     * @throws \RuntimeException  Si la herramienta de lectura no está disponible
+     * @throws \RuntimeException Si la herramienta de lectura no está disponible
      */
     public function tabla(string $tabla, string $filtroWhere = ''): array
     {
@@ -82,12 +82,12 @@ class VesMdbReader
     private function leerConVbscript(string $tabla, string $filtroWhere): array
     {
         if (! file_exists(self::CSCRIPT32)) {
-            throw new \RuntimeException('No se encontró ' . self::CSCRIPT32);
+            throw new \RuntimeException('No se encontró '.self::CSCRIPT32);
         }
 
         $vbsPath = base_path(self::VBS_SCRIPT);
         if (! file_exists($vbsPath)) {
-            throw new \RuntimeException('No se encontró el script VBScript: ' . $vbsPath);
+            throw new \RuntimeException('No se encontró el script VBScript: '.$vbsPath);
         }
 
         $args = [
@@ -102,7 +102,7 @@ class VesMdbReader
             $args[] = escapeshellarg($filtroWhere);
         }
 
-        $cmd    = implode(' ', $args);
+        $cmd = implode(' ', $args);
         $output = shell_exec($cmd);
 
         if ($output === null || $output === '') {
@@ -113,7 +113,7 @@ class VesMdbReader
 
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new \RuntimeException(
-                'JSON inválido del VBScript: ' . json_last_error_msg() . "\nPrimeros 500 chars: " . substr($output, 0, 500)
+                'JSON inválido del VBScript: '.json_last_error_msg()."\nPrimeros 500 chars: ".substr($output, 0, 500)
             );
         }
 
@@ -127,7 +127,7 @@ class VesMdbReader
     private function leerConMdbtools(string $tabla, string $filtroWhere): array
     {
         // mdb-json exporta una tabla a JSON (requiere: apt install mdbtools)
-        $cmd    = 'mdb-json ' . escapeshellarg($this->mdbPath) . ' ' . escapeshellarg($tabla);
+        $cmd = 'mdb-json '.escapeshellarg($this->mdbPath).' '.escapeshellarg($tabla);
         $output = shell_exec($cmd);
 
         if ($output === null || $output === '') {
@@ -138,7 +138,9 @@ class VesMdbReader
         $rows = [];
         foreach (explode("\n", trim($output)) as $line) {
             $line = trim($line);
-            if ($line === '') continue;
+            if ($line === '') {
+                continue;
+            }
             $row = json_decode($line, true);
             if (is_array($row)) {
                 $rows[] = $row;
@@ -178,9 +180,14 @@ class VesMdbReader
 
         return array_filter($rows, function ($row) use ($condiciones) {
             foreach ($condiciones as $campo => $valor) {
-                if (! isset($row[$campo])) return false;
-                if (trim((string) $row[$campo]) !== (string) $valor) return false;
+                if (! isset($row[$campo])) {
+                    return false;
+                }
+                if (trim((string) $row[$campo]) !== (string) $valor) {
+                    return false;
+                }
             }
+
             return true;
         });
     }

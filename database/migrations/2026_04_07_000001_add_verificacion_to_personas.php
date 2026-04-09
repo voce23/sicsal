@@ -18,7 +18,7 @@ return new class extends Migration
             $table->boolean('verificado')->default(false)->after('observaciones');
             $table->date('fecha_verificacion')->nullable()->after('verificado');
             $table->foreignId('verificado_por')->nullable()->after('fecha_verificacion')
-                  ->constrained('users')->nullOnDelete();
+                ->constrained('users')->nullOnDelete();
         });
     }
 

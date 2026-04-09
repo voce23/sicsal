@@ -24,14 +24,16 @@ class ControlPrenatalObserver
     private function sincronizar(ControlPrenatal $control, int $delta): void
     {
         $embarazo = $control->embarazo()->with('persona')->first();
-        if (!$embarazo?->persona) return;
+        if (! $embarazo?->persona) {
+            return;
+        }
 
-        $persona  = $embarazo->persona;
+        $persona = $embarazo->persona;
         $fechaRef = $control->fecha instanceof Carbon
             ? $control->fecha
             : Carbon::parse($control->fecha);
 
-        $mes  = (int) $fechaRef->format('n');
+        $mes = (int) $fechaRef->format('n');
         $anio = (int) $fechaRef->format('Y');
 
         $tipoControl = $this->tipoPrenatal(
@@ -48,10 +50,10 @@ class ControlPrenatalObserver
         $row = PrestPrenatal::firstOrCreate(
             [
                 'centro_salud_id' => $persona->centro_salud_id,
-                'mes'             => $mes,
-                'anio'            => $anio,
-                'tipo_control'    => $tipoControl,
-                'grupo_etareo'    => $grupoEtareo,
+                'mes' => $mes,
+                'anio' => $anio,
+                'tipo_control' => $tipoControl,
+                'grupo_etareo' => $grupoEtareo,
             ],
             ['dentro' => 0, 'fuera' => 0]
         );

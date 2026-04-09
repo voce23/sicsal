@@ -35,48 +35,55 @@ class FormularioServicios extends Page
     const SECCION = 'Servicios Generales';
 
     public array $consultaExterna = [];
+
     public array $referencias = [];
+
     public array $odontologia = [];
+
     public array $enfermeria = [];
+
     public array $internaciones = [];
+
     public array $actividades = [];
+
     public string $observaciones = '';
+
     public array $causasConsulta = []; // posicion 1-10 => ['diagnostico'=>'', 'grupos'=>[...]]
 
     // Form 301 F21-F27
     public static array $tiposReferencia = [
         'ref_recibida_establecimiento' => 'Pac. referidos recibidos por el establecimiento',  // F21
-        'ref_enviada'                  => 'Pac. referidos a otros establecimientos',           // F22
-        'pcd_atendida_comunidad'       => 'PCD referidos a Unidades de Calificación',         // F23
+        'ref_enviada' => 'Pac. referidos a otros establecimientos',           // F22
+        'pcd_atendida_comunidad' => 'PCD referidos a Unidades de Calificación',         // F23
         'pcd_atendida_establecimiento' => 'PCD referidos a Servicios de Rehabilitación',      // F24
-        'contraref_recibida'           => 'Pac. contrarreferidos al establecimiento',          // F25
-        'ref_recibida_comunidad'       => 'Pac. referidos de comunidad/medicina tradicional', // F26
-        'contraref_enviada'            => 'Pac. referidos a la medicina tradicional',         // F27
+        'contraref_recibida' => 'Pac. contrarreferidos al establecimiento',          // F25
+        'ref_recibida_comunidad' => 'Pac. referidos de comunidad/medicina tradicional', // F26
+        'contraref_enviada' => 'Pac. referidos a la medicina tradicional',         // F27
     ];
 
     // Procedimientos según Form 301 F30-F42 (coincide con importador .ves G03)
     public static array $procedimientosOdonto = [
-        'primera_consulta'            => 'Primera consulta',                      // F30
-        'consulta_nueva'              => 'Consulta nueva',                         // F31
-        'consulta_repetida'           => 'Consulta repetida',                      // F32
-        'medidas_preventivas'         => 'Medidas preventivas',                    // F33
-        'restauraciones'              => 'Restauraciones',                         // F34
-        'endodoncias'                 => 'Endodoncia',                             // F35
-        'periodoncia'                 => 'Periodoncia',                            // F36
-        'cirugia_menor'               => 'Cirugía bucal menor',                   // F37
-        'cirugia_mediana'             => 'Cirugía bucomaxilofacial mediana',      // F38-39
-        'fracturas_dentoalveolares'   => 'Trat. fracturas dentoalveolares',       // F40
-        'TOIT'                        => 'Trat. Odontológico Integral (TOIT)',     // F41
-        'exodoncias'                  => 'Exodoncia',                              // F(≈F37 sub)
-        'rayos_x'                     => 'Rayos X dental',                        // F42
+        'primera_consulta' => 'Primera consulta',                      // F30
+        'consulta_nueva' => 'Consulta nueva',                         // F31
+        'consulta_repetida' => 'Consulta repetida',                      // F32
+        'medidas_preventivas' => 'Medidas preventivas',                    // F33
+        'restauraciones' => 'Restauraciones',                         // F34
+        'endodoncias' => 'Endodoncia',                             // F35
+        'periodoncia' => 'Periodoncia',                            // F36
+        'cirugia_menor' => 'Cirugía bucal menor',                   // F37
+        'cirugia_mediana' => 'Cirugía bucomaxilofacial mediana',      // F38-39
+        'fracturas_dentoalveolares' => 'Trat. fracturas dentoalveolares',       // F40
+        'TOIT' => 'Trat. Odontológico Integral (TOIT)',     // F41
+        'exodoncias' => 'Exodoncia',                              // F(≈F37 sub)
+        'rayos_x' => 'Rayos X dental',                        // F42
     ];
 
     // Grupos según Form 301 F28 (5 grupos, coincide con .ves G03)
     public static array $gruposOdonto = [
-        'menor_5'  => '< 5 años',
-        '5_9'      => '5-13 años',   // Form 301: "5 a 13 años"
-        '15_19'    => '14-19 años',  // Form 301: "14 a 19 años"
-        '20_39'    => '20-59 años',  // Form 301: "20 a 59 años"
+        'menor_5' => '< 5 años',
+        '5_9' => '5-13 años',   // Form 301: "5 a 13 años"
+        '15_19' => '14-19 años',  // Form 301: "14 a 19 años"
+        '20_39' => '20-59 años',  // Form 301: "20 a 59 años"
         'mayor_60' => '≥ 60 años',
     ];
 
@@ -205,14 +212,16 @@ class FormularioServicios extends Page
             }
             $this->causasConsulta[$pos] = [
                 'diagnostico' => $diagnostico,
-                'grupos'      => $grupoData,
+                'grupos' => $grupoData,
             ];
         }
     }
 
     public function guardarConsultaExterna(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach ($this->consultaExterna as $grupo => $datos) {
@@ -227,7 +236,9 @@ class FormularioServicios extends Page
 
     public function guardarReferencias(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach ($this->referencias as $tipo => $datos) {
@@ -242,7 +253,9 @@ class FormularioServicios extends Page
 
     public function guardarOdontologia(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach (array_keys(self::$procedimientosOdonto) as $proc) {
@@ -261,7 +274,9 @@ class FormularioServicios extends Page
 
     public function guardarEnfermeria(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach ($this->enfermeria as $tipo => $cantidad) {
@@ -276,7 +291,9 @@ class FormularioServicios extends Page
 
     public function guardarInternaciones(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach ($this->internaciones as $ind => $cantidad) {
@@ -291,7 +308,9 @@ class FormularioServicios extends Page
 
     public function guardarActividades(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach ($this->actividades as $ta => $cantidad) {
@@ -306,7 +325,9 @@ class FormularioServicios extends Page
 
     public function guardarObservaciones(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         ObservacionMensual::updateOrCreate(
@@ -319,9 +340,11 @@ class FormularioServicios extends Page
 
     public function guardarCausasConsulta(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
-        $grupos   = array_keys(CausaConsultaExterna::$grupos);
+        $grupos = array_keys(CausaConsultaExterna::$grupos);
 
         for ($pos = 1; $pos <= 10; $pos++) {
             $causa = $this->causasConsulta[$pos] ?? [];
@@ -337,21 +360,22 @@ class FormularioServicios extends Page
                         ->where('mes', $this->mes)->where('anio', $this->anio)
                         ->where('posicion', $pos)->where('grupo_etareo', $g)
                         ->delete();
+
                     continue;
                 }
 
                 CausaConsultaExterna::updateOrCreate(
                     [
                         'centro_salud_id' => $centroId,
-                        'mes'             => $this->mes,
-                        'anio'            => $this->anio,
-                        'posicion'        => $pos,
-                        'grupo_etareo'    => $g,
+                        'mes' => $this->mes,
+                        'anio' => $this->anio,
+                        'posicion' => $pos,
+                        'grupo_etareo' => $g,
                     ],
                     [
                         'diagnostico' => $diagnostico ?: "Causa $pos",
-                        'masculino'   => $m,
-                        'femenino'    => $f,
+                        'masculino' => $m,
+                        'femenino' => $f,
                     ]
                 );
             }

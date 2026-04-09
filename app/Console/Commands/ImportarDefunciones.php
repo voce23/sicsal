@@ -21,20 +21,35 @@ class ImportarDefunciones extends Command
 
     protected $description = 'Importa defunciones desde SOAPS (MORTALIDAD TODAS CAUSAS) al SIMUES';
 
-    private static function soapsServer(): string { return env('SOAPS_SERVER', '.\SNS'); }
-    private static function soapsDb(): string { return env('SOAPS_DB', 'BDestadistica'); }
-    private static function soapsUser(): string { return env('SOAPS_USER', 'sa'); }
-    private static function soapsPass(): string { return env('SOAPS_PASS', ''); }
+    private static function soapsServer(): string
+    {
+        return env('SOAPS_SERVER', '.\SNS');
+    }
+
+    private static function soapsDb(): string
+    {
+        return env('SOAPS_DB', 'BDestadistica');
+    }
+
+    private static function soapsUser(): string
+    {
+        return env('SOAPS_USER', 'sa');
+    }
+
+    private static function soapsPass(): string
+    {
+        return env('SOAPS_PASS', '');
+    }
 
     private const ZONA_COMUNIDAD = [
-        'HORNOMA'      => 'Hornoma',
-        'HUAYCHOMA'    => 'Huaychoma',
-        'VILLCABAMBA'  => 'Villcabamba',
-        'COCOMA'       => 'Cocoma',
-        'TOCOHALLA'    => 'Tocohalla',
+        'HORNOMA' => 'Hornoma',
+        'HUAYCHOMA' => 'Huaychoma',
+        'VILLCABAMBA' => 'Villcabamba',
+        'COCOMA' => 'Cocoma',
+        'TOCOHALLA' => 'Tocohalla',
         'CHALLAVILQUE' => 'Challavilque',
-        'CALACAJA'     => 'Calacaja',
-        'SIQUIMIRANI'  => 'Siquimirani',
+        'CALACAJA' => 'Calacaja',
+        'SIQUIMIRANI' => 'Siquimirani',
     ];
 
     public function handle(): int
@@ -54,6 +69,7 @@ class ImportarDefunciones extends Command
             $pdo = $this->connectSoaps();
         } catch (\Exception $e) {
             $this->error("Error de conexión SOAPS: {$e->getMessage()}");
+
             return self::FAILURE;
         }
 
@@ -82,17 +98,18 @@ class ImportarDefunciones extends Command
             ORDER BY ce.Fecha DESC
         ")->fetchAll(PDO::FETCH_ASSOC);
 
-        $this->line("  Defunciones encontradas en SOAPS: " . count($defunciones));
+        $this->line('  Defunciones encontradas en SOAPS: '.count($defunciones));
 
         if (empty($defunciones)) {
             $this->info('No hay defunciones para importar.');
+
             return self::SUCCESS;
         }
 
         // ── 2. Preparar datos ──
         $importar = [];
         foreach ($defunciones as $d) {
-            $apellidos = $this->limpiarTexto(trim($d['HCL_APPAT']) . ' ' . trim($d['HCL_APMAT']));
+            $apellidos = $this->limpiarTexto(trim($d['HCL_APPAT']).' '.trim($d['HCL_APMAT']));
             $nombres = $this->limpiarTexto($d['HCL_NOMBRE']);
             $sexo = ($d['HCL_SEXO'] == 1) ? 'M' : 'F';
             $fechaNac = substr($d['HCL_FECNAC'], 0, 10);
@@ -112,18 +129,18 @@ class ImportarDefunciones extends Command
             }
 
             $importar[] = [
-                'hc'               => $d['HC'],
-                'centro_salud_id'  => $centroSaludId,
-                'nombres'          => $nombres,
-                'apellidos'        => $apellidos,
+                'hc' => $d['HC'],
+                'centro_salud_id' => $centroSaludId,
+                'nombres' => $nombres,
+                'apellidos' => $apellidos,
                 'fecha_nacimiento' => $fechaNac,
-                'sexo'             => $sexo,
-                'ci'               => $ci,
-                'comunidad_id'     => $comunidadId,
+                'sexo' => $sexo,
+                'ci' => $ci,
+                'comunidad_id' => $comunidadId,
                 'comunidad_nombre' => $comunidadNombre,
-                'fecha_defuncion'  => $fechaDef,
-                'causa_defuncion'  => $causa ?: null,
-                'lugar'            => 'domicilio',
+                'fecha_defuncion' => $fechaDef,
+                'causa_defuncion' => $causa ?: null,
+                'lugar' => 'domicilio',
             ];
         }
 
@@ -138,7 +155,7 @@ class ImportarDefunciones extends Command
         $this->info('═══ Distribución por comunidad ═══');
         $this->table(
             ['Comunidad', 'Defunciones'],
-            collect($dist)->map(fn($v, $k) => [$k, $v])->values()->toArray()
+            collect($dist)->map(fn ($v, $k) => [$k, $v])->values()->toArray()
         );
 
         // Detalle
@@ -160,6 +177,7 @@ class ImportarDefunciones extends Command
 
         if ($soloConteo) {
             $this->info('Modo solo conteo. No se importó nada.');
+
             return self::SUCCESS;
         }
 
@@ -193,6 +211,7 @@ class ImportarDefunciones extends Command
 
             if ($existe) {
                 $yaExisten++;
+
                 continue;
             }
 
@@ -260,20 +279,20 @@ class ImportarDefunciones extends Command
 
         $dirUp = strtoupper($this->limpiarTexto($direccion));
         $map = [
-            'HORNOMA'       => 'Hornoma',
-            'HUAYCHOMA'     => 'Huaychoma',
-            'HHUAYCHOMA'    => 'Huaychoma',
-            'VILLCABAMBA'   => 'Villcabamba',
-            'VILLCABAM'     => 'Villcabamba',
-            'COCOMA'        => 'Cocoma',
-            'TOCOHALLA'     => 'Tocohalla',
-            'CHALLAVILQUE'  => 'Challavilque',
+            'HORNOMA' => 'Hornoma',
+            'HUAYCHOMA' => 'Huaychoma',
+            'HHUAYCHOMA' => 'Huaychoma',
+            'VILLCABAMBA' => 'Villcabamba',
+            'VILLCABAM' => 'Villcabamba',
+            'COCOMA' => 'Cocoma',
+            'TOCOHALLA' => 'Tocohalla',
+            'CHALLAVILQUE' => 'Challavilque',
             'CHALLAVILLQUE' => 'Challavilque',
-            'CALACAJA'      => 'Calacaja',
-            'CALCAJA'       => 'Calacaja',
-            'CALA CAJA'     => 'Calacaja',
-            'SIQUIMIRANI'   => 'Siquimirani',
-            'HIORNOMA'      => 'Hornoma',
+            'CALACAJA' => 'Calacaja',
+            'CALCAJA' => 'Calacaja',
+            'CALA CAJA' => 'Calacaja',
+            'SIQUIMIRANI' => 'Siquimirani',
+            'HIORNOMA' => 'Hornoma',
         ];
         foreach ($map as $keyword => $comunidad) {
             if (str_contains($dirUp, $keyword)) {
@@ -287,6 +306,7 @@ class ImportarDefunciones extends Command
     private function limpiarTexto(string $texto): string
     {
         $texto = preg_replace('/\|.*$/', '', $texto);
+
         return mb_convert_encoding(trim($texto), 'UTF-8', 'UTF-8');
     }
 

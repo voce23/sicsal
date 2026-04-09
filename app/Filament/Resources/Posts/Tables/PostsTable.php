@@ -37,13 +37,13 @@ class PostsTable
                     ->badge()
                     ->formatStateUsing(fn ($state) => Post::CATEGORIAS[$state] ?? ucfirst($state))
                     ->color(fn ($state) => match ($state) {
-                        'vacunacion'    => 'info',
+                        'vacunacion' => 'info',
                         'salud_materna' => 'danger',
-                        'nutricion'     => 'warning',
-                        'programas'     => 'primary',
-                        'comunidad'     => 'success',
-                        'informes'      => 'gray',
-                        default         => 'secondary',
+                        'nutricion' => 'warning',
+                        'programas' => 'primary',
+                        'comunidad' => 'success',
+                        'informes' => 'gray',
+                        default => 'secondary',
                     }),
 
                 IconColumn::make('publicado')

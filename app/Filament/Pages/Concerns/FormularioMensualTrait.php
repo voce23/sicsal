@@ -21,7 +21,9 @@ trait FormularioMensualTrait
     public bool $mesCerrado = false;
 
     public string $justIndicador = '';
+
     public string $justMotivo = '';
+
     public string $justDetalle = '';
 
     private static array $nombresMeses = [
@@ -34,7 +36,7 @@ trait FormularioMensualTrait
     {
         $seccion = static::SECCION ?? 'Prestaciones';
 
-        return $seccion . ' — ' . (self::$nombresMeses[$this->mes] ?? '') . ' ' . $this->anio;
+        return $seccion.' — '.(self::$nombresMeses[$this->mes] ?? '').' '.$this->anio;
     }
 
     public function mountFormulario(): void

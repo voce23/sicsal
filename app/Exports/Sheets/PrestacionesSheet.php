@@ -10,7 +10,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-class PrestacionesSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
+class PrestacionesSheet implements FromArray, WithColumnWidths, WithEvents, WithTitle
 {
     use EstiloExcel;
 
@@ -38,7 +38,7 @@ class PrestacionesSheet implements FromArray, WithTitle, WithColumnWidths, WithE
         $fila = 1;
 
         // ── Vacunas ──
-        $this->secciones['vacunas_titulo']  = $fila;
+        $this->secciones['vacunas_titulo'] = $fila;
         $rows[] = ['VACUNACIONES', '', '', '', '', '', ''];
         $fila++;
         $this->secciones['vacunas_header'] = $fila;
@@ -145,7 +145,7 @@ class PrestacionesSheet implements FromArray, WithTitle, WithColumnWidths, WithE
                 ];
 
                 foreach ($bloques as $bloque) {
-                    $colUlt  = chr(ord('A') + $bloque['ncols'] - 1);
+                    $colUlt = chr(ord('A') + $bloque['ncols'] - 1);
                     $filaTit = $s[$bloque['tit']];
                     $filaHdr = $s[$bloque['hdr']];
                     $filaIni = $s[$bloque['ini']];
@@ -174,7 +174,7 @@ class PrestacionesSheet implements FromArray, WithTitle, WithColumnWidths, WithE
 
                 $this->fijarFila($sheet, 'A3');
                 $ultimaFila = $s['puer_fin'];
-                $sheet->getStyle('A1:G' . $ultimaFila)->getFont()->setName('Calibri');
+                $sheet->getStyle('A1:G'.$ultimaFila)->getFont()->setName('Calibri');
             },
         ];
     }

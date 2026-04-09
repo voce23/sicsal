@@ -20,6 +20,7 @@ class Comentarios extends Component
     public ?int $captchaRespuesta = null;
 
     public int $captchaA = 0;
+
     public int $captchaB = 0;
 
     public bool $exito = false;
@@ -44,6 +45,7 @@ class Comentarios extends Component
         if ((int) $this->captchaRespuesta !== ($this->captchaA + $this->captchaB)) {
             $this->addError('captchaRespuesta', 'La respuesta del captcha es incorrecta.');
             $this->generarCaptcha();
+
             return;
         }
 

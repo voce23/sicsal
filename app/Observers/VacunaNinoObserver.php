@@ -24,23 +24,25 @@ class VacunaNinoObserver
     private function sincronizar(VacunaNino $vacuna, int $delta): void
     {
         $persona = $vacuna->persona;
-        if (!$persona) return;
+        if (! $persona) {
+            return;
+        }
 
-        $fechaRef   = $vacuna->fecha_aplicacion instanceof Carbon
+        $fechaRef = $vacuna->fecha_aplicacion instanceof Carbon
             ? $vacuna->fecha_aplicacion
             : Carbon::parse($vacuna->fecha_aplicacion);
 
-        $edadMeses  = Carbon::parse($persona->fecha_nacimiento)->diffInMonths($fechaRef);
+        $edadMeses = Carbon::parse($persona->fecha_nacimiento)->diffInMonths($fechaRef);
         $grupoEtareo = $this->grupoEtareoVacuna((int) $edadMeses);
-        $campo       = $this->campoDentroFueraSexo($vacuna->dentro_fuera, $persona->sexo);
+        $campo = $this->campoDentroFueraSexo($vacuna->dentro_fuera, $persona->sexo);
 
         $row = PrestVacuna::firstOrCreate(
             [
                 'centro_salud_id' => $persona->centro_salud_id,
-                'mes'             => $vacuna->mes,
-                'anio'            => $vacuna->anio,
-                'tipo_vacuna'     => $vacuna->tipo_vacuna,
-                'grupo_etareo'    => $grupoEtareo,
+                'mes' => $vacuna->mes,
+                'anio' => $vacuna->anio,
+                'tipo_vacuna' => $vacuna->tipo_vacuna,
+                'grupo_etareo' => $grupoEtareo,
             ],
             ['dentro_m' => 0, 'dentro_f' => 0, 'fuera_m' => 0, 'fuera_f' => 0]
         );

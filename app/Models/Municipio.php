@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class Municipio extends Model
 {
     use HasFactory;
+
     protected $fillable = ['nombre', 'departamento', 'activo'];
 
     protected function casts(): array

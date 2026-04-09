@@ -80,10 +80,10 @@ class PostForm
                                         ->label(false)
                                         ->content(fn ($get) => new HtmlString(
                                             '<div class="prose prose-sm max-w-none min-h-[200px] rounded-lg border border-gray-200 bg-white p-6">'
-                                            . ($get('contenido')
+                                            .($get('contenido')
                                                 ? $get('contenido')
                                                 : '<p class="text-gray-400 italic">Escribe contenido en el editor Visual o HTML y regresa aquí para previsualizarlo.</p>')
-                                            . '</div>'
+                                            .'</div>'
                                         ))
                                         ->columnSpanFull(),
                                 ]),

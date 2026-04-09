@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class CentroSalud extends Model
 {
     use HasFactory;
+
     protected $table = 'centros_salud';
 
     protected $fillable = [
@@ -21,10 +22,10 @@ class CentroSalud extends Model
     protected function casts(): array
     {
         return [
-            'activo'        => 'boolean',
+            'activo' => 'boolean',
             'poblacion_ine' => 'integer',
-            'latitud'       => 'float',
-            'longitud'      => 'float',
+            'latitud' => 'float',
+            'longitud' => 'float',
         ];
     }
 

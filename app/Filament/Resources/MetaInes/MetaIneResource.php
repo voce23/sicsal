@@ -66,9 +66,9 @@ class MetaIneResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListMetaInes::route('/'),
+            'index' => ListMetaInes::route('/'),
             'create' => CreateMetaIne::route('/create'),
-            'edit'   => EditMetaIne::route('/{record}/edit'),
+            'edit' => EditMetaIne::route('/{record}/edit'),
         ];
     }
 }

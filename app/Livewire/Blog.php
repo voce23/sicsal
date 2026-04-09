@@ -61,7 +61,7 @@ class Blog extends Component
         if ($this->busqueda) {
             $query->where(function ($q) {
                 $q->where('titulo', 'like', "%{$this->busqueda}%")
-                  ->orWhere('extracto', 'like', "%{$this->busqueda}%");
+                    ->orWhere('extracto', 'like', "%{$this->busqueda}%");
             });
         }
 
@@ -97,9 +97,9 @@ class Blog extends Component
             ->take(20);
 
         return view('livewire.blog', [
-            'posts'          => $posts,
-            'categorias'     => $categorias,
-            'recientes'      => $recientes,
+            'posts' => $posts,
+            'categorias' => $categorias,
+            'recientes' => $recientes,
             'todasEtiquetas' => $todasEtiquetas,
         ])->layout('layouts.public', ['title' => 'Blog de Salud — SIMUES']);
     }

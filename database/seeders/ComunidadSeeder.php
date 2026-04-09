@@ -2,8 +2,8 @@
 
 namespace Database\Seeders;
 
-use App\Models\Comunidad;
 use App\Models\CentroSalud;
+use App\Models\Comunidad;
 use Illuminate\Database\Seeder;
 
 class ComunidadSeeder extends Seeder

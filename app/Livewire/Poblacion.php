@@ -143,8 +143,8 @@ class Poblacion extends Component
         return match ($this->periodo) {
             'cai1' => 'CAI 1 (Ene-Abr)',
             'cai2' => 'CAI 2 (Ene-Ago)',
-            'gestion' => 'Gestión ' . $this->anio,
-            default => $this->nombreMes((int) $this->periodo) . ' ' . $this->anio,
+            'gestion' => 'Gestión '.$this->anio,
+            default => $this->nombreMes((int) $this->periodo).' '.$this->anio,
         };
     }
 

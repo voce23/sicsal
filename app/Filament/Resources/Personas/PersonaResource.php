@@ -63,9 +63,9 @@ class PersonaResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListPersonas::route('/'),
+            'index' => ListPersonas::route('/'),
             'create' => CreatePersona::route('/create'),
-            'edit'   => EditPersona::route('/{record}/edit'),
+            'edit' => EditPersona::route('/{record}/edit'),
         ];
     }
 }

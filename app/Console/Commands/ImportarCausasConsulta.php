@@ -27,26 +27,45 @@ class ImportarCausasConsulta extends Command
     // Mapeo grupo etáreo a partir de meses totales de vida
     private function getGrupoFromMeses(int $totalMeses): string
     {
-        if ($totalMeses < 6)   return 'menor_6m';
-        if ($totalMeses < 12)  return '6m_menor_1';
-        if ($totalMeses < 60)  return '1_4';
-        if ($totalMeses < 120) return '5_9';
-        if ($totalMeses < 180) return '10_14';
-        if ($totalMeses < 240) return '15_19';
-        if ($totalMeses < 480) return '20_39';
-        if ($totalMeses < 600) return '40_49';
-        if ($totalMeses < 720) return '50_59';
+        if ($totalMeses < 6) {
+            return 'menor_6m';
+        }
+        if ($totalMeses < 12) {
+            return '6m_menor_1';
+        }
+        if ($totalMeses < 60) {
+            return '1_4';
+        }
+        if ($totalMeses < 120) {
+            return '5_9';
+        }
+        if ($totalMeses < 180) {
+            return '10_14';
+        }
+        if ($totalMeses < 240) {
+            return '15_19';
+        }
+        if ($totalMeses < 480) {
+            return '20_39';
+        }
+        if ($totalMeses < 600) {
+            return '40_49';
+        }
+        if ($totalMeses < 720) {
+            return '50_59';
+        }
+
         return 'mayor_60';
     }
 
     public function handle(): int
     {
         $servidor = trim($this->option('servidor')) ?: env('SOAPS_SERVER', '.\\SNS');
-        $db       = trim($this->option('db')) ?: env('SOAPS_DB', 'BDestadistica');
-        $usuario  = trim($this->option('usuario')) ?: env('SOAPS_USER', 'sa');
+        $db = trim($this->option('db')) ?: env('SOAPS_DB', 'BDestadistica');
+        $usuario = trim($this->option('usuario')) ?: env('SOAPS_USER', 'sa');
         $password = trim($this->option('password')) ?: env('SOAPS_PASS', '');
-        $anio     = (int) $this->option('anio');
-        $top      = (int) $this->option('top');
+        $anio = (int) $this->option('anio');
+        $top = (int) $this->option('top');
         $mesesFiltro = $this->option('meses')
             ? array_map('intval', explode(',', $this->option('meses')))
             : null;
@@ -56,11 +75,12 @@ class ImportarCausasConsulta extends Command
         try {
             $dsn = "odbc:Driver={SQL Server};Server={$servidor};Database={$db};UID={$usuario};PWD={$password};";
             $this->soaps = new PDO($dsn, null, null, [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+                PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
                 PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
             ]);
         } catch (\Exception $e) {
-            $this->error('Error de conexión SOAPS: ' . $e->getMessage());
+            $this->error('Error de conexión SOAPS: '.$e->getMessage());
+
             return self::FAILURE;
         }
 
@@ -68,6 +88,7 @@ class ImportarCausasConsulta extends Command
         $centros = CentroSalud::whereNotNull('codigo_snis')->where('activo', true)->get();
         if ($centros->isEmpty()) {
             $this->error('No hay centros de salud con código SNIS configurados.');
+
             return self::FAILURE;
         }
 
@@ -79,10 +100,11 @@ class ImportarCausasConsulta extends Command
 
         if (empty($mesesDisponibles)) {
             $this->warn("No hay datos en SOAPS para gestión {$anio}.");
+
             return self::SUCCESS;
         }
 
-        $this->info("Meses con datos: " . implode(', ', $mesesDisponibles));
+        $this->info('Meses con datos: '.implode(', ', $mesesDisponibles));
 
         $totalImportados = 0;
 
@@ -94,14 +116,15 @@ class ImportarCausasConsulta extends Command
 
                 // Verificar si hay datos de este establecimiento en SOAPS
                 $stmt = $this->soaps->prepare(
-                    "SELECT COUNT(*) as cnt FROM se_consulta_externa
+                    'SELECT COUNT(*) as cnt FROM se_consulta_externa
                      WHERE codestabl = ? AND YEAR(Fecha) = ?
-                     AND CIE_I IS NOT NULL AND LEN(RTRIM(CIE_I)) > 0"
+                     AND CIE_I IS NOT NULL AND LEN(RTRIM(CIE_I)) > 0'
                 );
                 $stmt->execute([$codestabl, $anio]);
                 $row = $stmt->fetch();
                 if ((int) $row['cnt'] === 0) {
                     $this->line("  {$centro->nombre}: sin datos en SOAPS, omitido.");
+
                     continue;
                 }
 
@@ -117,12 +140,14 @@ class ImportarCausasConsulta extends Command
             DB::commit();
         } catch (\Exception $e) {
             DB::rollBack();
-            $this->error('Error durante la importación: ' . $e->getMessage());
+            $this->error('Error durante la importación: '.$e->getMessage());
+
             return self::FAILURE;
         }
 
         $this->newLine();
         $this->info("Total registros insertados/actualizados: {$totalImportados}");
+
         return self::SUCCESS;
     }
 
@@ -130,7 +155,9 @@ class ImportarCausasConsulta extends Command
     {
         // Convertir códigos SNIS (8 dígitos) a codestabl SOAPS (6 dígitos finales)
         $codestablList = array_map(fn ($c) => (int) substr($c, -6), $codigosSnis);
-        if (empty($codestablList)) return [];
+        if (empty($codestablList)) {
+            return [];
+        }
 
         $placeholders = implode(',', $codestablList);
         $stmt = $this->soaps->prepare(
@@ -139,6 +166,7 @@ class ImportarCausasConsulta extends Command
              ORDER BY mes"
         );
         $stmt->execute([$anio]);
+
         return array_column($stmt->fetchAll(), 'mes');
     }
 
@@ -148,7 +176,7 @@ class ImportarCausasConsulta extends Command
         // Los sin CIE se tratan como Z76.8 (Carmelo / actividad preventiva no codificada).
         // El diccionario CIE10 se carga aparte para evitar el tipo TEXT de SQL Server.
         $stmtCie = $this->soaps->query(
-            "SELECT CIE_ALFA, CAST(CIE_DESCRIPCION AS varchar(500)) as desc10 FROM SE_CIE10"
+            'SELECT CIE_ALFA, CAST(CIE_DESCRIPCION AS varchar(500)) as desc10 FROM SE_CIE10'
         );
         $cie10 = [];
         foreach ($stmtCie->fetchAll() as $row) {
@@ -175,28 +203,35 @@ class ImportarCausasConsulta extends Command
         $stmtAll->execute([$codestabl, $mes, $anio]);
         $allRecords = $stmtAll->fetchAll();
 
-        if (empty($allRecords)) return 0;
+        if (empty($allRecords)) {
+            return 0;
+        }
 
         $grupos = array_keys(CausaConsultaExterna::$grupos);
 
         // Acumular en PHP: por CIE → grupo → M/F
         $conteos = [];
         foreach ($allRecords as $d) {
-            $cie  = trim($d['cie'] ?? 'Z76.8') ?: 'Z76.8';
-            $g    = $this->getGrupoFromMeses(max(0, (int) ($d['total_meses'] ?? 0)));
+            $cie = trim($d['cie'] ?? 'Z76.8') ?: 'Z76.8';
+            $g = $this->getGrupoFromMeses(max(0, (int) ($d['total_meses'] ?? 0)));
             $sexo = $d['Sexo'];
             if (! isset($conteos[$cie])) {
                 $conteos[$cie] = array_fill_keys($grupos, ['m' => 0, 'f' => 0]);
             }
-            if ($sexo === 'Masculino') $conteos[$cie][$g]['m']++;
-            else                       $conteos[$cie][$g]['f']++;
+            if ($sexo === 'Masculino') {
+                $conteos[$cie][$g]['m']++;
+            } else {
+                $conteos[$cie][$g]['f']++;
+            }
         }
 
         // Ordenar por total descendente y tomar top-N
         $totales = [];
         foreach ($conteos as $cie => $gs) {
             $t = 0;
-            foreach ($gs as $v) $t += $v['m'] + $v['f'];
+            foreach ($gs as $v) {
+                $t += $v['m'] + $v['f'];
+            }
             $totales[$cie] = $t;
         }
         arsort($totales);
@@ -220,17 +255,19 @@ class ImportarCausasConsulta extends Command
             foreach ($grupos as $g) {
                 $m = $conteos[$cie][$g]['m'] ?? 0;
                 $f = $conteos[$cie][$g]['f'] ?? 0;
-                if ($m === 0 && $f === 0) continue;
+                if ($m === 0 && $f === 0) {
+                    continue;
+                }
 
                 CausaConsultaExterna::create([
                     'centro_salud_id' => $centroId,
-                    'mes'             => $mes,
-                    'anio'            => $anio,
-                    'posicion'        => $posicion,
-                    'diagnostico'     => $diag,
-                    'grupo_etareo'    => $g,
-                    'masculino'       => $m,
-                    'femenino'        => $f,
+                    'mes' => $mes,
+                    'anio' => $anio,
+                    'posicion' => $posicion,
+                    'diagnostico' => $diag,
+                    'grupo_etareo' => $g,
+                    'masculino' => $m,
+                    'femenino' => $f,
                 ]);
                 $n++;
             }

@@ -22,12 +22,12 @@ class Persona extends Model
     protected function casts(): array
     {
         return [
-            'fecha_nacimiento'    => 'date',
-            'fecha_migracion'     => 'date',
-            'fecha_registro'      => 'date',
-            'activo'              => 'boolean',
-            'verificado'          => 'boolean',
-            'fecha_verificacion'  => 'date',
+            'fecha_nacimiento' => 'date',
+            'fecha_migracion' => 'date',
+            'fecha_registro' => 'date',
+            'activo' => 'boolean',
+            'verificado' => 'boolean',
+            'fecha_verificacion' => 'date',
         ];
     }
 
@@ -117,15 +117,33 @@ class Persona extends Model
         $meses = $this->edad_meses;
         $anios = $this->edad;
 
-        if ($meses < 6) return 'menor_6m';
-        if ($meses < 12) return '6m_menor_1';
-        if ($anios < 5) return '1_4';
-        if ($anios < 10) return '5_9';
-        if ($anios < 15) return '10_14';
-        if ($anios < 20) return '15_19';
-        if ($anios < 40) return '20_39';
-        if ($anios < 50) return '40_49';
-        if ($anios < 60) return '50_59';
+        if ($meses < 6) {
+            return 'menor_6m';
+        }
+        if ($meses < 12) {
+            return '6m_menor_1';
+        }
+        if ($anios < 5) {
+            return '1_4';
+        }
+        if ($anios < 10) {
+            return '5_9';
+        }
+        if ($anios < 15) {
+            return '10_14';
+        }
+        if ($anios < 20) {
+            return '15_19';
+        }
+        if ($anios < 40) {
+            return '20_39';
+        }
+        if ($anios < 50) {
+            return '40_49';
+        }
+        if ($anios < 60) {
+            return '50_59';
+        }
 
         return 'mayor_60';
     }
@@ -160,8 +178,8 @@ class Persona extends Model
     public function scopePadronActivo($query)
     {
         return $query->where('activo', true)
-                     ->whereIn('estado', ['residente', 'temporal'])
-                     ->where('verificado', true);
+            ->whereIn('estado', ['residente', 'temporal'])
+            ->where('verificado', true);
     }
 
     public function scopeMenoresDe5($query)

@@ -20,7 +20,7 @@ class Defuncion extends Model
     {
         return [
             'fecha_nacimiento' => 'date',
-            'fecha_defuncion'  => 'date',
+            'fecha_defuncion' => 'date',
         ];
     }
 
@@ -78,14 +78,23 @@ class Defuncion extends Model
     public static function calcularGrupoEtareo(mixed $fechaNacimiento, mixed $fechaDefuncion): string
     {
         $nacimiento = Carbon::parse($fechaNacimiento);
-        $defuncion  = Carbon::parse($fechaDefuncion);
-        $dias       = $nacimiento->diffInDays($defuncion);
-        $anios      = $nacimiento->diffInYears($defuncion);
+        $defuncion = Carbon::parse($fechaDefuncion);
+        $dias = $nacimiento->diffInDays($defuncion);
+        $anios = $nacimiento->diffInYears($defuncion);
 
-        if ($dias < 28) return 'neonatal';
-        if ($dias < 365) return 'infantil_menor_1';
-        if ($anios < 5) return 'menor_5';
-        if ($anios < 60) return '5_a_59';
+        if ($dias < 28) {
+            return 'neonatal';
+        }
+        if ($dias < 365) {
+            return 'infantil_menor_1';
+        }
+        if ($anios < 5) {
+            return 'menor_5';
+        }
+        if ($anios < 60) {
+            return '5_a_59';
+        }
+
         return 'adulto_mayor';
     }
 }

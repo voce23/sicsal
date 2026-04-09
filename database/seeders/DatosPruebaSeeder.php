@@ -25,26 +25,27 @@ class DatosPruebaSeeder extends Seeder
 
     // Porcentajes de cada grupo /sobre/ población total (derivados de Hornoma 641)
     private static array $metaPct = [
-        'menor_1'   => 0.0187, '1_anio'    => 0.0187,
-        '2_anios'   => 0.0203, '3_anios'   => 0.0203, '4_anios' => 0.0203,
-        '1_4'       => 0.0780, 'menor_5'   => 0.0967,
-        'mayor_5'   => 0.9016, '5_9'       => 0.1045, '10_14' => 0.1030,
-        '15_19'     => 0.1030, '20_39'     => 0.2793, '40_49' => 0.0983,
-        '50_59'     => 0.0764, 'mayor_60'  => 0.1373,
+        'menor_1' => 0.0187, '1_anio' => 0.0187,
+        '2_anios' => 0.0203, '3_anios' => 0.0203, '4_anios' => 0.0203,
+        '1_4' => 0.0780, 'menor_5' => 0.0967,
+        'mayor_5' => 0.9016, '5_9' => 0.1045, '10_14' => 0.1030,
+        '15_19' => 0.1030, '20_39' => 0.2793, '40_49' => 0.0983,
+        '50_59' => 0.0764, 'mayor_60' => 0.1373,
     ];
 
     // Efectividad de cobertura por centro (aprox. del PDF 2025)
     private static array $coberturaFactor = [
         'Hospital Capinota' => 0.55,
-        'C.S. Irpa Irpa'    => 0.50,
-        'C.S. Charamoco'    => 0.85,
-        'C.S. Apillapampa'  => 0.15,
-        'C.S.A. HORNOMA'    => 0.25,
-        'C.S. Mollini'      => 0.15,
-        'C.I.S. Coboce'     => 0.40,
+        'C.S. Irpa Irpa' => 0.50,
+        'C.S. Charamoco' => 0.85,
+        'C.S. Apillapampa' => 0.15,
+        'C.S.A. HORNOMA' => 0.25,
+        'C.S. Mollini' => 0.15,
+        'C.I.S. Coboce' => 0.40,
     ];
 
     private int $anio = 2026;
+
     private array $meses = [1, 2, 3, 4];
 
     public function run(): void
@@ -52,6 +53,7 @@ class DatosPruebaSeeder extends Seeder
         $mun = Municipio::where('nombre', 'Capinota')->first();
         if (! $mun) {
             $this->command->error('Municipio Capinota no encontrado.');
+
             return;
         }
 
@@ -60,12 +62,12 @@ class DatosPruebaSeeder extends Seeder
             CentroSalud::firstOrCreate(
                 ['codigo_snis' => $c['codigo_snis']],
                 [
-                    'municipio_id'  => $mun->id,
-                    'nombre'        => $c['nombre'],
-                    'subsector'     => $c['subsector'],
-                    'red_salud'     => 'Capinota',
+                    'municipio_id' => $mun->id,
+                    'nombre' => $c['nombre'],
+                    'subsector' => $c['subsector'],
+                    'red_salud' => 'Capinota',
                     'poblacion_ine' => $c['poblacion_ine'],
-                    'activo'        => true,
+                    'activo' => true,
                 ]
             );
         }
@@ -124,9 +126,9 @@ class DatosPruebaSeeder extends Seeder
         $cob = self::$coberturaFactor[$cs->nombre] ?? 0.30;
         $pop = $cs->poblacion_ine;
         $metaMenor1 = max(1, round($pop * 0.0187)); // ≈ meta < 1 año
-        $meta1anio  = $metaMenor1;
-        $metaMef    = max(1, round($pop * 0.2387));
-        $metaEmb    = max(1, round($pop * 0.0234));
+        $meta1anio = $metaMenor1;
+        $metaMef = max(1, round($pop * 0.2387));
+        $metaEmb = max(1, round($pop * 0.0234));
         $metaPartos = max(1, round($pop * 0.0187));
 
         foreach ($this->meses as $mes) {
@@ -210,8 +212,8 @@ class DatosPruebaSeeder extends Seeder
             $ff = $fuera_total - $fm;
 
             DB::table('prest_vacunas')->insert(array_merge($b, [
-                'tipo_vacuna'   => $tipo,
-                'grupo_etareo'  => $grupo,
+                'tipo_vacuna' => $tipo,
+                'grupo_etareo' => $grupo,
                 'dentro_m' => $dm, 'dentro_f' => $df,
                 'fuera_m' => $fm, 'fuera_f' => $ff,
                 'created_at' => now(), 'updated_at' => now(),
@@ -221,7 +223,7 @@ class DatosPruebaSeeder extends Seeder
 
     private function seedConsultas(array $b, int $pop, float $cob): void
     {
-        $grupos = ['menor_6m','6m_menor_1','1_4','5_9','10_14','15_19','20_39','40_49','50_59','mayor_60'];
+        $grupos = ['menor_6m', '6m_menor_1', '1_4', '5_9', '10_14', '15_19', '20_39', '40_49', '50_59', 'mayor_60'];
         foreach ($grupos as $g) {
             $base = max(1, round($pop * 0.01 * $cob));
             DB::table('prest_consulta_externa')->insert(array_merge($b, [
@@ -268,8 +270,8 @@ class DatosPruebaSeeder extends Seeder
             foreach ($grupos as $grupo) {
                 $base = max(0, round($metaEmb * $cob * $factors[$ci] / (count($grupos) * count($this->meses))));
                 DB::table('prest_prenatales')->insert(array_merge($b, [
-                    'tipo_control'  => $control,
-                    'grupo_etareo'  => $grupo,
+                    'tipo_control' => $control,
+                    'grupo_etareo' => $grupo,
                     'dentro' => $this->r($base),
                     'fuera' => $this->r($base * 0.15),
                     'created_at' => now(), 'updated_at' => now(),
@@ -311,7 +313,7 @@ class DatosPruebaSeeder extends Seeder
             if ($val > 0) {
                 DB::table('prest_puerperio')->insert(array_merge($b, [
                     'tipo_control' => $tipo,
-                    'cantidad'     => $this->r($val),
+                    'cantidad' => $this->r($val),
                     'created_at' => now(), 'updated_at' => now(),
                 ]));
             }
@@ -331,7 +333,7 @@ class DatosPruebaSeeder extends Seeder
             $val = max(0, round($metaPartos * $cob * $factor / count($this->meses)));
             DB::table('prest_recien_nacidos')->insert(array_merge($b, [
                 'indicador' => $ind,
-                'cantidad'  => $this->r(max(0, $val)),
+                'cantidad' => $this->r(max(0, $val)),
                 'created_at' => now(), 'updated_at' => now(),
             ]));
         }
@@ -416,7 +418,7 @@ class DatosPruebaSeeder extends Seeder
                 $base = max(0, round($pop * 0.002 * $cob));
                 DB::table('prest_odontologia')->insert(array_merge($b, [
                     'procedimiento' => $proc,
-                    'grupo_etareo'  => $grupo,
+                    'grupo_etareo' => $grupo,
                     'masculino' => $this->r($base), 'femenino' => $this->r($base),
                     'created_at' => now(), 'updated_at' => now(),
                 ]));
@@ -466,7 +468,7 @@ class DatosPruebaSeeder extends Seeder
         foreach ($inds as $ind => $factor) {
             DB::table('prest_cancer_prevencion')->insert(array_merge($b, [
                 'indicador' => $ind,
-                'cantidad'  => $this->r($metaMef * $cob * $factor / count($this->meses)),
+                'cantidad' => $this->r($metaMef * $cob * $factor / count($this->meses)),
                 'created_at' => now(), 'updated_at' => now(),
             ]));
         }

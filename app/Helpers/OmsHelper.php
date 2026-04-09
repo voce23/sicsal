@@ -114,20 +114,20 @@ class OmsHelper
     }
 
     public const CLASIFICACION_LABELS = [
-        'normal'                => 'Normal',
-        'desnutricion_aguda'    => 'Desnutrición aguda',
-        'desnutricion_cronica'  => 'Desnutrición crónica',
-        'desnutricion_global'   => 'Desnutrición global',
-        'sobrepeso'             => 'Sobrepeso',
-        'obesidad'              => 'Obesidad',
+        'normal' => 'Normal',
+        'desnutricion_aguda' => 'Desnutrición aguda',
+        'desnutricion_cronica' => 'Desnutrición crónica',
+        'desnutricion_global' => 'Desnutrición global',
+        'sobrepeso' => 'Sobrepeso',
+        'obesidad' => 'Obesidad',
     ];
 
     public const CLASIFICACION_COLORS = [
-        'normal'                => 'success',
-        'desnutricion_aguda'    => 'danger',
-        'desnutricion_cronica'  => 'warning',
-        'desnutricion_global'   => 'danger',
-        'sobrepeso'             => 'warning',
-        'obesidad'              => 'danger',
+        'normal' => 'success',
+        'desnutricion_aguda' => 'danger',
+        'desnutricion_cronica' => 'warning',
+        'desnutricion_global' => 'danger',
+        'sobrepeso' => 'warning',
+        'obesidad' => 'danger',
     ];
 }

@@ -18,7 +18,7 @@ class CrecimientoInfantil extends Model
     protected function casts(): array
     {
         return [
-            'fecha'   => 'date',
+            'fecha' => 'date',
             'peso_kg' => 'decimal:2',
             'talla_cm' => 'decimal:2',
             'perimetro_cefalico_cm' => 'decimal:2',

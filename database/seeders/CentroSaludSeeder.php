@@ -15,12 +15,12 @@ class CentroSaludSeeder extends Seeder
         CentroSalud::firstOrCreate(
             ['codigo_snis' => '300183'],
             [
-                'municipio_id'  => $municipio->id,
-                'nombre'        => 'C.S.A. HORNOMA',
-                'subsector'     => 'Público',
-                'red_salud'     => 'Capinota',
+                'municipio_id' => $municipio->id,
+                'nombre' => 'C.S.A. HORNOMA',
+                'subsector' => 'Público',
+                'red_salud' => 'Capinota',
                 'poblacion_ine' => 641,
-                'activo'        => true,
+                'activo' => true,
             ]
         );
     }

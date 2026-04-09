@@ -30,8 +30,8 @@ class PostView extends Component
             ->get(['id', 'titulo', 'slug', 'imagen_portada', 'publicado_at', 'extracto']);
 
         return view('livewire.post-view', [
-            'post'        => $this->post,
+            'post' => $this->post,
             'relacionados' => $relacionados,
-        ])->layout('layouts.public', ['title' => $this->post->titulo . ' — SIMUES']);
+        ])->layout('layouts.public', ['title' => $this->post->titulo.' — SIMUES']);
     }
 }

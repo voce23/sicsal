@@ -8,19 +8,19 @@ use App\Filament\Resources\CausasConsultaExterna\Pages\ListCausasConsultaExterna
 use App\Models\CausaConsultaExterna;
 use App\Models\CentroSalud;
 use BackedEnum;
-use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
-use Filament\Schemas\Components\Section;
-use Filament\Schemas\Schema;
-use Filament\Support\Icons\Heroicon;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
+use Filament\Forms\Components\Select;
+use Filament\Forms\Components\TextInput;
+use Filament\Resources\Resource;
+use Filament\Schemas\Components\Section;
+use Filament\Schemas\Schema;
+use Filament\Support\Icons\Heroicon;
 use Filament\Tables\Columns\TextColumn;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Table;
-use Filament\Resources\Resource;
 use Illuminate\Database\Eloquent\Builder;
 
 class CausaConsultaExternaResource extends Resource
@@ -44,7 +44,7 @@ class CausaConsultaExternaResource extends Resource
     public static function getEloquentQuery(): Builder
     {
         $query = parent::getEloquentQuery();
-        $user  = auth()->user();
+        $user = auth()->user();
 
         if ($user && ! $user->hasRole('superadmin')) {
             $query->where('centro_salud_id', $user->centro_salud_id);
@@ -192,9 +192,9 @@ class CausaConsultaExternaResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListCausasConsultaExterna::route('/'),
+            'index' => ListCausasConsultaExterna::route('/'),
             'create' => CreateCausaConsultaExterna::route('/create'),
-            'edit'   => EditCausaConsultaExterna::route('/{record}/edit'),
+            'edit' => EditCausaConsultaExterna::route('/{record}/edit'),
         ];
     }
 }

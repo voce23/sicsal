@@ -2,7 +2,6 @@
 
 namespace App\Filament\Pages;
 
-use App\Console\Commands\ImportarVes;
 use App\Models\CentroSalud;
 use BackedEnum;
 use Filament\Forms\Components\FileUpload;
@@ -11,7 +10,6 @@ use Filament\Forms\Components\Toggle;
 use Filament\Notifications\Notification;
 use Filament\Pages\Page;
 use Filament\Schemas\Schema;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 
 /**
@@ -25,19 +23,24 @@ use Illuminate\Support\Facades\Storage;
  */
 class ImportarDesdeVes extends Page
 {
+    protected static string|BackedEnum|null $navigationIcon = 'heroicon-o-arrow-down-tray';
 
-    protected static string|BackedEnum|null $navigationIcon  = 'heroicon-o-arrow-down-tray';
-    protected static ?string               $navigationLabel = 'Importar .ves SNIS';
+    protected static ?string $navigationLabel = 'Importar .ves SNIS';
+
     protected static string|\UnitEnum|null $navigationGroup = 'Transferencias';
-    protected static ?int    $navigationSort  = 10;
+
+    protected static ?int $navigationSort = 10;
+
     protected string $view = 'filament.pages.importar-desde-ves';
 
     // ── Estado del formulario ─────────────────────────────────────────────────
     public ?array $data = [];
 
     /** Resultado de la última importación */
-    public ?array $resultado  = null;
-    public bool   $importando = false;
+    public ?array $resultado = null;
+
+    public bool $importando = false;
+
     public string $mensajeEstado = '';
 
     public function mount(): void
@@ -90,6 +93,7 @@ class ImportarDesdeVes extends Page
                 ->title('No se seleccionó ningún archivo')
                 ->danger()
                 ->send();
+
             return;
         }
 
@@ -102,10 +106,11 @@ class ImportarDesdeVes extends Page
                 ->body("Ruta: {$archivoAbsoluto}")
                 ->danger()
                 ->send();
+
             return;
         }
 
-        $this->resultado  = null;
+        $this->resultado = null;
         $this->importando = true;
 
         try {
@@ -122,7 +127,7 @@ class ImportarDesdeVes extends Page
             }
 
             $exitCode = \Artisan::call('snis:importar-ves', $args);
-            $output   = \Artisan::output();
+            $output = \Artisan::output();
 
             // Releer stats directamente desde la BD para mayor fiabilidad
             $stats = $this->leerStatsImportados();
@@ -131,9 +136,9 @@ class ImportarDesdeVes extends Page
                 $total = array_sum($stats);
 
                 $this->resultado = [
-                    'exito'  => true,
-                    'stats'  => $stats,
-                    'total'  => $total,
+                    'exito' => true,
+                    'stats' => $stats,
+                    'total' => $total,
                     'output' => $output,
                 ];
 
@@ -172,18 +177,18 @@ class ImportarDesdeVes extends Page
     {
         // Leer conteos actuales (aproximación — solo indica que hay datos)
         return [
-            'consulta_externa'  => \DB::table('prest_consulta_externa')->count(),
-            'referencias'       => \DB::table('prest_referencias')->count(),
-            'odontologia'       => \DB::table('prest_odontologia')->count(),
-            'prenatales'        => \DB::table('prest_prenatales')->count(),
-            'anticoncepcion'    => \DB::table('prest_anticoncepcion')->count(),
-            'crecimiento'       => \DB::table('prest_crecimiento')->count(),
-            'enfermeria'        => \DB::table('prest_enfermeria')->count(),
-            'micronutrientes'   => \DB::table('prest_micronutrientes')->count(),
-            'actividades'       => \DB::table('prest_actividades_comunidad')->count(),
-            'vacunas'           => \DB::table('prest_vacunas')->count(),
-            'internaciones'     => \DB::table('prest_internaciones')->count(),
-            'recien_nacidos'    => \DB::table('prest_recien_nacidos')->count(),
+            'consulta_externa' => \DB::table('prest_consulta_externa')->count(),
+            'referencias' => \DB::table('prest_referencias')->count(),
+            'odontologia' => \DB::table('prest_odontologia')->count(),
+            'prenatales' => \DB::table('prest_prenatales')->count(),
+            'anticoncepcion' => \DB::table('prest_anticoncepcion')->count(),
+            'crecimiento' => \DB::table('prest_crecimiento')->count(),
+            'enfermeria' => \DB::table('prest_enfermeria')->count(),
+            'micronutrientes' => \DB::table('prest_micronutrientes')->count(),
+            'actividades' => \DB::table('prest_actividades_comunidad')->count(),
+            'vacunas' => \DB::table('prest_vacunas')->count(),
+            'internaciones' => \DB::table('prest_internaciones')->count(),
+            'recien_nacidos' => \DB::table('prest_recien_nacidos')->count(),
         ];
     }
 }

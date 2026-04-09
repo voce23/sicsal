@@ -12,7 +12,7 @@ use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-class CoberturaSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
+class CoberturaSheet implements FromArray, WithColumnWidths, WithEvents, WithTitle
 {
     use EstiloExcel;
 
@@ -89,19 +89,19 @@ class CoberturaSheet implements FromArray, WithTitle, WithColumnWidths, WithEven
                     $this->estiloSemaforo($sheet, "F{$fila}", (float) $prog['cob_real']);
 
                     // Agregar símbolo % al texto
-                    $sheet->setCellValue("E{$fila}", $prog['cob_ine'] . '%');
-                    $sheet->setCellValue("F{$fila}", $prog['cob_real'] . '%');
+                    $sheet->setCellValue("E{$fila}", $prog['cob_ine'].'%');
+                    $sheet->setCellValue("F{$fila}", $prog['cob_real'].'%');
 
                     $this->alturaFila($sheet, $fila, 15);
                 }
 
                 $filaFinalCob = 2 + $nCob;
-                $this->bordeExterno($sheet, 'A2:F' . $filaFinalCob);
+                $this->bordeExterno($sheet, 'A2:F'.$filaFinalCob);
 
                 // ── Sección 2: Deserción ──
-                $filaVacia  = $filaFinalCob + 1;
-                $filaTit2   = $filaFinalCob + 2;
-                $filaHdr2   = $filaTit2 + 1;
+                $filaVacia = $filaFinalCob + 1;
+                $filaTit2 = $filaFinalCob + 2;
+                $filaHdr2 = $filaTit2 + 1;
                 $inicioData = $filaHdr2 + 1;
 
                 $this->estiloSeccion($sheet, "A{$filaTit2}:E{$filaTit2}");
@@ -112,7 +112,7 @@ class CoberturaSheet implements FromArray, WithTitle, WithColumnWidths, WithEven
 
                 for ($i = 0; $i < $nDes; $i++) {
                     $fila = $inicioData + $i;
-                    $des  = $this->desercion[$i];
+                    $des = $this->desercion[$i];
 
                     $this->estiloDato($sheet, "A{$fila}:E{$fila}", $i + 1);
                     $sheet->getStyle("B{$fila}:E{$fila}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
@@ -120,16 +120,16 @@ class CoberturaSheet implements FromArray, WithTitle, WithColumnWidths, WithEven
                     // Color tasa de deserción: ≤5% verde, ≤15% ámbar, >15% rojo
                     $tasa = (float) $des['tasa'];
                     [$bg, $fg] = match (true) {
-                        $tasa <= 5  => [self::GREEN_BG,  self::GREEN_OK],
+                        $tasa <= 5 => [self::GREEN_BG,  self::GREEN_OK],
                         $tasa <= 15 => [self::AMBER_BG,  self::AMBER],
-                        default     => [self::RED_BG,     self::RED],
+                        default => [self::RED_BG,     self::RED],
                     };
                     $sheet->getStyle("E{$fila}")->applyFromArray([
-                        'font'      => ['bold' => true, 'size' => 9, 'color' => ['argb' => 'FF' . $fg]],
-                        'fill'      => ['fillType' => Fill::FILL_SOLID, 'color' => ['argb' => 'FF' . $bg]],
+                        'font' => ['bold' => true, 'size' => 9, 'color' => ['argb' => 'FF'.$fg]],
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['argb' => 'FF'.$bg]],
                         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
                     ]);
-                    $sheet->setCellValue("E{$fila}", $des['tasa'] . '%');
+                    $sheet->setCellValue("E{$fila}", $des['tasa'].'%');
 
                     $this->alturaFila($sheet, $fila, 15);
                 }
@@ -151,15 +151,15 @@ class CoberturaSheet implements FromArray, WithTitle, WithColumnWidths, WithEven
                 foreach ($leyenda as [$col, $bg, $fg, $lbl]) {
                     $sheet->setCellValue("{$col}{$filaLey}", $lbl);
                     $sheet->getStyle("{$col}{$filaLey}")->applyFromArray([
-                        'font'      => ['bold' => true, 'size' => 8, 'color' => ['argb' => 'FF' . $fg]],
-                        'fill'      => ['fillType' => Fill::FILL_SOLID, 'color' => ['argb' => 'FF' . $bg]],
+                        'font' => ['bold' => true, 'size' => 8, 'color' => ['argb' => 'FF'.$fg]],
+                        'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['argb' => 'FF'.$bg]],
                         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER],
-                        'borders'   => ['outline' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF' . self::GRAY_MID]]],
+                        'borders' => ['outline' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF'.self::GRAY_MID]]],
                     ]);
                 }
 
                 $this->fijarFila($sheet, 'A3');
-                $sheet->getStyle('A1:F' . $ultimaFila)->getFont()->setName('Calibri');
+                $sheet->getStyle('A1:F'.$ultimaFila)->getFont()->setName('Calibri');
             },
         ];
     }

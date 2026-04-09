@@ -18,10 +18,10 @@ class Comunidad extends Model
     protected function casts(): array
     {
         return [
-            'activo'       => 'boolean',
+            'activo' => 'boolean',
             'distancia_km' => 'decimal:2',
-            'latitud'      => 'decimal:7',
-            'longitud'     => 'decimal:7',
+            'latitud' => 'decimal:7',
+            'longitud' => 'decimal:7',
         ];
     }
 

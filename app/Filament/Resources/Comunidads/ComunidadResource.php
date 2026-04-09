@@ -76,4 +76,3 @@ class ComunidadResource extends Resource
         ];
     }
 }
-

@@ -3,11 +3,10 @@
 namespace App\Filament\Resources\Defuncions\Schemas;
 
 use App\Models\Persona;
-use Carbon\Carbon;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Set;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -23,27 +22,29 @@ class DefuncionForm
                         Select::make('persona_id')
                             ->label('Buscar en el padrón (opcional)')
                             ->searchable()
-                            ->getSearchResultsUsing(fn (string $search) =>
-                                Persona::query()
-                                    ->where('centro_salud_id', auth()->user()?->centro_salud_id)
-                                    ->where(function ($q) use ($search) {
-                                        $q->where('nombres', 'like', "%{$search}%")
-                                          ->orWhere('apellidos', 'like', "%{$search}%")
-                                          ->orWhere('ci', 'like', "%{$search}%");
-                                    })
-                                    ->limit(20)
-                                    ->get()
-                                    ->mapWithKeys(fn (Persona $p) => [$p->id => "{$p->nombres} {$p->apellidos} ({$p->ci})"])
-                                    ->toArray()
+                            ->getSearchResultsUsing(fn (string $search) => Persona::query()
+                                ->where('centro_salud_id', auth()->user()?->centro_salud_id)
+                                ->where(function ($q) use ($search) {
+                                    $q->where('nombres', 'like', "%{$search}%")
+                                        ->orWhere('apellidos', 'like', "%{$search}%")
+                                        ->orWhere('ci', 'like', "%{$search}%");
+                                })
+                                ->limit(20)
+                                ->get()
+                                ->mapWithKeys(fn (Persona $p) => [$p->id => "{$p->nombres} {$p->apellidos} ({$p->ci})"])
+                                ->toArray()
                             )
-                            ->getOptionLabelUsing(fn ($value) =>
-                                Persona::find($value)?->nombre_completo ?? $value
+                            ->getOptionLabelUsing(fn ($value) => Persona::find($value)?->nombre_completo ?? $value
                             )
                             ->live()
                             ->afterStateUpdated(function ($state, Set $set) {
-                                if (! $state) return;
+                                if (! $state) {
+                                    return;
+                                }
                                 $persona = Persona::find($state);
-                                if (! $persona) return;
+                                if (! $persona) {
+                                    return;
+                                }
                                 $set('nombres', $persona->nombres);
                                 $set('apellidos', $persona->apellidos);
                                 $set('fecha_nacimiento', $persona->fecha_nacimiento?->format('Y-m-d'));
@@ -92,9 +93,9 @@ class DefuncionForm
                         Select::make('lugar')
                             ->options([
                                 'establecimiento' => 'En el establecimiento',
-                                'domicilio'       => 'Domicilio',
-                                'referido'        => 'Referido',
-                                'en_transito'     => 'En tránsito',
+                                'domicilio' => 'Domicilio',
+                                'referido' => 'Referido',
+                                'en_transito' => 'En tránsito',
                             ])
                             ->required()
                             ->label('Lugar de defunción'),

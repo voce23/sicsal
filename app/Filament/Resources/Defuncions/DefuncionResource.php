@@ -61,10 +61,9 @@ class DefuncionResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListDefuncions::route('/'),
+            'index' => ListDefuncions::route('/'),
             'create' => CreateDefuncion::route('/create'),
-            'edit'   => EditDefuncion::route('/{record}/edit'),
+            'edit' => EditDefuncion::route('/{record}/edit'),
         ];
     }
 }
-

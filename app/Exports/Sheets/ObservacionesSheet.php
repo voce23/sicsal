@@ -10,7 +10,7 @@ use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-class ObservacionesSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
+class ObservacionesSheet implements FromArray, WithColumnWidths, WithEvents, WithTitle
 {
     use EstiloExcel;
 
@@ -63,14 +63,14 @@ class ObservacionesSheet implements FromArray, WithTitle, WithColumnWidths, With
                     $sheet->getStyle("A{$fila}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER)->setVertical(Alignment::VERTICAL_TOP);
                     $sheet->getStyle("B{$fila}")->getAlignment()->setWrapText(true)->setVertical(Alignment::VERTICAL_TOP);
                     // Altura dinámica basada en longitud del texto
-                    $texto  = $this->observaciones[$i]['texto'] ?? '';
+                    $texto = $this->observaciones[$i]['texto'] ?? '';
                     $lineas = max(3, (int) ceil(mb_strlen($texto) / 120));
                     $this->alturaFila($sheet, $fila, $lineas * 14);
                 }
 
                 $ultimaFila = 2 + $nFilas;
-                $this->bordeExterno($sheet, 'A2:B' . $ultimaFila);
-                $sheet->getStyle('A1:B' . $ultimaFila)->getFont()->setName('Calibri');
+                $this->bordeExterno($sheet, 'A2:B'.$ultimaFila);
+                $sheet->getStyle('A1:B'.$ultimaFila)->getFont()->setName('Calibri');
             },
         ];
     }

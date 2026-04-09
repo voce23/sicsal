@@ -30,7 +30,9 @@ class FormularioPai extends Page
     const SECCION = 'PAI — Salud Infantil';
 
     public array $vacunas = [];
+
     public array $micronutrientes = [];
+
     public array $crecimiento = [];
 
     /** Sección 1 RNVE: Vacunaciones en menores de 5 años. */
@@ -202,7 +204,9 @@ class FormularioPai extends Page
 
     public function guardarVacunas(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach (self::allVacunasConfig() as [$tipoVacuna, $grupoEtareo, $label]) {
@@ -222,7 +226,9 @@ class FormularioPai extends Page
 
     public function guardarMicronutrientes(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach ($this->micronutrientes as $tipo => $cantidad) {
@@ -238,7 +244,9 @@ class FormularioPai extends Page
 
     public function guardarCrecimiento(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
         $centroId = auth()->user()->centro_salud_id;
 
         foreach ($this->crecimiento as $ge => $datos) {

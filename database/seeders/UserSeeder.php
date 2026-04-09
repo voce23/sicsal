@@ -17,12 +17,12 @@ class UserSeeder extends Seeder
         $superadmin = User::firstOrCreate(
             ['usuario' => 'superadmin'],
             [
-                'name'             => 'Administrador',
-                'apellidos'        => 'Sistema',
-                'email'            => 'admin@sicsal.bo',
-                'password'         => Hash::make(env('SEED_SUPERADMIN_PASS', 'Cambiar123!')),
-                'centro_salud_id'  => null,
-                'activo'           => true,
+                'name' => 'Administrador',
+                'apellidos' => 'Sistema',
+                'email' => 'admin@sicsal.bo',
+                'password' => Hash::make(env('SEED_SUPERADMIN_PASS', 'Cambiar123!')),
+                'centro_salud_id' => null,
+                'activo' => true,
             ]
         );
         $superadmin->assignRole('superadmin');
@@ -31,12 +31,12 @@ class UserSeeder extends Seeder
         $admin = User::firstOrCreate(
             ['usuario' => 'medico.hornoma'],
             [
-                'name'             => 'Eusebio',
-                'apellidos'        => 'Panozo Franco',
-                'email'            => 'medico@hornoma.bo',
-                'password'         => Hash::make(env('SEED_ADMIN_PASS', 'Cambiar123!')),
-                'centro_salud_id'  => $centro->id,
-                'activo'           => true,
+                'name' => 'Eusebio',
+                'apellidos' => 'Panozo Franco',
+                'email' => 'medico@hornoma.bo',
+                'password' => Hash::make(env('SEED_ADMIN_PASS', 'Cambiar123!')),
+                'centro_salud_id' => $centro->id,
+                'activo' => true,
             ]
         );
         $admin->assignRole('admin');
@@ -45,12 +45,12 @@ class UserSeeder extends Seeder
         $registrador = User::firstOrCreate(
             ['usuario' => 'registrador.hornoma'],
             [
-                'name'             => 'María',
-                'apellidos'        => 'Quispe Mamani',
-                'email'            => 'registrador@hornoma.bo',
-                'password'         => Hash::make(env('SEED_REGISTRADOR_PASS', 'Cambiar123!')),
-                'centro_salud_id'  => $centro->id,
-                'activo'           => true,
+                'name' => 'María',
+                'apellidos' => 'Quispe Mamani',
+                'email' => 'registrador@hornoma.bo',
+                'password' => Hash::make(env('SEED_REGISTRADOR_PASS', 'Cambiar123!')),
+                'centro_salud_id' => $centro->id,
+                'activo' => true,
             ]
         );
         $registrador->assignRole('registrador');

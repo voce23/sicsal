@@ -3,10 +3,10 @@
 namespace App\Filament\Resources\CentroSaluds\Schemas;
 
 use Filament\Forms\Components\Placeholder;
-use Filament\Schemas\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
+use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
 
 class CentroSaludForm
@@ -36,10 +36,10 @@ class CentroSaludForm
                             ->columnSpan(1),
                         Select::make('subsector')
                             ->options([
-                                'Público'       => 'Público',
+                                'Público' => 'Público',
                                 'Seguro Social' => 'Seguro Social',
-                                'Privado'       => 'Privado',
-                                'ONG'           => 'ONG',
+                                'Privado' => 'Privado',
+                                'ONG' => 'ONG',
                             ])
                             ->default('Público')
                             ->required()

@@ -21,26 +21,45 @@ class TransferirSoaps extends Command
 
     protected $description = 'Transfiere datos del SOAPS (SQL Server) al SNIS (Access .mdb)';
 
-    private static function snisPassword(): string { return env('SNIS_DB_PASSWORD', ''); }
-    private static function soapsServer(): string { return env('SOAPS_SERVER', '.\SNS'); }
-    private static function soapsDb(): string { return env('SOAPS_DB', 'BDestadistica'); }
-    private static function soapsUser(): string { return env('SOAPS_USER', 'sa'); }
-    private static function soapsPass(): string { return env('SOAPS_PASS', ''); }
+    private static function snisPassword(): string
+    {
+        return env('SNIS_DB_PASSWORD', '');
+    }
+
+    private static function soapsServer(): string
+    {
+        return env('SOAPS_SERVER', '.\SNS');
+    }
+
+    private static function soapsDb(): string
+    {
+        return env('SOAPS_DB', 'BDestadistica');
+    }
+
+    private static function soapsUser(): string
+    {
+        return env('SOAPS_USER', 'sa');
+    }
+
+    private static function soapsPass(): string
+    {
+        return env('SOAPS_PASS', '');
+    }
 
     // ══════════ G01 Consulta Externa ══════════
     // SNIS 2025 codvariabl → grupo etáreo
     // codsubvar format: 30101XXYY where XX=codvariabl, YY=subvar
     private const G01_EDAD_VAR = [
-        'menor_6m'  => '12', // DAT_FNANIO=0, DAT_FNMES<6
+        'menor_6m' => '12', // DAT_FNANIO=0, DAT_FNMES<6
         '6m_menor1' => '13', // DAT_FNANIO=0, DAT_FNMES>=6
-        '1_4'       => '14', // DAT_FNANIO 1-4
-        '5_9'       => '09', // DAT_FNANIO 5-9
-        '10_14'     => '15', // DAT_FNANIO 10-14
-        '15_19'     => '16', // DAT_FNANIO 15-19
-        '20_39'     => '17', // DAT_FNANIO 20-39
-        '40_49'     => '18', // DAT_FNANIO 40-49
-        '50_59'     => '19', // DAT_FNANIO 50-59
-        '60_mas'    => '08', // DAT_FNANIO >= 60
+        '1_4' => '14', // DAT_FNANIO 1-4
+        '5_9' => '09', // DAT_FNANIO 5-9
+        '10_14' => '15', // DAT_FNANIO 10-14
+        '15_19' => '16', // DAT_FNANIO 15-19
+        '20_39' => '17', // DAT_FNANIO 20-39
+        '40_49' => '18', // DAT_FNANIO 40-49
+        '50_59' => '19', // DAT_FNANIO 50-59
+        '60_mas' => '08', // DAT_FNANIO >= 60
     ];
 
     // DAT_RECONSULTA → SNIS subvar
@@ -54,32 +73,32 @@ class TransferirSoaps extends Command
     // ══════════ G03 Odontología ══════════
     // SOAPS se_odontologia fields → SNIS G03 codvariabl
     private const G03_CAMPOS_VAR = [
-        'PRIMERA_CONSULTA'          => '01', // Primera consulta
-        'RESINA_FOTOCURABLE'        => '06', // Restauraciones (agrupado)
-        'RESINA_AUTOCURABLE'        => '06',
-        'AMALGAMA'                  => '06',
-        'IONOMERO'                  => '06',
-        'PRAT'                      => '06',
-        'PULPOTOMIA'                => '08', // Endodoncia
-        'TRATAMIENTO_CONDUCTO'      => '08',
-        'TARTRECTOMIA'              => '09', // Periodoncia
-        'GINGIVECTOMIA'             => '09',
-        'EXODONCIA_PERMANENTE'      => '15', // Cirugía Bucal menor
-        'EXODONCIA_TEMPORAL'        => '15',
-        'ALVEOLITIS'                => '15',
-        'ABSCESO_AGUDO'             => '15',
-        'MAXILO_FACIAL'             => '24', // Cirugía Bucomaxilofacial Menor
-        'FLUORINIZACION_DENTRO'     => '21', // Medidas Preventivas
-        'FLUORINIZACION_FUERA'      => '21',
-        'PROFILAXIS'                => '21',
-        'SELLANTES_DENTRO'          => '21',
-        'SELLANTES_FUERA'           => '21',
-        'CARIOSTATICOS_DENTRO'      => '21',
-        'CARIOSTATICOS_FUERA'       => '21',
-        'SALUD_ORAL_DENTRO'         => '21',
-        'SALUD_ORAL_FUERA'          => '21',
-        'RADIOGRAFIA_ORDENADA'      => '28', // Rayos X Dental
-        'RADIOGRAFIA_REALIZADA'     => '28',
+        'PRIMERA_CONSULTA' => '01', // Primera consulta
+        'RESINA_FOTOCURABLE' => '06', // Restauraciones (agrupado)
+        'RESINA_AUTOCURABLE' => '06',
+        'AMALGAMA' => '06',
+        'IONOMERO' => '06',
+        'PRAT' => '06',
+        'PULPOTOMIA' => '08', // Endodoncia
+        'TRATAMIENTO_CONDUCTO' => '08',
+        'TARTRECTOMIA' => '09', // Periodoncia
+        'GINGIVECTOMIA' => '09',
+        'EXODONCIA_PERMANENTE' => '15', // Cirugía Bucal menor
+        'EXODONCIA_TEMPORAL' => '15',
+        'ALVEOLITIS' => '15',
+        'ABSCESO_AGUDO' => '15',
+        'MAXILO_FACIAL' => '24', // Cirugía Bucomaxilofacial Menor
+        'FLUORINIZACION_DENTRO' => '21', // Medidas Preventivas
+        'FLUORINIZACION_FUERA' => '21',
+        'PROFILAXIS' => '21',
+        'SELLANTES_DENTRO' => '21',
+        'SELLANTES_FUERA' => '21',
+        'CARIOSTATICOS_DENTRO' => '21',
+        'CARIOSTATICOS_FUERA' => '21',
+        'SALUD_ORAL_DENTRO' => '21',
+        'SALUD_ORAL_FUERA' => '21',
+        'RADIOGRAFIA_ORDENADA' => '28', // Rayos X Dental
+        'RADIOGRAFIA_REALIZADA' => '28',
     ];
 
     // G03 subvar por edad (calculada desde HCL_FECNAC)
@@ -221,6 +240,7 @@ class TransferirSoaps extends Command
     // 305 V=Nuevos, M=En Control
 
     private ?PDO $pdoSoaps = null;
+
     private ?PDO $pdoSnis = null;
 
     public function handle(): int
@@ -232,19 +252,20 @@ class TransferirSoaps extends Command
         $limpiar = (bool) $this->option('limpiar');
 
         $prefijo = substr((string) $anio, 2, 2);
-        $corrEstabgest = $prefijo . $codestabl;
+        $corrEstabgest = $prefijo.$codestabl;
 
         // Determinar formularios a transferir
         $formularios = $this->resolverFormularios();
 
-        $this->info("Transfiriendo SOAPS → SNIS");
+        $this->info('Transfiriendo SOAPS → SNIS');
         $this->info("  SOAPS: codestabl={$codestabl} | SNIS: corr_estabgest={$corrEstabgest}");
-        $this->info("  Año: {$anio} | Mes: " . ($mesFiltro ?? 'todos'));
-        $this->info("  Formularios: " . implode(', ', $formularios));
+        $this->info("  Año: {$anio} | Mes: ".($mesFiltro ?? 'todos'));
+        $this->info('  Formularios: '.implode(', ', $formularios));
 
         $dataFile = "{$rutaSnis}\\snis{$anio}.mdb";
         if (! file_exists($dataFile)) {
             $this->error("No se encontró {$dataFile}");
+
             return self::FAILURE;
         }
 
@@ -253,6 +274,7 @@ class TransferirSoaps extends Command
             $this->pdoSnis = $this->connectSnis($dataFile);
         } catch (\Exception $e) {
             $this->error("Error de conexión: {$e->getMessage()}");
+
             return self::FAILURE;
         }
 
@@ -296,9 +318,15 @@ class TransferirSoaps extends Command
         if ($this->option('formulario')) {
             return array_map('trim', explode(',', $this->option('formulario')));
         }
-        if ($this->option('solo-302')) return ['302'];
-        if ($this->option('solo-305')) return ['305'];
-        if ($this->option('solo-consulta') || $this->option('solo-odontologia')) return ['301'];
+        if ($this->option('solo-302')) {
+            return ['302'];
+        }
+        if ($this->option('solo-305')) {
+            return ['305'];
+        }
+        if ($this->option('solo-consulta') || $this->option('solo-odontologia')) {
+            return ['301'];
+        }
 
         return ['301', '302', '305'];
     }
@@ -312,10 +340,11 @@ class TransferirSoaps extends Command
 
         if (empty($mesesConDatos)) {
             $this->warn('301: No hay datos en SOAPS para el período.');
+
             return ['G01_consulta' => 0, 'G03_odontologia' => 0];
         }
 
-        $this->info('301: Meses con datos: ' . implode(', ', $mesesConDatos));
+        $this->info('301: Meses con datos: '.implode(', ', $mesesConDatos));
         $stats = ['G01_consulta' => 0, 'G03_odontologia' => 0];
 
         foreach ($mesesConDatos as $mes) {
@@ -365,7 +394,7 @@ class TransferirSoaps extends Command
 
     private function connectSnis(string $path): PDO
     {
-        $dsn = "odbc:Driver={Microsoft Access Driver (*.mdb, *.accdb)};Dbq={$path};Pwd=" . self::snisPassword();
+        $dsn = "odbc:Driver={Microsoft Access Driver (*.mdb, *.accdb)};Dbq={$path};Pwd=".self::snisPassword();
 
         return new PDO($dsn, '', '', [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -395,7 +424,7 @@ class TransferirSoaps extends Command
     private function asegurarCabecera(string $corr, int $mes, int $anio): void
     {
         $stmt = $this->pdoSnis->prepare(
-            "SELECT COUNT(*) as c FROM [301_CAB] WHERE corr_estabgest = ? AND mes = ?"
+            'SELECT COUNT(*) as c FROM [301_CAB] WHERE corr_estabgest = ? AND mes = ?'
         );
         $stmt->execute([$corr, $mes]);
         $count = (int) $stmt->fetchColumn();
@@ -403,9 +432,9 @@ class TransferirSoaps extends Command
         if ($count === 0) {
             // Obtener datos del médico responsable desde SOAPS
             $stmt2 = $this->pdoSoaps->query(
-                "SELECT TOP 1 p.pperNombre, p.pperDocIde, p.pperCodPer
+                'SELECT TOP 1 p.pperNombre, p.pperDocIde, p.pperCodPer
                  FROM perPersona p
-                 WHERE p.pperSwMedi = 1"
+                 WHERE p.pperSwMedi = 1'
             );
             $medico = $stmt2->fetch();
 
@@ -416,8 +445,8 @@ class TransferirSoaps extends Command
             $fecha = "{$anio}-{$mes}-01";
 
             $this->pdoSnis->prepare(
-                "INSERT INTO [301_CAB] (corr_estabgest, mes, sem, codestado, nombre, fecha, ci, fechasis, idUsuario)
-                 VALUES (?, ?, 0, 0, ?, ?, ?, ?, ?)"
+                'INSERT INTO [301_CAB] (corr_estabgest, mes, sem, codestado, nombre, fecha, ci, fechasis, idUsuario)
+                 VALUES (?, ?, 0, 0, ?, ?, ?, ?, ?)'
             )->execute([$corr, $mes, $nombre, $fecha, $ci, $fecha, $idUsuario]);
 
             $this->line("  → Cabecera 301_CAB creada para mes {$mes}");
@@ -506,13 +535,13 @@ class TransferirSoaps extends Command
         ");
 
         $insertStmt = $this->pdoSnis->prepare(
-            "INSERT INTO [301G01_DAT] (idgestion, corr_estabgest, mes, sem, codsubvar, V, M)
-             VALUES (?, ?, ?, 0, ?, ?, ?)"
+            'INSERT INTO [301G01_DAT] (idgestion, corr_estabgest, mes, sem, codsubvar, V, M)
+             VALUES (?, ?, ?, 0, ?, ?, ?)'
         );
 
         $count = 0;
         while ($row = $stmt->fetch()) {
-            $codsubvar = '30101' . $row['var_code'] . $row['sub_code'];
+            $codsubvar = '30101'.$row['var_code'].$row['sub_code'];
             $v = (int) $row['V'];
             $m = (int) $row['M'];
 
@@ -522,14 +551,14 @@ class TransferirSoaps extends Command
 
             // Verificar si ya existe para evitar duplicados
             $check = $this->pdoSnis->prepare(
-                "SELECT COUNT(*) FROM [301G01_DAT] WHERE idgestion = ? AND corr_estabgest = ? AND mes = ? AND codsubvar = ?"
+                'SELECT COUNT(*) FROM [301G01_DAT] WHERE idgestion = ? AND corr_estabgest = ? AND mes = ? AND codsubvar = ?'
             );
             $check->execute([$anio, $corr, $mes, $codsubvar]);
 
             if ((int) $check->fetchColumn() > 0) {
                 // Actualizar
                 $this->pdoSnis->prepare(
-                    "UPDATE [301G01_DAT] SET V = ?, M = ? WHERE idgestion = ? AND corr_estabgest = ? AND mes = ? AND codsubvar = ?"
+                    'UPDATE [301G01_DAT] SET V = ?, M = ? WHERE idgestion = ? AND corr_estabgest = ? AND mes = ? AND codsubvar = ?'
                 )->execute([$v, $m, $anio, $corr, $mes, $codsubvar]);
             } else {
                 $insertStmt->execute([$anio, $corr, $mes, $codsubvar, $v, $m]);
@@ -581,7 +610,7 @@ class TransferirSoaps extends Command
                     continue;
                 }
 
-                $codsubvar = '30103' . $varCode . $subEdad;
+                $codsubvar = '30103'.$varCode.$subEdad;
 
                 if (! isset($acumulado[$codsubvar])) {
                     $acumulado[$codsubvar] = ['V' => 0, 'M' => 0];
@@ -596,7 +625,7 @@ class TransferirSoaps extends Command
 
             // Consulta Nueva (var 19) / Repetida (var 20)
             $varConsulta = $esReconsulta ? '20' : '19';
-            $codsubvar = '30103' . $varConsulta . $subEdad;
+            $codsubvar = '30103'.$varConsulta.$subEdad;
 
             if (! isset($acumulado[$codsubvar])) {
                 $acumulado[$codsubvar] = ['V' => 0, 'M' => 0];
@@ -617,18 +646,18 @@ class TransferirSoaps extends Command
             }
 
             $check = $this->pdoSnis->prepare(
-                "SELECT COUNT(*) FROM [301G03_DAT] WHERE idgestion = ? AND corr_estabgest = ? AND mes = ? AND codsubvar = ?"
+                'SELECT COUNT(*) FROM [301G03_DAT] WHERE idgestion = ? AND corr_estabgest = ? AND mes = ? AND codsubvar = ?'
             );
             $check->execute([$anio, $corr, $mes, $codsubvar]);
 
             if ((int) $check->fetchColumn() > 0) {
                 $this->pdoSnis->prepare(
-                    "UPDATE [301G03_DAT] SET V = ?, M = ? WHERE idgestion = ? AND corr_estabgest = ? AND mes = ? AND codsubvar = ?"
+                    'UPDATE [301G03_DAT] SET V = ?, M = ? WHERE idgestion = ? AND corr_estabgest = ? AND mes = ? AND codsubvar = ?'
                 )->execute([$vals['V'], $vals['M'], $anio, $corr, $mes, $codsubvar]);
             } else {
                 $this->pdoSnis->prepare(
-                    "INSERT INTO [301G03_DAT] (corr_estabgest, mes, sem, idgestion, codsubvar, V, M)
-                     VALUES (?, ?, 0, ?, ?, ?, ?)"
+                    'INSERT INTO [301G03_DAT] (corr_estabgest, mes, sem, idgestion, codsubvar, V, M)
+                     VALUES (?, ?, 0, ?, ?, ?, ?)'
                 )->execute([$corr, $mes, $anio, $codsubvar, $vals['V'], $vals['M']]);
             }
 
@@ -657,11 +686,11 @@ class TransferirSoaps extends Command
         }
 
         return match (true) {
-            $edad < 5  => '01', // Menores de 5
+            $edad < 5 => '01', // Menores de 5
             $edad <= 13 => '02', // 5 a 13
             $edad <= 19 => '03', // 14 a 19
             $edad <= 59 => '04', // 20 a 59
-            default     => '05', // 60+
+            default => '05', // 60+
         };
     }
 
@@ -683,7 +712,7 @@ class TransferirSoaps extends Command
 
         $rows = $this->pdoSoaps->query($sql)->fetchAll();
 
-        $this->line("  Consultas en SOAPS: " . count($rows));
+        $this->line('  Consultas en SOAPS: '.count($rows));
 
         // Acumular: [sem => [codsubvar => [V, M]]]
         $datos = [];
@@ -706,7 +735,7 @@ class TransferirSoaps extends Command
 
                 $m = $this->matchCie(self::CIE_302_MAP, $cie);
                 if ($m) {
-                    $key = $m['grp'] . $m['var'];
+                    $key = $m['grp'].$m['var'];
                     if (! isset($matched[$key])) {
                         $matched[$key] = $m;
                     }
@@ -738,7 +767,7 @@ class TransferirSoaps extends Command
         }
 
         $this->line("  Con diagnóstico epidemiológico: {$matchCount}");
-        $this->line("  Semanas con datos: " . count($datos));
+        $this->line('  Semanas con datos: '.count($datos));
 
         // Escribir al SNIS
         $count = 0;
@@ -746,7 +775,7 @@ class TransferirSoaps extends Command
 
         foreach ($datos as $sem => $subvars) {
             // El mes se determina por el jueves de la semana ISO (convención SNIS)
-            $jueves = new \DateTime();
+            $jueves = new \DateTime;
             $jueves->setISODate($anio, $sem, 4);
             $mes = (int) $jueves->format('n');
 
@@ -773,7 +802,7 @@ class TransferirSoaps extends Command
                 $count++;
             }
 
-            $this->line("  Sem {$sem} (mes {$mes}): " . count($subvars) . " registros");
+            $this->line("  Sem {$sem} (mes {$mes}): ".count($subvars).' registros');
         }
 
         return $count;
@@ -797,7 +826,7 @@ class TransferirSoaps extends Command
 
         $rows = $this->pdoSoaps->query($sql)->fetchAll();
 
-        $this->line("  Consultas en SOAPS: " . count($rows));
+        $this->line('  Consultas en SOAPS: '.count($rows));
 
         // Acumular: [mes => [codsubvar => [V, M]]]
         // V = Caso Nuevo (Reconsulta != 'Si'), M = En Control (Reconsulta = 'Si')
@@ -820,7 +849,7 @@ class TransferirSoaps extends Command
 
                 $m = $this->matchCie(self::CIE_305_MAP, $cie);
                 if ($m) {
-                    $key = $m['grp'] . $m['var'];
+                    $key = $m['grp'].$m['var'];
                     if (! isset($matched[$key])) {
                         $matched[$key] = $m;
                     }
@@ -861,7 +890,7 @@ class TransferirSoaps extends Command
         }
 
         $this->line("  Con diagnóstico crónico/mental: {$matchCount}");
-        $this->line("  Meses con datos: " . count($datos));
+        $this->line('  Meses con datos: '.count($datos));
 
         // Escribir al SNIS
         $count = 0;
@@ -891,7 +920,7 @@ class TransferirSoaps extends Command
                 $count++;
             }
 
-            $this->line("  Mes {$mes}: " . count($subvars) . " registros");
+            $this->line("  Mes {$mes}: ".count($subvars).' registros');
         }
 
         return $count;
@@ -916,15 +945,15 @@ class TransferirSoaps extends Command
     {
         return match (true) {
             $anios == 0 && $meses < 6 => '01',
-            $anios == 0               => '02',
-            $anios <= 4               => '03',
-            $anios <= 9               => '04',
-            $anios <= 14              => '05',
-            $anios <= 19              => '06',
-            $anios <= 39              => '07',
-            $anios <= 49              => '08',
-            $anios <= 59              => '09',
-            default                   => '10',
+            $anios == 0 => '02',
+            $anios <= 4 => '03',
+            $anios <= 9 => '04',
+            $anios <= 14 => '05',
+            $anios <= 19 => '06',
+            $anios <= 39 => '07',
+            $anios <= 49 => '08',
+            $anios <= 59 => '09',
+            default => '10',
         };
     }
 
@@ -935,15 +964,15 @@ class TransferirSoaps extends Command
         //        09/10=10-14, 11/12=15-19, 13/14=20-39, 15/16=40-49, 17/18=50-59, 19/20=60+
         $base = match (true) {
             $anios == 0 && $meses < 6 => 1,
-            $anios == 0               => 3,
-            $anios <= 4               => 5,
-            $anios <= 9               => 7,
-            $anios <= 14              => 9,
-            $anios <= 19              => 11,
-            $anios <= 39              => 13,
-            $anios <= 49              => 15,
-            $anios <= 59              => 17,
-            default                   => 19,
+            $anios == 0 => 3,
+            $anios <= 4 => 5,
+            $anios <= 9 => 7,
+            $anios <= 14 => 9,
+            $anios <= 19 => 11,
+            $anios <= 39 => 13,
+            $anios <= 49 => 15,
+            $anios <= 59 => 17,
+            default => 19,
         };
 
         $sub = ($sexo === 2) ? $base + 1 : $base;
@@ -956,7 +985,7 @@ class TransferirSoaps extends Command
     private function asegurarCabecera302(string $corr, int $sem, int $mes, int $anio): void
     {
         $stmt = $this->pdoSnis->prepare(
-            "SELECT COUNT(*) FROM [302_CAB] WHERE corr_estabgest = ? AND sem = ?"
+            'SELECT COUNT(*) FROM [302_CAB] WHERE corr_estabgest = ? AND sem = ?'
         );
         $stmt->execute([$corr, $sem]);
 
@@ -968,8 +997,8 @@ class TransferirSoaps extends Command
         $fecha = sprintf('%d-%02d-01', $anio, $mes);
 
         $this->pdoSnis->prepare(
-            "INSERT INTO [302_CAB] (corr_estabgest, mes, sem, codestado, nombre, fecha, ci, fechasis, idUsuario)
-             VALUES (?, ?, ?, 0, ?, ?, ?, ?, 80)"
+            'INSERT INTO [302_CAB] (corr_estabgest, mes, sem, codestado, nombre, fecha, ci, fechasis, idUsuario)
+             VALUES (?, ?, ?, 0, ?, ?, ?, ?, 80)'
         )->execute([$corr, $mes, $sem, $medico['nombre'], $fecha, $medico['ci'], $fecha]);
 
         $this->line("  → Cabecera 302_CAB: sem {$sem}, mes {$mes}");
@@ -978,7 +1007,7 @@ class TransferirSoaps extends Command
     private function asegurarCabecera305(string $corr, int $mes, int $anio): void
     {
         $stmt = $this->pdoSnis->prepare(
-            "SELECT COUNT(*) FROM [305_CAB] WHERE corr_estabgest = ? AND mes = ?"
+            'SELECT COUNT(*) FROM [305_CAB] WHERE corr_estabgest = ? AND mes = ?'
         );
         $stmt->execute([$corr, $mes]);
 
@@ -990,8 +1019,8 @@ class TransferirSoaps extends Command
         $fecha = sprintf('%d-%02d-01', $anio, $mes);
 
         $this->pdoSnis->prepare(
-            "INSERT INTO [305_CAB] (corr_estabgest, mes, sem, codestado, nombre, fecha, ci, fechasis, idUsuario)
-             VALUES (?, ?, 0, 0, ?, ?, ?, ?, 80)"
+            'INSERT INTO [305_CAB] (corr_estabgest, mes, sem, codestado, nombre, fecha, ci, fechasis, idUsuario)
+             VALUES (?, ?, 0, 0, ?, ?, ?, ?, 80)'
         )->execute([$corr, $mes, $medico['nombre'], $fecha, $medico['ci'], $fecha]);
 
         $this->line("  → Cabecera 305_CAB: mes {$mes}");
@@ -1005,7 +1034,7 @@ class TransferirSoaps extends Command
         }
 
         $stmt = $this->pdoSoaps->query(
-            "SELECT TOP 1 pperNombre, pperDocIde FROM perPersona WHERE pperSwMedi = 1"
+            'SELECT TOP 1 pperNombre, pperDocIde FROM perPersona WHERE pperSwMedi = 1'
         );
         $row = $stmt->fetch();
 

@@ -44,7 +44,7 @@ class UserResource extends Resource
         if ($user && $user->hasRole('admin')) {
             // admin solo ve registradores de su propio centro
             $query->where('centro_salud_id', $user->centro_salud_id)
-                  ->whereHas('roles', fn (Builder $q) => $q->where('name', 'registrador'));
+                ->whereHas('roles', fn (Builder $q) => $q->where('name', 'registrador'));
         }
 
         return $query;
@@ -68,9 +68,9 @@ class UserResource extends Resource
     public static function getPages(): array
     {
         return [
-            'index'  => ListUsers::route('/'),
+            'index' => ListUsers::route('/'),
             'create' => CreateUser::route('/create'),
-            'edit'   => EditUser::route('/{record}/edit'),
+            'edit' => EditUser::route('/{record}/edit'),
         ];
     }
 }

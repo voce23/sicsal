@@ -8,8 +8,9 @@ use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
+use PhpOffice\PhpSpreadsheet\Style\Alignment;
 
-class MigracionSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
+class MigracionSheet implements FromArray, WithColumnWidths, WithEvents, WithTitle
 {
     use EstiloExcel;
 
@@ -35,10 +36,10 @@ class MigracionSheet implements FromArray, WithTitle, WithColumnWidths, WithEven
             ['Padrón total',          $m['total_padron']],
             ['Residentes activos',    $m['residentes']],
             ['Migrantes',             $m['migrantes']],
-            ['% Migrantes',           $m['pct_migrantes'] . '%'],
+            ['% Migrantes',           $m['pct_migrantes'].'%'],
             ['MEF activas (15-49 a)', $m['mef_activas']],
             ['MEF migradas',          $m['mef_migradas']],
-            ['% MEF migradas',        $m['pct_mef_migradas'] . '%'],
+            ['% MEF migradas',        $m['pct_mef_migradas'].'%'],
             ['Hombres migrados',      $m['hombres_migrados']],
         ];
     }
@@ -60,12 +61,12 @@ class MigracionSheet implements FromArray, WithTitle, WithColumnWidths, WithEven
                     $this->estiloEtiqueta($sheet, "A{$i}");
                     $this->estiloValor($sheet, "B{$i}");
                     // Alinear valores numéricos a la derecha
-                    $sheet->getStyle("B{$i}")->getAlignment()->setHorizontal(\PhpOffice\PhpSpreadsheet\Style\Alignment::HORIZONTAL_RIGHT);
+                    $sheet->getStyle("B{$i}")->getAlignment()->setHorizontal(Alignment::HORIZONTAL_RIGHT);
                     $this->alturaFila($sheet, $i, 16);
                 }
 
-                $this->bordeExterno($sheet, 'A2:B' . $totalFilas);
-                $sheet->getStyle('A1:B' . $totalFilas)->getFont()->setName('Calibri');
+                $this->bordeExterno($sheet, 'A2:B'.$totalFilas);
+                $sheet->getStyle('A1:B'.$totalFilas)->getFont()->setName('Calibri');
             },
         ];
     }

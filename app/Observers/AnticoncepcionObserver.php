@@ -24,9 +24,11 @@ class AnticoncepcionObserver
     private function sincronizar(Anticoncepcion $ac, int $delta): void
     {
         $persona = $ac->persona;
-        if (!$persona) return;
+        if (! $persona) {
+            return;
+        }
 
-        $fechaRef    = $ac->fecha instanceof Carbon ? $ac->fecha : Carbon::parse($ac->fecha);
+        $fechaRef = $ac->fecha instanceof Carbon ? $ac->fecha : Carbon::parse($ac->fecha);
         $grupoEtareo = $this->grupoEtareoMaterno(
             Carbon::parse($persona->fecha_nacimiento),
             $fechaRef
@@ -35,11 +37,11 @@ class AnticoncepcionObserver
         $row = PrestAnticoncepcion::firstOrCreate(
             [
                 'centro_salud_id' => $persona->centro_salud_id,
-                'mes'             => $ac->mes,
-                'anio'            => $ac->anio,
-                'metodo'          => $ac->metodo,
-                'tipo_usuaria'    => $ac->tipo_usuaria,
-                'grupo_etareo'    => $grupoEtareo,
+                'mes' => $ac->mes,
+                'anio' => $ac->anio,
+                'metodo' => $ac->metodo,
+                'tipo_usuaria' => $ac->tipo_usuaria,
+                'grupo_etareo' => $grupoEtareo,
             ],
             ['cantidad' => 0]
         );

@@ -3,15 +3,15 @@
 namespace App\Exports\Sheets;
 
 use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ComunidadesConsolidadoSheet implements FromArray, WithTitle, WithStyles, WithColumnWidths
+class ComunidadesConsolidadoSheet implements FromArray, WithColumnWidths, WithStyles, WithTitle
 {
     public function __construct(private array $datos) {}
 
@@ -33,7 +33,7 @@ class ComunidadesConsolidadoSheet implements FromArray, WithTitle, WithStyles, W
     {
         $rows = [];
         $rows[] = ['CONSOLIDADO META INE vs. POBLACIÓN REAL'];
-        $rows[] = ['Centro: ' . ($this->datos['centro']->nombre ?? '')];
+        $rows[] = ['Centro: '.($this->datos['centro']->nombre ?? '')];
         $rows[] = ['Grupo', 'INE H', 'INE M', 'INE Total', 'Real H', 'Real M', 'Real Total', 'Diferencia', 'Cobertura'];
 
         $sumIneM = $sumIneF = $sumIneT = $sumRealM = $sumRealF = $sumRealT = 0;
@@ -42,8 +42,8 @@ class ComunidadesConsolidadoSheet implements FromArray, WithTitle, WithStyles, W
                 $row['label'],
                 $row['ine_m'], $row['ine_f'], $row['ine_total'],
                 $row['real_m'], $row['real_f'], $row['real_total'],
-                ($row['diferencia'] >= 0 ? '+' : '') . $row['diferencia'],
-                $row['cobertura'] . '%',
+                ($row['diferencia'] >= 0 ? '+' : '').$row['diferencia'],
+                $row['cobertura'].'%',
             ];
             $sumIneM += $row['ine_m'];
             $sumIneF += $row['ine_f'];
@@ -59,8 +59,8 @@ class ComunidadesConsolidadoSheet implements FromArray, WithTitle, WithStyles, W
             'TOTAL',
             $sumIneM, $sumIneF, $sumIneT,
             $sumRealM, $sumRealF, $sumRealT,
-            ($dif >= 0 ? '+' : '') . $dif,
-            $pct . '%',
+            ($dif >= 0 ? '+' : '').$dif,
+            $pct.'%',
         ];
 
         return $rows;

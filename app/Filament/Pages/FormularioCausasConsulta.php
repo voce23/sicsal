@@ -31,16 +31,16 @@ class FormularioCausasConsulta extends Page
     public array $causas = [];
 
     public static array $grupos = [
-        'menor_6m'   => '< 6m',
+        'menor_6m' => '< 6m',
         '6m_menor_1' => '6m-1a',
-        '1_4'        => '1-4',
-        '5_9'        => '5-9',
-        '10_14'      => '10-14',
-        '15_19'      => '15-19',
-        '20_39'      => '20-39',
-        '40_49'      => '40-49',
-        '50_59'      => '50-59',
-        'mayor_60'   => '≥60',
+        '1_4' => '1-4',
+        '5_9' => '5-9',
+        '10_14' => '10-14',
+        '15_19' => '15-19',
+        '20_39' => '20-39',
+        '40_49' => '40-49',
+        '50_59' => '50-59',
+        'mayor_60' => '≥60',
     ];
 
     public function mount(): void
@@ -60,7 +60,7 @@ class FormularioCausasConsulta extends Page
             }
             $this->causas[$pos] = [
                 'diagnostico' => '',
-                'grupos'      => $grupos,
+                'grupos' => $grupos,
             ];
         }
 
@@ -72,10 +72,12 @@ class FormularioCausasConsulta extends Page
 
         foreach ($rows as $row) {
             $pos = $row->posicion ?? 1;
-            if ($pos < 1 || $pos > 10) continue;
+            if ($pos < 1 || $pos > 10) {
+                continue;
+            }
 
             // El diagnóstico es el mismo para todas las filas de la misma posición
-            if (!empty($row->diagnostico)) {
+            if (! empty($row->diagnostico)) {
                 $this->causas[$pos]['diagnostico'] = $row->diagnostico;
             }
 
@@ -91,7 +93,9 @@ class FormularioCausasConsulta extends Page
 
     public function guardar(): void
     {
-        if ($this->mesCerrado) return;
+        if ($this->mesCerrado) {
+            return;
+        }
 
         $centroId = auth()->user()->centro_salud_id;
 
@@ -104,7 +108,9 @@ class FormularioCausasConsulta extends Page
         $count = 0;
         foreach ($this->causas as $pos => $causa) {
             $diagnostico = trim($causa['diagnostico'] ?? '');
-            if ($diagnostico === '') continue; // omitir filas vacías
+            if ($diagnostico === '') {
+                continue;
+            } // omitir filas vacías
 
             foreach (self::$grupos as $ge => $_label) {
                 $m = (int) ($causa['grupos'][$ge]['m'] ?? 0);
@@ -112,13 +118,13 @@ class FormularioCausasConsulta extends Page
 
                 CausaConsultaExterna::create([
                     'centro_salud_id' => $centroId,
-                    'mes'             => $this->mes,
-                    'anio'            => $this->anio,
-                    'posicion'        => $pos,
-                    'diagnostico'     => $diagnostico,
-                    'grupo_etareo'    => $ge,
-                    'masculino'       => $m,
-                    'femenino'        => $f,
+                    'mes' => $this->mes,
+                    'anio' => $this->anio,
+                    'posicion' => $pos,
+                    'diagnostico' => $diagnostico,
+                    'grupo_etareo' => $ge,
+                    'masculino' => $m,
+                    'femenino' => $f,
                 ]);
                 $count++;
             }
@@ -126,5 +132,4 @@ class FormularioCausasConsulta extends Page
 
         Notification::make()->title('Causas de consulta externa guardadas')->success()->send();
     }
-
 }

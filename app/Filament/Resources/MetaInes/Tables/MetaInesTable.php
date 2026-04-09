@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MetaInes\Tables;
 
+use App\Models\MetaIne;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
@@ -35,7 +36,7 @@ class MetaInesTable
             ])
             ->filters([
                 SelectFilter::make('anio')
-                    ->options(fn () => \App\Models\MetaIne::distinct()->pluck('anio', 'anio')->toArray())
+                    ->options(fn () => MetaIne::distinct()->pluck('anio', 'anio')->toArray())
                     ->label('Año'),
                 SelectFilter::make('sexo')
                     ->options(['M' => 'Masculino', 'F' => 'Femenino', 'ambos' => 'Ambos'])

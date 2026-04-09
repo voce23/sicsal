@@ -17,11 +17,11 @@ test('new users can register', function () {
     $centro = CentroSalud::factory()->create();
 
     $response = $this->post(route('register.store'), [
-        'name'                  => 'John',
-        'apellidos'             => 'Doe',
-        'email'                 => 'test@example.com',
-        'centro_salud_id'       => $centro->id,
-        'password'              => 'password',
+        'name' => 'John',
+        'apellidos' => 'Doe',
+        'email' => 'test@example.com',
+        'centro_salud_id' => $centro->id,
+        'password' => 'password',
         'password_confirmation' => 'password',
     ]);
 

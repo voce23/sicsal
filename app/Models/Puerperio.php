@@ -15,7 +15,7 @@ class Puerperio extends Model
     {
         return [
             'control_48h' => 'date',
-            'control_7d'  => 'date',
+            'control_7d' => 'date',
             'control_28d' => 'date',
             'control_42d' => 'date',
         ];

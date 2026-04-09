@@ -75,8 +75,8 @@ class UserForm
 
         if ($user?->hasRole('superadmin')) {
             return [
-                'superadmin'  => 'Superadmin',
-                'admin'       => 'Admin (Médico)',
+                'superadmin' => 'Superadmin',
+                'admin' => 'Admin (Médico)',
                 'registrador' => 'Registrador (Enfermero/a)',
             ];
         }

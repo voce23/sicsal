@@ -5,8 +5,8 @@ namespace App\Filament\Resources\Personas\Schemas;
 use Filament\Forms\Components\DatePicker;
 use Filament\Forms\Components\Radio;
 use Filament\Forms\Components\Select;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Components\Section;
 use Filament\Schemas\Schema;
@@ -46,7 +46,7 @@ class PersonaForm
                     ->schema([
                         Select::make('tipo_seguro')
                             ->options([
-                                'SUS'     => 'SUS (Seguro Universal de Salud)',
+                                'SUS' => 'SUS (Seguro Universal de Salud)',
                                 'privado' => 'Privado',
                                 'ninguno' => 'Ninguno',
                             ])
@@ -78,8 +78,8 @@ class PersonaForm
                         Select::make('estado')
                             ->options([
                                 'residente' => 'Residente',
-                                'temporal'  => 'Temporal',
-                                'migrado'   => 'Migrado',
+                                'temporal' => 'Temporal',
+                                'migrado' => 'Migrado',
                                 'fallecido' => 'Fallecido',
                             ])
                             ->default('residente')

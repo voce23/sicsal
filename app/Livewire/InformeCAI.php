@@ -54,8 +54,8 @@ class InformeCAI extends Component
         }
 
         $datos = CaiHelper::getDatosInforme($this->centroSaludId, $this->periodo, $this->anio);
-        $nombre = 'InformeCAI_' . str_replace(' ', '_', $datos['encabezado']['centro_nombre'])
-            . '_' . $this->periodo . '_' . $this->anio . '.xlsx';
+        $nombre = 'InformeCAI_'.str_replace(' ', '_', $datos['encabezado']['centro_nombre'])
+            .'_'.$this->periodo.'_'.$this->anio.'.xlsx';
 
         return Excel::download(new InformeCAIExport($datos), $nombre);
     }
@@ -67,8 +67,8 @@ class InformeCAI extends Component
         }
 
         $datos = CaiHelper::getDatosInforme($this->centroSaludId, $this->periodo, $this->anio);
-        $nombre = 'InformeCAI_' . str_replace(' ', '_', $datos['encabezado']['centro_nombre'])
-            . '_' . $this->periodo . '_' . $this->anio . '.pdf';
+        $nombre = 'InformeCAI_'.str_replace(' ', '_', $datos['encabezado']['centro_nombre'])
+            .'_'.$this->periodo.'_'.$this->anio.'.pdf';
 
         $pdf = Pdf::loadView('pdf.informe-cai', ['datos' => $datos])
             ->setPaper('a4', 'portrait')
@@ -77,7 +77,7 @@ class InformeCAI extends Component
             ->setOption('margin-left', 15)
             ->setOption('margin-right', 15);
 
-        return response()->streamDownload(fn () => print($pdf->output()), $nombre);
+        return response()->streamDownload(fn () => print ($pdf->output()), $nombre);
     }
 
     public function generarPptx()
@@ -91,7 +91,7 @@ class InformeCAI extends Component
         $tmpFile = $pptx->generate();
 
         $nombre = 'InformeCAI_Municipal_'
-            . $this->periodo . '_' . $this->anio . '.pptx';
+            .$this->periodo.'_'.$this->anio.'.pptx';
 
         return response()->streamDownload(function () use ($tmpFile) {
             readfile($tmpFile);

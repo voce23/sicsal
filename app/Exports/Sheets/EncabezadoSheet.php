@@ -8,11 +8,8 @@ use Maatwebsite\Excel\Concerns\WithColumnWidths;
 use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
-use PhpOffice\PhpSpreadsheet\Style\Alignment;
-use PhpOffice\PhpSpreadsheet\Style\Border;
-use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-class EncabezadoSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
+class EncabezadoSheet implements FromArray, WithColumnWidths, WithEvents, WithTitle
 {
     use EstiloExcel;
 
@@ -32,7 +29,7 @@ class EncabezadoSheet implements FromArray, WithTitle, WithColumnWidths, WithEve
     {
         $rows = [
             // Fila 1: título principal (se fusiona en AfterSheet)
-            ['INFORME CAI — ' . strtoupper($this->encabezado['periodo_nombre']), ''],
+            ['INFORME CAI — '.strtoupper($this->encabezado['periodo_nombre']), ''],
             // Fila 2: vacía separadora
             ['', ''],
             // Fila 3: subtítulo sección
@@ -102,7 +99,7 @@ class EncabezadoSheet implements FromArray, WithTitle, WithColumnWidths, WithEve
                     // Color especial si cerrado
                     if ($mc['cerrado']) {
                         $sheet->getStyle("B{$fila}")->applyFromArray([
-                            'font' => ['bold' => true, 'color' => ['argb' => 'FF' . self::GREEN_OK]],
+                            'font' => ['bold' => true, 'color' => ['argb' => 'FF'.self::GREEN_OK]],
                         ]);
                     }
                     $this->alturaFila($sheet, $fila, 15);
@@ -111,7 +108,7 @@ class EncabezadoSheet implements FromArray, WithTitle, WithColumnWidths, WithEve
                 $ultimaFila = $inicio + count($this->mesesCerrados) - 1;
                 $this->bordeExterno($sheet, "A{$filaHdrMeses}:B{$ultimaFila}");
 
-                $sheet->getStyle('A1:B' . ($ultimaFila))->getFont()->setName('Calibri');
+                $sheet->getStyle('A1:B'.($ultimaFila))->getFont()->setName('Calibri');
             },
         ];
     }

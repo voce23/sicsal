@@ -15,9 +15,9 @@ class MunicipioFactory extends Factory
     public function definition(): array
     {
         return [
-            'nombre'       => fake()->city(),
+            'nombre' => fake()->city(),
             'departamento' => 'Cochabamba',
-            'activo'       => true,
+            'activo' => true,
         ];
     }
 }

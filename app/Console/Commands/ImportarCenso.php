@@ -18,40 +18,55 @@ class ImportarCenso extends Command
 
     protected $description = 'Importa el censo de pacientes del SOAPS al SIMUES (personas atendidas en la gestión)';
 
-    private static function soapsServer(): string { return env('SOAPS_SERVER', '.\SNS'); }
-    private static function soapsDb(): string { return env('SOAPS_DB', 'BDestadistica'); }
-    private static function soapsUser(): string { return env('SOAPS_USER', 'sa'); }
-    private static function soapsPass(): string { return env('SOAPS_PASS', ''); }
+    private static function soapsServer(): string
+    {
+        return env('SOAPS_SERVER', '.\SNS');
+    }
+
+    private static function soapsDb(): string
+    {
+        return env('SOAPS_DB', 'BDestadistica');
+    }
+
+    private static function soapsUser(): string
+    {
+        return env('SOAPS_USER', 'sa');
+    }
+
+    private static function soapsPass(): string
+    {
+        return env('SOAPS_PASS', '');
+    }
 
     // Mapeo SE_ZONA.zon_descripcion → comunidad SIMUES (nombre normalizado)
     // Los que no coincidan se intentan resolver por HCL_DIRECC
     private const ZONA_COMUNIDAD = [
-        'HORNOMA'      => 'Hornoma',
-        'HUAYCHOMA'    => 'Huaychoma',
-        'VILLCABAMBA'  => 'Villcabamba',
-        'COCOMA'       => 'Cocoma',
-        'TOCOHALLA'    => 'Tocohalla',
+        'HORNOMA' => 'Hornoma',
+        'HUAYCHOMA' => 'Huaychoma',
+        'VILLCABAMBA' => 'Villcabamba',
+        'COCOMA' => 'Cocoma',
+        'TOCOHALLA' => 'Tocohalla',
         'CHALLAVILQUE' => 'Challavilque',
-        'CALACAJA'     => 'Calacaja',
-        'SIQUIMIRANI'  => 'Siquimirani',
+        'CALACAJA' => 'Calacaja',
+        'SIQUIMIRANI' => 'Siquimirani',
     ];
 
     // Palabras clave en HCL_DIRECC para resolver "sin zona"
     private const DIRECC_COMUNIDAD = [
-        'HORNOMA'       => 'Hornoma',
-        'HUAYCHOMA'     => 'Huaychoma',
-        'HHUAYCHOMA'    => 'Huaychoma',
-        'VILLCABAMBA'   => 'Villcabamba',
-        'VILLCABAM'     => 'Villcabamba',
-        'COCOMA'        => 'Cocoma',
-        'TOCOHALLA'     => 'Tocohalla',
-        'CHALLAVILQUE'  => 'Challavilque',
+        'HORNOMA' => 'Hornoma',
+        'HUAYCHOMA' => 'Huaychoma',
+        'HHUAYCHOMA' => 'Huaychoma',
+        'VILLCABAMBA' => 'Villcabamba',
+        'VILLCABAM' => 'Villcabamba',
+        'COCOMA' => 'Cocoma',
+        'TOCOHALLA' => 'Tocohalla',
+        'CHALLAVILQUE' => 'Challavilque',
         'CHALLAVILLQUE' => 'Challavilque',
-        'CALACAJA'      => 'Calacaja',
-        'CALCAJA'       => 'Calacaja',
-        'CALA CAJA'     => 'Calacaja',
-        'SIQUIMIRANI'   => 'Siquimirani',
-        'HIORNOMA'      => 'Hornoma',
+        'CALACAJA' => 'Calacaja',
+        'CALCAJA' => 'Calacaja',
+        'CALA CAJA' => 'Calacaja',
+        'SIQUIMIRANI' => 'Siquimirani',
+        'HIORNOMA' => 'Hornoma',
     ];
 
     public function handle(): int
@@ -62,7 +77,7 @@ class ImportarCenso extends Command
         $centroSaludId = (int) $this->option('centro-salud');
         $soloConteo = (bool) $this->option('solo-conteo');
 
-        $this->info("Importación de Censo SOAPS → SIMUES");
+        $this->info('Importación de Censo SOAPS → SIMUES');
         $this->info("  Período: {$anio} + ene-mar {$anioSig}");
         $this->info("  Centro de salud: {$centroSaludId}");
 
@@ -70,6 +85,7 @@ class ImportarCenso extends Command
             $pdo = $this->connectSoaps();
         } catch (\Exception $e) {
             $this->error("Error de conexión SOAPS: {$e->getMessage()}");
+
             return self::FAILURE;
         }
 
@@ -80,10 +96,11 @@ class ImportarCenso extends Command
 
         if (empty($comunidades)) {
             $this->error("No hay comunidades para el centro de salud {$centroSaludId}");
+
             return self::FAILURE;
         }
 
-        $this->info('  Comunidades SIMUES: ' . implode(', ', array_keys($comunidades)));
+        $this->info('  Comunidades SIMUES: '.implode(', ', array_keys($comunidades)));
 
         // ── 1. Pacientes con consulta en el período ──
         $this->newLine();
@@ -106,7 +123,7 @@ class ImportarCenso extends Command
             ORDER BY h.HCL_APPAT, h.HCL_APMAT, h.HCL_NOMBRE
         ")->fetchAll(PDO::FETCH_ASSOC);
 
-        $this->line("  Pacientes con consulta: " . count($pacientes));
+        $this->line('  Pacientes con consulta: '.count($pacientes));
 
         // ── 2. Fallecidos ──
         $fallecidos = $pdo->query("
@@ -125,7 +142,7 @@ class ImportarCenso extends Command
             );
             $fallecidosNorm[$key] = true;
         }
-        $this->line("  Fallecidos (gestión ≥{$anio}): " . count($fallecidosNorm));
+        $this->line("  Fallecidos (gestión ≥{$anio}): ".count($fallecidosNorm));
 
         // ── 3. Mapear y clasificar ──
         $importar = [];
@@ -139,6 +156,7 @@ class ImportarCenso extends Command
             );
             if (isset($fallecidosNorm[$nombreNorm])) {
                 $excluidos++;
+
                 continue;
             }
 
@@ -157,23 +175,23 @@ class ImportarCenso extends Command
             }
 
             $importar[] = [
-                'hcl_codigo'       => $p['HCL_CODIGO'],
-                'centro_salud_id'  => $centroSaludId,
-                'comunidad_id'     => $comunidadId,
-                'nombres'          => $this->limpiarTexto($p['HCL_NOMBRE']),
-                'apellidos'        => trim($this->limpiarTexto($p['HCL_APPAT']) . ' ' . $this->limpiarTexto($p['HCL_APMAT'])),
+                'hcl_codigo' => $p['HCL_CODIGO'],
+                'centro_salud_id' => $centroSaludId,
+                'comunidad_id' => $comunidadId,
+                'nombres' => $this->limpiarTexto($p['HCL_NOMBRE']),
+                'apellidos' => trim($this->limpiarTexto($p['HCL_APPAT']).' '.$this->limpiarTexto($p['HCL_APMAT'])),
                 'fecha_nacimiento' => substr($p['HCL_FECNAC'], 0, 10),
-                'sexo'             => ($p['HCL_SEXO'] == 1) ? 'M' : 'F',
-                'ci'               => $this->limpiarCI($p['HCL_NUMCI']),
-                'tipo_seguro'      => ($p['HCL_SUMI'] === 'S') ? 'SUS' : 'ninguno',
-                'estado'           => 'residente',
-                'fecha_registro'   => substr($p['HCL_FECHA'], 0, 10),
-                'observaciones'    => "Código Seguro: {$p['HCL_CodCSB']}",
+                'sexo' => ($p['HCL_SEXO'] == 1) ? 'M' : 'F',
+                'ci' => $this->limpiarCI($p['HCL_NUMCI']),
+                'tipo_seguro' => ($p['HCL_SUMI'] === 'S') ? 'SUS' : 'ninguno',
+                'estado' => 'residente',
+                'fecha_registro' => substr($p['HCL_FECHA'], 0, 10),
+                'observaciones' => "Código Seguro: {$p['HCL_CodCSB']}",
             ];
         }
 
         $this->line("  Excluidos (fallecidos): {$excluidos}");
-        $this->line("  A importar: " . count($importar));
+        $this->line('  A importar: '.count($importar));
 
         // Distribución por comunidad
         $dist = [];
@@ -191,14 +209,17 @@ class ImportarCenso extends Command
         );
 
         if (! empty($sinComunidad)) {
-            $this->warn("Sin comunidad asignada (→ Hornoma): " . count($sinComunidad));
+            $this->warn('Sin comunidad asignada (→ Hornoma): '.count($sinComunidad));
             if ($this->getOutput()->isVerbose()) {
-                foreach ($sinComunidad as $s) $this->line("    {$s}");
+                foreach ($sinComunidad as $s) {
+                    $this->line("    {$s}");
+                }
             }
         }
 
         if ($soloConteo) {
             $this->info('Modo solo conteo. No se importó nada.');
+
             return self::SUCCESS;
         }
 
@@ -240,8 +261,8 @@ class ImportarCenso extends Command
                 // Actualizar comunidad y tipo seguro si cambió
                 $existente->update([
                     'comunidad_id' => $data['comunidad_id'],
-                    'tipo_seguro'  => $data['tipo_seguro'],
-                    'activo'       => true,
+                    'tipo_seguro' => $data['tipo_seguro'],
+                    'activo' => true,
                     'observaciones' => $data['observaciones'],
                 ]);
                 $actualizados++;
@@ -308,6 +329,7 @@ class ImportarCenso extends Command
     {
         // Eliminar caracteres basura del ODBC (|�, |O�, etc.)
         $texto = preg_replace('/\|.*$/', '', $texto);
+
         return mb_convert_encoding(trim($texto), 'UTF-8', 'UTF-8');
     }
 

@@ -17,7 +17,7 @@ class Parto extends Model
     {
         return [
             'fecha_parto' => 'date',
-            'peso_rn_kg'  => 'decimal:3',
+            'peso_rn_kg' => 'decimal:3',
         ];
     }
 

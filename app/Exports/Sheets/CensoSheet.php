@@ -9,8 +9,10 @@ use Maatwebsite\Excel\Concerns\WithEvents;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Events\AfterSheet;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
+use PhpOffice\PhpSpreadsheet\Style\Border;
+use PhpOffice\PhpSpreadsheet\Style\Fill;
 
-class CensoSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
+class CensoSheet implements FromArray, WithColumnWidths, WithEvents, WithTitle
 {
     use EstiloExcel;
 
@@ -50,11 +52,12 @@ class CensoSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
 
         // Fila total
         $totales = array_reduce($this->censo['comunidades'], function ($carry, $com) {
-            $carry['total']    += $com['total'];
-            $carry['hombres']  += $com['hombres'];
-            $carry['mujeres']  += $com['mujeres'];
-            $carry['menor_5']  += $com['menor_5'];
+            $carry['total'] += $com['total'];
+            $carry['hombres'] += $com['hombres'];
+            $carry['mujeres'] += $com['mujeres'];
+            $carry['menor_5'] += $com['menor_5'];
             $carry['migrantes'] += $com['migrantes'];
+
             return $carry;
         }, ['total' => 0, 'hombres' => 0, 'mujeres' => 0, 'menor_5' => 0, 'migrantes' => 0]);
 
@@ -67,7 +70,7 @@ class CensoSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
         $rows[] = ['Grupo Etáreo', 'INE M', 'INE F', 'INE Total', 'Real M', 'Real F', 'Real Total'];
 
         foreach ($this->censo['piramide'] as $g) {
-            $ineTotal  = $g['ine_m']  + $g['ine_f'];
+            $ineTotal = $g['ine_m'] + $g['ine_f'];
             $realTotal = $g['real_m'] + $g['real_f'];
             $rows[] = [
                 $g['label'],
@@ -86,7 +89,7 @@ class CensoSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
                 $sheet = $e->sheet->getDelegate();
 
                 $nComunidades = count($this->censo['comunidades']);
-                $nPiramide    = count($this->censo['piramide']);
+                $nPiramide = count($this->censo['piramide']);
 
                 // ── Sección 1: Censo ──
                 $this->estiloTitulo($sheet, 'A1:G1', '');
@@ -107,20 +110,20 @@ class CensoSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
                 // Fila TOTAL
                 $filaTotal = 3 + $nComunidades;
                 $sheet->getStyle("A{$filaTotal}:G{$filaTotal}")->applyFromArray([
-                    'font'      => ['bold' => true, 'size' => 9, 'color' => ['argb' => 'FF' . self::WHITE]],
-                    'fill'      => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'color' => ['argb' => 'FF' . self::TEAL_DARK]],
+                    'font' => ['bold' => true, 'size' => 9, 'color' => ['argb' => 'FF'.self::WHITE]],
+                    'fill' => ['fillType' => Fill::FILL_SOLID, 'color' => ['argb' => 'FF'.self::TEAL_DARK]],
                     'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-                    'borders'   => ['allBorders' => ['borderStyle' => \PhpOffice\PhpSpreadsheet\Style\Border::BORDER_THIN, 'color' => ['argb' => 'FF' . self::TEAL]]],
+                    'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN, 'color' => ['argb' => 'FF'.self::TEAL]]],
                 ]);
-                $sheet->getStyle('A' . $filaTotal)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
+                $sheet->getStyle('A'.$filaTotal)->getAlignment()->setHorizontal(Alignment::HORIZONTAL_LEFT);
                 $this->alturaFila($sheet, $filaTotal, 16);
 
-                $this->bordeExterno($sheet, 'A2:G' . $filaTotal);
+                $this->bordeExterno($sheet, 'A2:G'.$filaTotal);
 
                 // ── Sección 2: Pirámide ──
-                $filaVacia   = $filaTotal + 1;
-                $filaTit2    = $filaTotal + 2;
-                $filaHdr2    = $filaTit2 + 1;
+                $filaVacia = $filaTotal + 1;
+                $filaTit2 = $filaTotal + 2;
+                $filaHdr2 = $filaTit2 + 1;
                 $inicioData2 = $filaHdr2 + 1;
 
                 $this->estiloSeccion($sheet, "A{$filaTit2}:G{$filaTit2}");
@@ -140,7 +143,7 @@ class CensoSheet implements FromArray, WithTitle, WithColumnWidths, WithEvents
                 $this->bordeExterno($sheet, "A{$filaHdr2}:G{$ultimaFila}");
 
                 $this->fijarFila($sheet, 'A3');
-                $sheet->getStyle('A1:G' . $ultimaFila)->getFont()->setName('Calibri');
+                $sheet->getStyle('A1:G'.$ultimaFila)->getFont()->setName('Calibri');
             },
         ];
     }

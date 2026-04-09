@@ -13,7 +13,7 @@ class PadronComunidadesExport implements WithMultipleSheets
 
     public function sheets(): array
     {
-        $centro      = CentroSalud::find($this->centroSaludId);
+        $centro = CentroSalud::find($this->centroSaludId);
         $comunidades = Comunidad::where('centro_salud_id', $this->centroSaludId)
             ->orderBy('nombre')
             ->get();

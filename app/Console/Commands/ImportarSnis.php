@@ -37,6 +37,7 @@ class ImportarSnis extends Command
         '18' => '40_49',
         '19' => '50_59',
     ];
+
     // Subvar → tipo: 01=nuevo, 02=repetido, 03=primera
     private const CE_TIPO = [
         '01' => 'nueva',
@@ -71,6 +72,7 @@ class ImportarSnis extends Command
         '27' => 'TOIT',
         '28' => 'rayos_x',
     ];
+
     // Subvar → grupo_etareo (SNIS: <5, 5-13, 14-19, 20-59, 60+, emb, post)
     private const ODONTO_GRUPO = [
         '01' => 'menor_5',
@@ -89,6 +91,7 @@ class ImportarSnis extends Command
         '10' => 'repetida',
         '11' => 'con_4to_control',
     ];
+
     private const PRENATAL_GRUPO = [
         '01' => 'menor_10',   '02' => 'menor_10',
         '03' => '10_14',      '04' => '10_14',
@@ -110,6 +113,7 @@ class ImportarSnis extends Command
         '28' => ['condon_femenino', 'nueva'],
         '29' => ['condon_femenino', 'continua'],
     ];
+
     private const ANTICON_GRUPO = [
         '01' => '10_14',
         '02' => '15_19',
@@ -177,6 +181,7 @@ class ImportarSnis extends Command
         '21' => 'Antiamarilica',
         '22' => 'Influenza_unica_ninos', '23' => 'Influenza_enf_cronicas_ninos',
     ];
+
     // Subvar: impar=dentro, par=fuera; cada par = un grupo etáreo
     private const VAC_MENORES5_COL = [
         '01' => ['menor_1', true],      '02' => ['menor_1', false],
@@ -200,6 +205,7 @@ class ImportarSnis extends Command
         '23' => 'COVID_1', '24' => 'COVID_2', '25' => 'COVID_3',
         '26' => 'COVID_anual', '27' => 'COVID_unica', '28' => 'COVID_refuerzo',
     ];
+
     private const VAC_OTRAS_COL = [
         '01' => ['5_9', true],        '02' => ['5_9', false],
         '03' => ['10_anios', true],   '04' => ['10_anios', false],
@@ -243,6 +249,7 @@ class ImportarSnis extends Command
         $dataFile = "{$ruta}\\snis{$anio}.mdb";
         if (! file_exists($dataFile)) {
             $this->error("No se encontró: {$dataFile}");
+
             return self::FAILURE;
         }
 
@@ -250,12 +257,14 @@ class ImportarSnis extends Command
             $this->pdoData = $this->connectMdb($dataFile);
         } catch (\Exception $e) {
             $this->error("Error de conexión: {$e->getMessage()}");
+
             return self::FAILURE;
         }
 
         $centrosMap = $this->mapearCentros($anio);
         if (empty($centrosMap)) {
             $this->error('No se encontraron centros de salud mapeados.');
+
             return self::FAILURE;
         }
 
@@ -266,11 +275,12 @@ class ImportarSnis extends Command
 
         if (empty($mesesDisponibles)) {
             $this->warn('No hay datos para importar en los meses solicitados.');
+
             return self::SUCCESS;
         }
 
-        $this->info('Meses con datos: ' . implode(', ', $mesesDisponibles));
-        $this->info('Centros mapeados: ' . count($centrosMap));
+        $this->info('Meses con datos: '.implode(', ', $mesesDisponibles));
+        $this->info('Centros mapeados: '.count($centrosMap));
         $this->newLine();
 
         if ($this->option('limpiar')) {
@@ -315,6 +325,7 @@ class ImportarSnis extends Command
         } catch (\Exception $e) {
             DB::rollBack();
             $this->error("Error durante la importación: {$e->getMessage()}");
+
             return self::FAILURE;
         }
 
@@ -324,14 +335,14 @@ class ImportarSnis extends Command
             ['Tipo', 'Registros'],
             collect($stats)->map(fn ($v, $k) => [str_replace('_', ' ', ucfirst($k)), $v])->values()->toArray()
         );
-        $this->info('Total: ' . array_sum($stats));
+        $this->info('Total: '.array_sum($stats));
 
         return self::SUCCESS;
     }
 
     private function connectMdb(string $path): PDO
     {
-        $dsn = "odbc:Driver={Microsoft Access Driver (*.mdb, *.accdb)};Dbq={$path};Pwd=" . self::dbPassword();
+        $dsn = "odbc:Driver={Microsoft Access Driver (*.mdb, *.accdb)};Dbq={$path};Pwd=".self::dbPassword();
 
         return new PDO($dsn, '', '', [
             PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
@@ -348,13 +359,14 @@ class ImportarSnis extends Command
 
         if (empty($centrosSicsal)) {
             $this->warn('No hay centros de salud con código SNIS en SIMUES.');
+
             return [];
         }
 
         $map = [];
         $prefijo = substr((string) $anio, 2, 2);
         foreach ($centrosSicsal as $codigoSnis => $centroId) {
-            $corrEstabgest = $prefijo . $codigoSnis;
+            $corrEstabgest = $prefijo.$codigoSnis;
             $map[$corrEstabgest] = $centroId;
             $this->line("  Mapeado: SNIS {$corrEstabgest} → centro_id={$centroId} (cod={$codigoSnis})");
         }
@@ -425,7 +437,9 @@ class ImportarSnis extends Command
 
             $grupoEtareo = self::CE_GRUPO[$varCode] ?? null;
             $tipo = self::CE_TIPO[$subCode] ?? null;
-            if (! $grupoEtareo || ! $tipo) continue;
+            if (! $grupoEtareo || ! $tipo) {
+                continue;
+            }
 
             $v = (int) ($row['V'] ?? 0);
             $m = (int) ($row['M'] ?? 0);
@@ -440,7 +454,9 @@ class ImportarSnis extends Command
 
         $count = 0;
         foreach ($grouped as $grupoEtareo => $vals) {
-            if (array_sum($vals) === 0) continue;
+            if (array_sum($vals) === 0) {
+                continue;
+            }
 
             DB::table('prest_consulta_externa')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'grupo_etareo' => $grupoEtareo],
@@ -462,11 +478,15 @@ class ImportarSnis extends Command
         foreach ($rows as $row) {
             $varCode = substr(trim($row['codsubvar']), 5, 2);
             $tipo = self::REF_TIPO[$varCode] ?? null;
-            if (! $tipo) continue;
+            if (! $tipo) {
+                continue;
+            }
 
             $v = (int) ($row['V'] ?? 0);
             $m = (int) ($row['M'] ?? 0);
-            if ($v + $m === 0) continue;
+            if ($v + $m === 0) {
+                continue;
+            }
 
             DB::table('prest_referencias')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'tipo' => $tipo],
@@ -492,11 +512,15 @@ class ImportarSnis extends Command
 
             $proc = self::ODONTO_PROC[$varCode] ?? null;
             $grupo = self::ODONTO_GRUPO[$subCode] ?? null;
-            if (! $proc || ! $grupo) continue;
+            if (! $proc || ! $grupo) {
+                continue;
+            }
 
             $v = (int) ($row['V'] ?? 0);
             $m = (int) ($row['M'] ?? 0);
-            if ($v + $m === 0) continue;
+            if ($v + $m === 0) {
+                continue;
+            }
 
             DB::table('prest_odontologia')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'procedimiento' => $proc, 'grupo_etareo' => $grupo],
@@ -522,7 +546,9 @@ class ImportarSnis extends Command
 
             $tipoControl = self::PRENATAL_TIPO[$varCode] ?? null;
             $grupoEtareo = self::PRENATAL_GRUPO[$subCode] ?? null;
-            if (! $tipoControl || ! $grupoEtareo) continue;
+            if (! $tipoControl || ! $grupoEtareo) {
+                continue;
+            }
 
             $isDentro = ((int) $subCode) % 2 === 1;
             $total = (int) ($row['V'] ?? 0) + (int) ($row['M'] ?? 0);
@@ -541,7 +567,9 @@ class ImportarSnis extends Command
 
         $count = 0;
         foreach ($grouped as $key => $vals) {
-            if ($vals['dentro'] + $vals['fuera'] === 0) continue;
+            if ($vals['dentro'] + $vals['fuera'] === 0) {
+                continue;
+            }
             [$tipoControl, $grupoEtareo] = explode('|', $key);
 
             DB::table('prest_prenatales')->updateOrInsert(
@@ -568,11 +596,15 @@ class ImportarSnis extends Command
 
             $mapEntry = self::ANTICON_MAP[$varCode] ?? null;
             $grupo = self::ANTICON_GRUPO[$subCode] ?? null;
-            if (! $mapEntry || ! $grupo) continue;
+            if (! $mapEntry || ! $grupo) {
+                continue;
+            }
 
             [$metodo, $tipoUsuaria] = $mapEntry;
             $cantidad = (int) ($row['V'] ?? 0);
-            if ($cantidad === 0) continue;
+            if ($cantidad === 0) {
+                continue;
+            }
 
             DB::table('prest_anticoncepcion')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'metodo' => $metodo, 'tipo_usuaria' => $tipoUsuaria, 'grupo_etareo' => $grupo],
@@ -597,7 +629,9 @@ class ImportarSnis extends Command
             $subCode = substr($codsubvar, 7, 2);
 
             $grupoEtareo = self::CREC_GRUPO[$varCode] ?? null;
-            if (! $grupoEtareo) continue;
+            if (! $grupoEtareo) {
+                continue;
+            }
 
             $v = (int) ($row['V'] ?? 0);
             $m = (int) ($row['M'] ?? 0);
@@ -618,7 +652,9 @@ class ImportarSnis extends Command
 
         $count = 0;
         foreach ($grouped as $grupoEtareo => $vals) {
-            if (array_sum($vals) === 0) continue;
+            if (array_sum($vals) === 0) {
+                continue;
+            }
 
             DB::table('prest_crecimiento')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'grupo_etareo' => $grupoEtareo],
@@ -640,10 +676,14 @@ class ImportarSnis extends Command
         foreach ($rows as $row) {
             $varCode = substr(trim($row['codsubvar']), 5, 2);
             $tipo = self::ENF_TIPO[$varCode] ?? null;
-            if (! $tipo) continue;
+            if (! $tipo) {
+                continue;
+            }
 
             $cantidad = (int) ($row['V'] ?? 0);
-            if ($cantidad === 0) continue;
+            if ($cantidad === 0) {
+                continue;
+            }
 
             DB::table('prest_enfermeria')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'tipo' => $tipo],
@@ -665,7 +705,9 @@ class ImportarSnis extends Command
         foreach ($rows as $row) {
             $varCode = substr(trim($row['codsubvar']), 5, 2);
             $tipo = self::MICRO_TIPO[$varCode] ?? null;
-            if (! $tipo) continue;
+            if (! $tipo) {
+                continue;
+            }
 
             $cantidad = (int) ($row['V'] ?? 0) + (int) ($row['M'] ?? 0);
             $grouped[$tipo] = ($grouped[$tipo] ?? 0) + $cantidad;
@@ -673,7 +715,9 @@ class ImportarSnis extends Command
 
         $count = 0;
         foreach ($grouped as $tipo => $cantidad) {
-            if ($cantidad === 0) continue;
+            if ($cantidad === 0) {
+                continue;
+            }
 
             DB::table('prest_micronutrientes')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'tipo' => $tipo],
@@ -695,10 +739,14 @@ class ImportarSnis extends Command
         foreach ($rows as $row) {
             $varCode = substr(trim($row['codsubvar']), 5, 2);
             $tipo = self::ACT_TIPO[$varCode] ?? null;
-            if (! $tipo) continue;
+            if (! $tipo) {
+                continue;
+            }
 
             $cantidad = (int) ($row['V'] ?? 0);
-            if ($cantidad === 0) continue;
+            if ($cantidad === 0) {
+                continue;
+            }
 
             DB::table('prest_actividades_comunidad')->updateOrInsert(
                 ['centro_salud_id' => $centroId, 'mes' => $mes, 'anio' => $anio, 'tipo_actividad' => $tipo],
@@ -736,7 +784,9 @@ class ImportarSnis extends Command
 
             $tipoVacuna = $tipoMap[$varCode] ?? null;
             $colDef = $colMap[$subCode] ?? null;
-            if (! $tipoVacuna || ! $colDef) continue;
+            if (! $tipoVacuna || ! $colDef) {
+                continue;
+            }
 
             [$grupoEtareo, $isDentro] = $colDef;
             $v = (int) ($row['V'] ?? 0);
@@ -758,7 +808,9 @@ class ImportarSnis extends Command
 
         $count = 0;
         foreach ($grouped as $key => $vals) {
-            if (array_sum($vals) === 0) continue;
+            if (array_sum($vals) === 0) {
+                continue;
+            }
             [$tipoVacuna, $grupoEtareo] = explode('|', $key);
 
             DB::table('prest_vacunas')->updateOrInsert(

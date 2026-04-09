@@ -3,14 +3,14 @@
 namespace App\Exports\Sheets;
 
 use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\WithTitle;
 use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ComunidadesDetalleSheet implements FromArray, WithTitle, WithStyles
+class ComunidadesDetalleSheet implements FromArray, WithStyles, WithTitle
 {
     public function __construct(private array $datos) {}
 
@@ -24,7 +24,7 @@ class ComunidadesDetalleSheet implements FromArray, WithTitle, WithStyles
         $grupos = $this->datos['grupos'];
         $rows = [];
         $rows[] = ['DETALLE POR SEXO Y GRUPO ETÁREO'];
-        $rows[] = ['Centro: ' . ($this->datos['centro']->nombre ?? '')];
+        $rows[] = ['Centro: '.($this->datos['centro']->nombre ?? '')];
 
         // Header row 1 (group labels spanning 2 cols each)
         $header1 = ['Comunidad'];
@@ -138,9 +138,10 @@ class ComunidadesDetalleSheet implements FromArray, WithTitle, WithStyles
     {
         $letter = '';
         while ($index >= 0) {
-            $letter = chr(65 + ($index % 26)) . $letter;
+            $letter = chr(65 + ($index % 26)).$letter;
             $index = intdiv($index, 26) - 1;
         }
+
         return $letter;
     }
 }

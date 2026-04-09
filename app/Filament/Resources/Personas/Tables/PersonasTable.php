@@ -8,15 +8,12 @@ use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Tables\Columns\IconColumn;
 use Filament\Tables\Columns\TextColumn;
-use Filament\Tables\Filters\Filter;
 use Filament\Tables\Filters\SelectFilter;
 use Filament\Tables\Filters\TernaryFilter;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Builder;
 
 class PersonasTable
 {
@@ -50,7 +47,7 @@ class PersonasTable
                     ->label('Comunidad'),
 
                 TextColumn::make('edad')
-                    ->getStateUsing(fn ($record) => $record->edad . ' años')
+                    ->getStateUsing(fn ($record) => $record->edad.' años')
                     ->sortable(false)
                     ->label('Edad'),
 
@@ -72,17 +69,17 @@ class PersonasTable
                     ->badge()
                     ->color(fn (string $state) => match ($state) {
                         'residente' => 'success',
-                        'temporal'  => 'warning',
-                        'migrado'   => 'danger',
+                        'temporal' => 'warning',
+                        'migrado' => 'danger',
                         'fallecido' => 'gray',
-                        default     => 'gray',
+                        default => 'gray',
                     })
                     ->formatStateUsing(fn (string $state) => match ($state) {
                         'residente' => 'Residente',
-                        'temporal'  => 'Temporal',
-                        'migrado'   => 'Migrado',
+                        'temporal' => 'Temporal',
+                        'migrado' => 'Migrado',
                         'fallecido' => 'Fallecido',
-                        default     => $state,
+                        default => $state,
                     })
                     ->label('Estado'),
 
@@ -116,8 +113,8 @@ class PersonasTable
                 SelectFilter::make('estado')
                     ->options([
                         'residente' => 'Residente',
-                        'temporal'  => 'Temporal',
-                        'migrado'   => 'Migrado',
+                        'temporal' => 'Temporal',
+                        'migrado' => 'Migrado',
                         'fallecido' => 'Fallecido',
                     ])
                     ->label('Estado'),
@@ -140,9 +137,9 @@ class PersonasTable
                     ->modalDescription(fn ($record) => "¿Confirma que {$record->nombre_completo} sigue residiendo en la comunidad?")
                     ->action(function ($record) {
                         $record->update([
-                            'verificado'         => true,
+                            'verificado' => true,
                             'fecha_verificacion' => today(),
-                            'verificado_por'     => auth()->id(),
+                            'verificado_por' => auth()->id(),
                         ]);
                     }),
 
@@ -160,9 +157,9 @@ class PersonasTable
                         ->modalDescription('Se marcará que todas las personas seleccionadas siguen residiendo en la comunidad.')
                         ->action(function ($records) {
                             $records->each(fn ($r) => $r->update([
-                                'verificado'         => true,
+                                'verificado' => true,
                                 'fecha_verificacion' => today(),
-                                'verificado_por'     => auth()->id(),
+                                'verificado_por' => auth()->id(),
                             ]));
                         })
                         ->deselectRecordsAfterCompletion(),
@@ -183,12 +180,12 @@ class PersonasTable
                         ])
                         ->action(function ($records, array $data) {
                             $records->each(fn ($r) => $r->update([
-                                'estado'             => 'migrado',
-                                'destino_migracion'  => $data['destino_migracion'] ?? null,
-                                'fecha_migracion'    => $data['fecha_migracion'],
-                                'verificado'         => true,
+                                'estado' => 'migrado',
+                                'destino_migracion' => $data['destino_migracion'] ?? null,
+                                'fecha_migracion' => $data['fecha_migracion'],
+                                'verificado' => true,
                                 'fecha_verificacion' => today(),
-                                'verificado_por'     => auth()->id(),
+                                'verificado_por' => auth()->id(),
                             ]));
                         })
                         ->deselectRecordsAfterCompletion(),
@@ -203,10 +200,10 @@ class PersonasTable
                         ->modalDescription('Las personas seleccionadas se marcarán como fallecidas y se excluirán del padrón activo.')
                         ->action(function ($records) {
                             $records->each(fn ($r) => $r->update([
-                                'estado'             => 'fallecido',
-                                'verificado'         => true,
+                                'estado' => 'fallecido',
+                                'verificado' => true,
                                 'fecha_verificacion' => today(),
-                                'verificado_por'     => auth()->id(),
+                                'verificado_por' => auth()->id(),
                             ]));
                         })
                         ->deselectRecordsAfterCompletion(),

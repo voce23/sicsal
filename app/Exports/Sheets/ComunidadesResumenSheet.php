@@ -3,15 +3,15 @@
 namespace App\Exports\Sheets;
 
 use Maatwebsite\Excel\Concerns\FromArray;
-use Maatwebsite\Excel\Concerns\WithTitle;
-use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithColumnWidths;
+use Maatwebsite\Excel\Concerns\WithStyles;
+use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Style\Alignment;
 use PhpOffice\PhpSpreadsheet\Style\Border;
 use PhpOffice\PhpSpreadsheet\Style\Fill;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class ComunidadesResumenSheet implements FromArray, WithTitle, WithStyles, WithColumnWidths
+class ComunidadesResumenSheet implements FromArray, WithColumnWidths, WithStyles, WithTitle
 {
     public function __construct(private array $datos) {}
 
@@ -36,7 +36,7 @@ class ComunidadesResumenSheet implements FromArray, WithTitle, WithStyles, WithC
 
         $rows = [];
         $rows[] = ['COMUNIDADES Y POBLACIÓN — RESUMEN'];
-        $rows[] = ['Centro: ' . ($this->datos['centro']->nombre ?? ''), '', '', '', '', '', '', '', '', '', '', '', '', '', ''];
+        $rows[] = ['Centro: '.($this->datos['centro']->nombre ?? ''), '', '', '', '', '', '', '', '', '', '', '', '', '', ''];
 
         // Header row 1
         $header1 = ['Comunidad', 'Km', 'Total', 'H', 'M'];
@@ -67,8 +67,8 @@ class ComunidadesResumenSheet implements FromArray, WithTitle, WithStyles, WithC
 
         $rows[] = ['META INE', '', $this->datos['metaIne']];
         $dif = $this->datos['diferencia'];
-        $pct = $this->datos['metaIne'] > 0 ? round($t['total'] / $this->datos['metaIne'] * 100, 1) . '%' : '';
-        $rows[] = ['DIFERENCIA', '', ($dif >= 0 ? '+' : '') . $dif . ' (' . $pct . ')'];
+        $pct = $this->datos['metaIne'] > 0 ? round($t['total'] / $this->datos['metaIne'] * 100, 1).'%' : '';
+        $rows[] = ['DIFERENCIA', '', ($dif >= 0 ? '+' : '').$dif.' ('.$pct.')'];
 
         return $rows;
     }

@@ -53,12 +53,12 @@ class EstadisticasPoblacion extends StatsOverviewWidget
                 ->description('Migración registrada')
                 ->descriptionIcon('heroicon-m-arrow-right-start-on-rectangle')
                 ->color('warning'),
-            Stat::make('Defunciones ' . $anio, number_format($defunciones))
+            Stat::make('Defunciones '.$anio, number_format($defunciones))
                 ->description('Año en curso')
                 ->descriptionIcon('heroicon-m-document-minus')
                 ->color('danger'),
             Stat::make('Meta INE', number_format($metaIne))
-                ->description('Población proyectada ' . $anio)
+                ->description('Población proyectada '.$anio)
                 ->descriptionIcon('heroicon-m-chart-bar')
                 ->color('info'),
         ];

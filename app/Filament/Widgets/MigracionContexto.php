@@ -9,7 +9,7 @@ class MigracionContexto extends Widget
 {
     protected string $view = 'filament.widgets.migracion-contexto';
 
-    protected int | string | array $columnSpan = 'full';
+    protected int|string|array $columnSpan = 'full';
 
     protected static ?int $sort = 3;
 

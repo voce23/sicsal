@@ -22,10 +22,12 @@ class FortifyServiceProvider extends ServiceProvider
     {
         // Redirigir a /pendiente si la cuenta no ha sido aprobada
         $this->app->singleton(LoginResponse::class, function () {
-            return new class implements LoginResponse {
+            return new class implements LoginResponse
+            {
                 public function toResponse($request)
                 {
                     $redirect = $request->user()->activo ? config('fortify.home') : route('pendiente');
+
                     return $request->wantsJson()
                         ? response()->json(['two_factor' => false])
                         : redirect()->intended($redirect);
@@ -35,7 +37,8 @@ class FortifyServiceProvider extends ServiceProvider
 
         // Tras registro, redirigir a /pendiente (la cuenta queda inactiva)
         $this->app->singleton(RegisterResponse::class, function () {
-            return new class implements RegisterResponse {
+            return new class implements RegisterResponse
+            {
                 public function toResponse($request)
                 {
                     return $request->wantsJson()
