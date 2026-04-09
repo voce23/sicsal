@@ -9,8 +9,10 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // Ampliar el enum estado para incluir 'fallecido'
-        DB::statement("ALTER TABLE personas MODIFY COLUMN estado ENUM('residente','temporal','migrado','fallecido') NOT NULL DEFAULT 'residente'");
+        // Ampliar el enum estado para incluir 'fallecido' (MySQL/MariaDB only; SQLite doesn't support MODIFY COLUMN)
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE personas MODIFY COLUMN estado ENUM('residente','temporal','migrado','fallecido') NOT NULL DEFAULT 'residente'");
+        }
 
         Schema::table('personas', function (Blueprint $table) {
             $table->boolean('verificado')->default(false)->after('observaciones');
@@ -27,6 +29,8 @@ return new class extends Migration
             $table->dropColumn(['verificado', 'fecha_verificacion', 'verificado_por']);
         });
 
-        DB::statement("ALTER TABLE personas MODIFY COLUMN estado ENUM('residente','temporal','migrado') NOT NULL DEFAULT 'residente'");
+        if (DB::getDriverName() !== 'sqlite') {
+            DB::statement("ALTER TABLE personas MODIFY COLUMN estado ENUM('residente','temporal','migrado') NOT NULL DEFAULT 'residente'");
+        }
     }
 };

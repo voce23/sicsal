@@ -49,7 +49,11 @@ Route::get('/', function () {
         ->whereIn('centro_salud_id', $centrosIds)
         ->where('activo', true)
         ->whereNotNull('fecha_nacimiento')
-        ->select('centro_salud_id', 'sexo', DB::raw('TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) AS edad'))
+        ->select('centro_salud_id', 'sexo', DB::raw(
+            DB::getDriverName() === 'sqlite'
+                ? "CAST((julianday('now') - julianday(fecha_nacimiento)) / 365.25 AS INTEGER) AS edad"
+                : "TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) AS edad"
+        ))
         ->get()
         ->groupBy('centro_salud_id');
 
