@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 17 — Fortify: instalación y configuración | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 4 — Autenticación y Seguridad</div>
+    <div class="lesson-number">Lección 17 de 58</div>
+    <h1 class="lesson-title">Fortify: instalación y configuración</h1>
+    <p class="lesson-subtitle">Laravel Fortify maneja login, registro, 2FA, reset de password y verificación de email. Configuramos todo sin una sola ruta manual.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 3 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~20 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="16-modelo-user.html" class="lesson-nav-btn">← Lección 16</a>
+    <a href="18-acciones-auth.html" class="lesson-nav-btn">Lección 18 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#que-es">¿Qué es Fortify y por qué lo usamos?</a></li>
+      <li><a href="#config">config/fortify.php — todas las opciones</a></li>
+      <li><a href="#features">Features habilitadas</a></li>
+      <li><a href="#provider">FortifyServiceProvider — el cerebro</a></li>
+      <li><a href="#responses">Responses personalizados (Login y Register)</a></li>
+      <li><a href="#views">Vistas personalizadas</a></li>
+      <li><a href="#rate-limiting">Rate limiting</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: QUÉ ES FORTIFY
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="que-es">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es Fortify y por qué lo usamos?</h2>
+
+    <p><strong>Laravel Fortify</strong> es un backend de autenticación headless: registra rutas, maneja lógica de login/registro/reset, pero no incluye vistas. Tú agregas tu propio frontend (en nuestro caso, Blade + Tailwind).</p>
+
+    <div class="arch-diagram">
+      <div class="arch-box" style="background:#dbeafe;">Fortify<br><small>Rutas + Lógica + Controllers</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="background:#fef3c7;">Config<br><small>fortify.php</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="background:#dcfce7;">Provider<br><small>Vistas + Actions + Responses</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="background:#fce7f3;">Blade Views<br><small>Tu diseño personalizado</small></div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">¿Por qué Fortify y no Breeze o Jetstream?</div>
+        SICSAL usa <strong>Filament</strong> como panel admin. Fortify ofrece máximo control sin imponer un diseño — ideal cuando la UI de autenticación es 100% personalizada.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: CONFIG
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="config">
+    <h2 class="section-title"><span class="number">2</span> config/fortify.php — todas las opciones</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">config/fortify.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">return</span> [
+    <span class="str">'guard'</span>     <span class="op">=></span> <span class="str">'web'</span>,        <span class="cmt">// guard de autenticación</span>
+    <span class="str">'passwords'</span> <span class="op">=></span> <span class="str">'users'</span>,      <span class="cmt">// broker de passwords</span>
+    <span class="str">'username'</span>  <span class="op">=></span> <span class="str">'email'</span>,      <span class="cmt">// campo para login</span>
+    <span class="str">'email'</span>     <span class="op">=></span> <span class="str">'email'</span>,      <span class="cmt">// campo para reset</span>
+
+    <span class="str">'lowercase_usernames'</span> <span class="op">=></span> <span class="kw">true</span>,  <span class="cmt">// normaliza emails a minúsculas</span>
+
+    <span class="str">'home'</span>       <span class="op">=></span> <span class="str">'/dashboard'</span>, <span class="cmt">// redirección post-login</span>
+    <span class="str">'prefix'</span>     <span class="op">=></span> <span class="str">''</span>,           <span class="cmt">// prefijo de rutas (vacío = /login, /register)</span>
+    <span class="str">'domain'</span>     <span class="op">=></span> <span class="kw">null</span>,         <span class="cmt">// subdominio (no usado)</span>
+    <span class="str">'middleware'</span> <span class="op">=></span> [<span class="str">'web'</span>],       <span class="cmt">// middleware group</span>
+    <span class="str">'views'</span>      <span class="op">=></span> <span class="kw">true</span>,         <span class="cmt">// registra rutas de vistas</span>
+
+    <span class="str">'limiters'</span> <span class="op">=></span> [
+        <span class="str">'login'</span>      <span class="op">=></span> <span class="str">'login'</span>,      <span class="cmt">// 5 intentos/minuto</span>
+        <span class="str">'two-factor'</span> <span class="op">=></span> <span class="str">'two-factor'</span>, <span class="cmt">// 5 intentos/minuto</span>
+    ],
+];</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">lowercase_usernames</div>
+        Cuando <code class="inline">true</code>, Fortify convierte <code class="inline">Juan@Gmail.COM</code> a <code class="inline">juan@gmail.com</code> antes de buscar en la DB. Evita problemas de case-sensitivity.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: FEATURES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="features">
+    <h2 class="section-title"><span class="number">3</span> Features habilitadas</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">config/fortify.php — features</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="str">'features'</span> <span class="op">=></span> [
+    <span class="cls">Features</span><span class="op">::</span><span class="fn">registration</span>(),
+    <span class="cls">Features</span><span class="op">::</span><span class="fn">resetPasswords</span>(),
+    <span class="cls">Features</span><span class="op">::</span><span class="fn">emailVerification</span>(),
+    <span class="cls">Features</span><span class="op">::</span><span class="fn">twoFactorAuthentication</span>([
+        <span class="str">'confirm'</span>         <span class="op">=></span> <span class="kw">true</span>,  <span class="cmt">// confirma código al activar</span>
+        <span class="str">'confirmPassword'</span> <span class="op">=></span> <span class="kw">true</span>,  <span class="cmt">// pide password antes de activar 2FA</span>
+    ]),
+],</pre>
+    </div>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Feature</th>
+          <th>Rutas que registra</th>
+          <th>Propósito en SICSAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="inline">registration()</code></td>
+          <td>GET/POST /register</td>
+          <td>Registro público, pero cuenta inactiva hasta aprobación</td>
+        </tr>
+        <tr>
+          <td><code class="inline">resetPasswords()</code></td>
+          <td>GET/POST /forgot-password, /reset-password</td>
+          <td>Recuperación vía email</td>
+        </tr>
+        <tr>
+          <td><code class="inline">emailVerification()</code></td>
+          <td>GET /email/verify, /email/verify/{id}/{hash}</td>
+          <td>Verificación del email del usuario</td>
+        </tr>
+        <tr>
+          <td><code class="inline">twoFactorAuthentication()</code></td>
+          <td>POST /two-factor-*, GET /two-factor-challenge</td>
+          <td>2FA con TOTP (Google Authenticator, etc.)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">registration() habilitado ≠ libre acceso</div>
+        Aunque <code class="inline">registration()</code> está activo, SICSAL crea usuarios con <code class="inline">activo = false</code>. El admin debe aprobar cada cuenta manualmente. El usuario registrado ve una pantalla de "pendiente de aprobación".
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: PROVIDER
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="provider">
+    <h2 class="section-title"><span class="number">4</span> FortifyServiceProvider — el cerebro</h2>
+
+    <p>El provider se registra en <code class="inline">bootstrap/providers.php</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">bootstrap/providers.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">return</span> [
+    <span class="cls">App\Providers\AppServiceProvider</span><span class="op">::</span><span class="kw">class</span>,
+    <span class="cls">App\Providers\Filament\AdminPanelProvider</span><span class="op">::</span><span class="kw">class</span>,
+    <span class="cls">App\Providers\FortifyServiceProvider</span><span class="op">::</span><span class="kw">class</span>,
+];</pre>
+    </div>
+
+    <p>Y su método <code class="inline">boot()</code> delega en 3 métodos privados:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Providers/FortifyServiceProvider.php — boot</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">public function</span> <span class="fn">boot</span>(): <span class="type">void</span>
+{
+    <span class="var">$this</span><span class="op">-></span><span class="fn">configureActions</span>();      <span class="cmt">// CreateNewUser, ResetUserPassword</span>
+    <span class="var">$this</span><span class="op">-></span><span class="fn">configureViews</span>();       <span class="cmt">// 7 vistas personalizadas</span>
+    <span class="var">$this</span><span class="op">-></span><span class="fn">configureRateLimiting</span>(); <span class="cmt">// login + 2FA throttling</span>
+}
+
+<span class="kw">private function</span> <span class="fn">configureActions</span>(): <span class="type">void</span>
+{
+    <span class="cls">Fortify</span><span class="op">::</span><span class="fn">createUsersUsing</span>(<span class="cls">CreateNewUser</span><span class="op">::</span><span class="kw">class</span>);
+    <span class="cls">Fortify</span><span class="op">::</span><span class="fn">resetUserPasswordsUsing</span>(<span class="cls">ResetUserPassword</span><span class="op">::</span><span class="kw">class</span>);
+}</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: RESPONSES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="responses">
+    <h2 class="section-title"><span class="number">5</span> Responses personalizados (Login y Register)</h2>
+
+    <p>El método <code class="inline">register()</code> del provider personaliza las respuestas de Fortify:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Providers/FortifyServiceProvider.php — register()</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">public function</span> <span class="fn">register</span>(): <span class="type">void</span>
+{
+    <span class="cmt">// Login: si usuario NO está activo → /pendiente</span>
+    <span class="var">$this</span><span class="op">-></span><span class="var">app</span><span class="op">-></span><span class="fn">singleton</span>(
+        <span class="cls">LoginResponse</span><span class="op">::</span><span class="kw">class</span>,
+        <span class="kw">function</span> () {
+            <span class="kw">return new class</span> <span class="kw">implements</span> <span class="cls">LoginResponse</span> {
+                <span class="kw">public function</span> <span class="fn">toResponse</span>(<span class="var">$request</span>)
+                {
+                    <span class="var">$redirect</span> = <span class="var">$request</span><span class="op">-></span><span class="fn">user</span>()<span class="op">-></span><span class="var">activo</span>
+                        ? <span class="fn">config</span>(<span class="str">'fortify.home'</span>)    <span class="cmt">// → /dashboard</span>
+                        : <span class="fn">route</span>(<span class="str">'pendiente'</span>);     <span class="cmt">// → /pendiente</span>
+
+                    <span class="kw">return</span> <span class="var">$request</span><span class="op">-></span><span class="fn">wantsJson</span>()
+                        ? <span class="fn">response</span>()<span class="op">-></span><span class="fn">json</span>([<span class="str">'two_factor'</span> <span class="op">=></span> <span class="kw">false</span>])
+                        : <span class="fn">redirect</span>()<span class="op">-></span><span class="fn">intended</span>(<span class="var">$redirect</span>);
+                }
+            };
+        }
+    );
+
+    <span class="cmt">// Register: siempre → /pendiente (la cuenta nace inactiva)</span>
+    <span class="var">$this</span><span class="op">-></span><span class="var">app</span><span class="op">-></span><span class="fn">singleton</span>(
+        <span class="cls">RegisterResponse</span><span class="op">::</span><span class="kw">class</span>,
+        <span class="kw">function</span> () {
+            <span class="kw">return new class</span> <span class="kw">implements</span> <span class="cls">RegisterResponse</span> {
+                <span class="kw">public function</span> <span class="fn">toResponse</span>(<span class="var">$request</span>)
+                {
+                    <span class="kw">return</span> <span class="fn">redirect</span>()<span class="op">-></span><span class="fn">route</span>(<span class="str">'pendiente'</span>);
+                }
+            };
+        }
+    );
+}</pre>
+    </div>
+
+    <div class="flow-diagram">
+      <div class="flow-step">Usuario se registra</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">CreateNewUser (activo=false)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">RegisterResponse → /pendiente</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Admin aprueba (activo=true)</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">Login → LoginResponse → /dashboard</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: VISTAS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="views">
+    <h2 class="section-title"><span class="number">6</span> Vistas personalizadas</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">FortifyServiceProvider — configureViews()</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">private function</span> <span class="fn">configureViews</span>(): <span class="type">void</span>
+{
+    <span class="cls">Fortify</span><span class="op">::</span><span class="fn">loginView</span>(
+        <span class="kw">fn</span>() <span class="op">=></span> <span class="fn">view</span>(<span class="str">'pages::auth.login'</span>));
+    <span class="cls">Fortify</span><span class="op">::</span><span class="fn">registerView</span>(
+        <span class="kw">fn</span>() <span class="op">=></span> <span class="fn">view</span>(<span class="str">'pages::auth.register'</span>));
+    <span class="cls">Fortify</span><span class="op">::</span><span class="fn">verifyEmailView</span>(
+        <span class="kw">fn</span>() <span class="op">=></span> <span class="fn">view</span>(<span class="str">'pages::auth.verify-email'</span>));
+    <span class="cls">Fortify</span><span class="op">::</span><span class="fn">twoFactorChallengeView</span>(
+        <span class="kw">fn</span>() <span class="op">=></span> <span class="fn">view</span>(<span class="str">'pages::auth.two-factor-challenge'</span>));
+    <span class="cls">Fortify</span><span class="op">::</span><span class="fn">confirmPasswordView</span>(
+        <span class="kw">fn</span>() <span class="op">=></span> <span class="fn">view</span>(<span class="str">'pages::auth.confirm-password'</span>));
+    <span class="cls">Fortify</span><span class="op">::</span><span class="fn">resetPasswordView</span>(
+        <span class="kw">fn</span>() <span class="op">=></span> <span class="fn">view</span>(<span class="str">'pages::auth.reset-password'</span>));
+    <span class="cls">Fortify</span><span class="op">::</span><span class="fn">requestPasswordResetLinkView</span>(
+        <span class="kw">fn</span>() <span class="op">=></span> <span class="fn">view</span>(<span class="str">'pages::auth.forgot-password'</span>));
+}</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Notación pages::</div>
+        <code class="inline">pages::auth.login</code> usa el namespace <code class="inline">pages</code> registrado en el AdminPanelProvider de Filament. Son las mismas vistas Blade del directorio <code class="inline">resources/views/</code> pero bajo el namespace del panel.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: RATE LIMITING
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="rate-limiting">
+    <h2 class="section-title"><span class="number">7</span> Rate limiting</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">FortifyServiceProvider — configureRateLimiting()</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">private function</span> <span class="fn">configureRateLimiting</span>(): <span class="type">void</span>
+{
+    <span class="cmt">// Login: 5 intentos por minuto, por email+IP</span>
+    <span class="cls">RateLimiter</span><span class="op">::</span><span class="fn">for</span>(<span class="str">'login'</span>, <span class="kw">function</span> (<span class="cls">Request</span> <span class="var">$request</span>) {
+        <span class="var">$throttleKey</span> = <span class="cls">Str</span><span class="op">::</span><span class="fn">transliterate</span>(
+            <span class="cls">Str</span><span class="op">::</span><span class="fn">lower</span>(<span class="var">$request</span><span class="op">-></span><span class="fn">input</span>(<span class="cls">Fortify</span><span class="op">::</span><span class="fn">username</span>())) 
+            . <span class="str">'|'</span> . <span class="var">$request</span><span class="op">-></span><span class="fn">ip</span>()
+        );
+        <span class="kw">return</span> <span class="cls">Limit</span><span class="op">::</span><span class="fn">perMinute</span>(<span class="num">5</span>)<span class="op">-></span><span class="fn">by</span>(<span class="var">$throttleKey</span>);
+    });
+
+    <span class="cmt">// 2FA: 5 intentos por minuto, por sesión</span>
+    <span class="cls">RateLimiter</span><span class="op">::</span><span class="fn">for</span>(<span class="str">'two-factor'</span>, <span class="kw">function</span> (<span class="cls">Request</span> <span class="var">$request</span>) {
+        <span class="kw">return</span> <span class="cls">Limit</span><span class="op">::</span><span class="fn">perMinute</span>(<span class="num">5</span>)
+            <span class="op">-></span><span class="fn">by</span>(<span class="var">$request</span><span class="op">-></span><span class="fn">session</span>()<span class="op">-></span><span class="fn">get</span>(<span class="str">'login.id'</span>));
+    });
+}</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">Str::transliterate — seguridad con caracteres especiales</div>
+        <code class="inline">Str::transliterate()</code> convierte caracteres acentuados a ASCII antes de hacer la key del throttle. Esto evita que alguien evada el rate limit usando variantes Unicode del mismo email.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 17</h3>
+    <ul>
+      <li><strong>Fortify</strong> = backend headless de autenticación (sin vistas propias)</li>
+      <li>4 features habilitadas: registration, resetPasswords, emailVerification, 2FA</li>
+      <li><strong>LoginResponse</strong> personalizado: usuarios inactivos → <code class="inline">/pendiente</code></li>
+      <li><strong>RegisterResponse</strong>: siempre → <code class="inline">/pendiente</code> (cuenta nace inactiva)</li>
+      <li>7 vistas Blade personalizadas mapeadas vía <code class="inline">Fortify::*View()</code></li>
+      <li>Rate limiting: 5 intentos/min para login y 2FA</li>
+      <li>Todo se conecta desde <code class="inline">FortifyServiceProvider</code> registrado en <code class="inline">bootstrap/providers.php</code></li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="16-modelo-user.html" class="lesson-nav-btn">← Lección 16: User + Post + Comentario</a>
+    <a href="18-acciones-auth.html" class="lesson-nav-btn">Lección 18: Actions de autenticación →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 17 de 58</span>
+    <span>Siguiente: CreateNewUser, ResetUserPassword y RequireAprobado</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

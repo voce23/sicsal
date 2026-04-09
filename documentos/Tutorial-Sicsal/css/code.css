@@ -1,0 +1,203 @@
+/* ============================================================
+   SICSAL — Estilos de Bloques de Código
+   ============================================================ */
+
+/* ── Bloque pre/code ───────────────────────────────────────── */
+.code-block {
+  position: relative;
+  margin: 1.2rem 0;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,.15);
+}
+
+.code-header {
+  background: #1e293b;
+  padding: .5rem 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #334155;
+  color: #22d3ee;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: .8rem;
+}
+
+.code-lang {
+  font-size: .72rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: #94a3b8;
+}
+
+.code-filename {
+  font-size: .78rem;
+  color: #22d3ee;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+}
+
+.code-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+
+.code-dots span {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+}
+
+.code-dots .d1 { background: #ef4444; }
+.code-dots .d2 { background: #f59e0b; }
+.code-dots .d3 { background: #22c55e; }
+
+pre.code-body {
+  background: #0f172a;
+  margin: 0;
+  padding: 1.2rem 1.4rem;
+  overflow-x: auto;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: .83rem;
+  line-height: 1.75;
+  color: #e2e8f0;
+  tab-size: 4;
+}
+
+/* ── Sintaxis coloreada con span ───────────────────────────── */
+.kw  { color: #c792ea; font-weight: 600; }   /* keyword: class, function, return */
+.kw2 { color: #89ddff; }                      /* keyword2: use, new, public, private */
+.str { color: #c3e88d; }                      /* string */
+.num { color: #f78c6c; }                      /* number */
+.cmt { color: #546e7a; font-style: italic; }  /* comment */
+.fn  { color: #82aaff; }                      /* function/method name */
+.cls { color: #ffcb6b; }                      /* class name */
+.var { color: #f07178; }                      /* variable $x */
+.op  { color: #89ddff; }                      /* operator => -> :: */
+.arr { color: #89ddff; }                      /* arrow => */
+.attr{ color: #b2ccd6; }                      /* attribute/key */
+.type{ color: #c792ea; }                      /* type hint */
+.dec { color: #f78c6c; }                      /* decorator / PHP attribute */
+.hl  { background: rgba(255,255,255,.06); display: block; margin: 0 -1.4rem; padding: 0 1.4rem; } /* highlighted line */
+
+/* ── Bash / terminal ───────────────────────────────────────── */
+pre.code-body.bash { color: #a5f3fc; }
+pre.code-body.bash .prompt { color: #4ade80; user-select: none; }
+pre.code-body.bash .cmd    { color: #e2e8f0; }
+pre.code-body.bash .flag   { color: #fbbf24; }
+pre.code-body.bash .arg    { color: #a5f3fc; }
+pre.code-body.bash .cmt    { color: #475569; font-style: italic; }
+pre.code-body.bash .out    { color: #94a3b8; }
+pre.code-body.bash .output { color: #94a3b8; }
+
+/* ── Código inline ─────────────────────────────────────────── */
+code.inline,
+:not(pre) > code:not(.inline) {
+  background: #f1f5f9;
+  color: #0f766e;
+  padding: .1em .4em;
+  border-radius: 4px;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: .88em;
+  border: 1px solid #e2e8f0;
+}
+
+/* ── Líneas de código con número ───────────────────────────── */
+.code-numbered {
+  counter-reset: line;
+}
+
+.code-numbered .ln {
+  display: block;
+  counter-increment: line;
+}
+
+.code-numbered .ln::before {
+  content: counter(line);
+  display: inline-block;
+  width: 2rem;
+  color: #334155;
+  text-align: right;
+  margin-right: 1.2rem;
+  user-select: none;
+  border-right: 1px solid #1e293b;
+  padding-right: .6rem;
+  font-size: .75rem;
+}
+
+/* ── Diff ──────────────────────────────────────────────────── */
+.diff-add { background: rgba(34,197,94,.12); color: #86efac; display: block; }
+.diff-del { background: rgba(239,68,68,.12);  color: #fca5a5; display: block; }
+
+/* ── Tab de código (múltiple archivo) ──────────────────────── */
+.code-tabs {
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,.15);
+  margin: 1.2rem 0;
+}
+
+.code-tab-bar {
+  background: #1e293b;
+  display: flex;
+  border-bottom: 1px solid #334155;
+  overflow-x: auto;
+}
+
+.code-tab {
+  padding: .5rem 1.1rem;
+  font-size: .78rem;
+  color: #64748b;
+  cursor: pointer;
+  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  transition: all .2s;
+}
+
+.code-tab.active {
+  color: #22d3ee;
+  border-bottom-color: #22d3ee;
+  background: rgba(34,211,238,.05);
+}
+
+/* ============================================================
+   Compatibilidad — Lecciones sin .code-body (38-58)
+   ============================================================ */
+
+/* Lessons 55-58: <pre class="code-block"> usado directamente */
+pre.code-block {
+  background: #0f172a;
+  color: #e2e8f0;
+  padding: 1.2rem 1.4rem;
+  overflow-x: auto;
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: .83rem;
+  line-height: 1.75;
+  tab-size: 4;
+}
+
+/* Lessons 38-54: <pre><code> sin clases wrapper */
+.section pre:not(.code-body):not(.code-block),
+section[id^="s"] pre:not(.code-body):not(.code-block) {
+  background: #0f172a;
+  color: #e2e8f0;
+  margin: 1.2rem 0;
+  padding: 1.2rem 1.4rem;
+  border-radius: 10px;
+  overflow-x: auto;
+  box-shadow: 0 4px 6px -1px rgba(0,0,0,.15);
+  font-family: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  font-size: .83rem;
+  line-height: 1.75;
+  tab-size: 4;
+}
+
+.section pre:not(.code-body):not(.code-block) > code,
+section[id^="s"] pre:not(.code-body):not(.code-block) > code {
+  font-family: inherit;
+  font-size: inherit;
+  color: inherit;
+  background: none;
+  padding: 0;
+}

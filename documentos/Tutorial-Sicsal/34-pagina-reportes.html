@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 34 — Página Reportes | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 6 — Panel Admin (Filament)</div>
+    <div class="lesson-number">Lección 34 de 58</div>
+    <h1 class="lesson-title">Página Reportes — PDF, Excel y PowerPoint</h1>
+    <p class="lesson-subtitle">Un panel unificado de descargas: Informe CAI en 3 formatos, Causas de Consulta, Padrón Comunal y Comunidades/Población. Todo con Actions de Filament y streamDownload.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 2 archivos (344 + 115 líneas)</span>
+      <span class="lesson-meta-item">⏱️ ~30 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Avanzado</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="33-pagina-prestaciones.html" class="lesson-nav-btn">← Lección 33</a>
+    <a href="35-pagina-importar.html" class="lesson-nav-btn">Lección 35 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#overview">Visión general — 4 secciones de descarga</a></li>
+      <li><a href="#filtros">Filtros globales con wire:model.live</a></li>
+      <li><a href="#cai">Informe CAI — Excel, PDF y PPTX</a></li>
+      <li><a href="#causas">Causas de Consulta — con filtro adicional de mes</a></li>
+      <li><a href="#datos">getDatosComunidades() — cálculos poblacionales</a></li>
+      <li><a href="#blade">Vista Blade — Actions renderizadas</a></li>
+      <li><a href="#resumen">Resumen</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: OVERVIEW
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="overview">
+    <h2><span class="section-number">1</span> Visión general — 4 secciones de descarga</h2>
+
+    <div class="arch-diagram">
+      <div class="arch-box" style="width: 100%">
+        Reportes.php → 4 secciones × múltiples formatos<br>
+        <small>① Informe CAI (Excel + PDF + PPTX) · ② Causas Consulta (Excel + PDF) · ③ Padrón Comunal (Excel) · ④ Comunidades Población (Excel + PDF)</small>
+      </div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-title">9 Actions de descarga</div>
+      <table>
+        <thead><tr><th>Sección</th><th>Formatos</th><th>Helper/Export</th></tr></thead>
+        <tbody>
+          <tr><td>Informe CAI</td><td>Excel, PDF, PPTX</td><td>CaiHelper + InformeCAIExport + PresentacionCAI</td></tr>
+          <tr><td>10 Causas Consulta</td><td>Excel, PDF</td><td>CausasConsultaHelper + CausasConsultaExternaExport</td></tr>
+          <tr><td>Padrón Comunal</td><td>Excel</td><td>PadronComunidadesExport</td></tr>
+          <tr><td>Comunidades y Población</td><td>Excel, PDF</td><td>ComunidadesPoblacionExport + getDatosComunidades()</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: FILTROS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="filtros">
+    <h2><span class="section-number">2</span> Filtros globales con wire:model.live</h2>
+
+    <div class="code-block">
+      <div class="code-header">Reportes.php — propiedades + mount()</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">Reportes</span> <span class="kw">extends</span> <span class="cls">Page</span>
+{
+    <span class="kw">protected</span> <span class="type">string</span> <span class="var">$view</span> <span class="op">=</span> <span class="str">'filament.pages.reportes'</span>;
+    <span class="kw">protected static</span> <span class="type">string</span>|<span class="cls">\UnitEnum</span>|<span class="kw">null</span> <span class="var">$navigationGroup</span> <span class="op">=</span> <span class="str">'Informes'</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$title</span> <span class="op">=</span> <span class="str">'Reportes y Descargas'</span>;
+
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$centroSaludId</span> <span class="op">=</span> <span class="num">0</span>;
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$anio</span>;
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$periodo</span> <span class="op">=</span> <span class="str">'cai1'</span>;
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$mesCausas</span> <span class="op">=</span> <span class="num">0</span>; <span class="cmt">// 0 = todo el año</span>
+
+    <span class="kw">public function</span> <span class="fn">mount</span>(): <span class="type">void</span>
+    {
+        <span class="var">$this</span>-&gt;<span class="var">anio</span> <span class="op">=</span> (<span class="type">int</span>) <span class="fn">date</span>(<span class="str">'Y'</span>);
+        <span class="var">$centros</span> <span class="op">=</span> <span class="var">$this</span>-&gt;<span class="fn">getCentros</span>();
+        <span class="kw">if</span> (<span class="fn">count</span>(<span class="var">$centros</span>) <span class="op">&gt;</span> <span class="num">0</span>) {
+            <span class="var">$this</span>-&gt;<span class="var">centroSaludId</span> <span class="op">=</span> (<span class="type">int</span>) <span class="fn">array_key_first</span>(<span class="var">$centros</span>);
+        }
+    }
+
+    <span class="hl"><span class="kw">public function</span> <span class="fn">getCentros</span>(): <span class="type">array</span></span>
+    {
+        <span class="var">$user</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>();
+        <span class="kw">if</span> (<span class="var">$user</span>?-&gt;<span class="fn">hasRole</span>(<span class="str">'super_admin'</span>)) {
+            <span class="kw">return</span> <span class="cls">CentroSalud</span>::<span class="fn">orderBy</span>(<span class="str">'nombre'</span>)
+                -&gt;<span class="fn">pluck</span>(<span class="str">'nombre'</span>, <span class="str">'id'</span>)-&gt;<span class="fn">toArray</span>();
+        }
+        <span class="cmt">// Admin/registrador → solo su centro</span>
+        <span class="var">$centro</span> <span class="op">=</span> <span class="cls">CentroSalud</span>::<span class="fn">find</span>(<span class="var">$user</span>-&gt;<span class="var">centro_salud_id</span>);
+        <span class="kw">return</span> <span class="var">$centro</span> ? [<span class="var">$centro</span>-&gt;<span class="var">id</span> <span class="op">=&gt;</span> <span class="var">$centro</span>-&gt;<span class="var">nombre</span>] : [];
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">reportes.blade.php — selectores Blade</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;select</span> <span class="hl"><span class="attr">wire:model.live</span><span class="op">=</span><span class="str">"centroSaludId"</span></span> <span class="attr">class</span><span class="op">=</span><span class="str">"rounded-lg ..."</span><span class="dec">&gt;</span>
+  <span class="dec">&lt;option</span> <span class="attr">value</span><span class="op">=</span><span class="str">"0"</span><span class="dec">&gt;</span>— Seleccionar —<span class="dec">&lt;/option&gt;</span>
+  <span class="kw">@foreach</span> (<span class="var">$this</span>-&gt;<span class="fn">getCentros</span>() <span class="kw">as</span> <span class="var">$id</span> <span class="op">=&gt;</span> <span class="var">$nombre</span>)
+    <span class="dec">&lt;option</span> <span class="attr">value</span><span class="op">=</span><span class="str">"{{ $id }}"</span><span class="dec">&gt;</span>{{ <span class="var">$nombre</span> }}<span class="dec">&lt;/option&gt;</span>
+  <span class="kw">@endforeach</span>
+<span class="dec">&lt;/select&gt;</span>
+
+<span class="dec">&lt;select</span> <span class="attr">wire:model.live</span><span class="op">=</span><span class="str">"periodo"</span> ...&gt;
+  <span class="dec">&lt;option</span> <span class="attr">value</span><span class="op">=</span><span class="str">"cai1"</span><span class="dec">&gt;</span>CAI 1 (Ene–Abr)<span class="dec">&lt;/option&gt;</span>
+  <span class="dec">&lt;option</span> <span class="attr">value</span><span class="op">=</span><span class="str">"cai2"</span><span class="dec">&gt;</span>CAI 2 (Ene–Ago)<span class="dec">&lt;/option&gt;</span>
+  <span class="dec">&lt;option</span> <span class="attr">value</span><span class="op">=</span><span class="str">"gestion"</span><span class="dec">&gt;</span>Gestión completa<span class="dec">&lt;/option&gt;</span>
+  <span class="kw">@for</span> (<span class="var">$m</span> <span class="op">=</span> <span class="num">1</span>; <span class="var">$m</span> <span class="op">&lt;=</span> <span class="num">12</span>; <span class="var">$m</span><span class="op">++</span>)
+    <span class="dec">&lt;option</span> <span class="attr">value</span><span class="op">=</span><span class="str">"{{ $m }}"</span><span class="dec">&gt;</span>{{ ... translatedFormat('F') }}<span class="dec">&lt;/option&gt;</span>
+  <span class="kw">@endfor</span>
+<span class="dec">&lt;/select&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">wire:model.live en selects nativos</div>
+      <p>No usamos componentes Filament para los filtros — son <code>&lt;select&gt;</code> HTML nativos con <code>wire:model.live</code>. Al cambiar cualquier selector, las Actions se re-evalúan. Si <code>centroSaludId = 0</code>, todos los botones quedan <code>disabled</code>.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: CAI ACTIONS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="cai">
+    <h2><span class="section-number">3</span> Informe CAI — Excel, PDF y PPTX</h2>
+
+    <div class="code-block">
+      <div class="code-header">Reportes.php — 3 Actions para Informe CAI</div>
+      <div class="code-body">
+<pre><span class="cmt">// ① Excel</span>
+<span class="kw">public function</span> <span class="fn">descargarCaiExcelAction</span>(): <span class="cls">Action</span>
+{
+    <span class="kw">return</span> <span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'descargarCaiExcel'</span>)
+        -&gt;<span class="fn">label</span>(<span class="str">'Excel'</span>)
+        -&gt;<span class="fn">icon</span>(<span class="str">'heroicon-o-table-cells'</span>)
+        -&gt;<span class="fn">color</span>(<span class="str">'success'</span>)
+        <span class="hl">-&gt;<span class="fn">disabled</span>(<span class="kw">fn</span> () <span class="op">=&gt;</span> !<span class="var">$this</span>-&gt;<span class="var">centroSaludId</span>)</span>
+        -&gt;<span class="fn">action</span>(<span class="kw">function</span> () {
+            <span class="var">$datos</span> <span class="op">=</span> <span class="cls">CaiHelper</span>::<span class="fn">getDatosInforme</span>(
+                <span class="var">$this</span>-&gt;<span class="var">centroSaludId</span>,
+                <span class="var">$this</span>-&gt;<span class="var">periodo</span>,
+                <span class="var">$this</span>-&gt;<span class="var">anio</span>);
+            <span class="kw">return</span> <span class="cls">Excel</span>::<span class="fn">download</span>(
+                <span class="kw">new</span> <span class="cls">InformeCAIExport</span>(<span class="var">$datos</span>), <span class="var">$nombre</span>);
+        });
+}
+
+<span class="cmt">// ② PDF</span>
+<span class="kw">public function</span> <span class="fn">descargarCaiPdfAction</span>(): <span class="cls">Action</span>
+{
+    <span class="kw">return</span> <span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'descargarCaiPdf'</span>)
+        -&gt;<span class="fn">label</span>(<span class="str">'PDF'</span>)-&gt;<span class="fn">color</span>(<span class="str">'danger'</span>)
+        -&gt;<span class="fn">action</span>(<span class="kw">function</span> () {
+            <span class="var">$pdf</span> <span class="op">=</span> <span class="cls">Pdf</span>::<span class="fn">loadView</span>(<span class="str">'pdf.informe-cai'</span>, [...])
+                -&gt;<span class="fn">setPaper</span>(<span class="str">'a4'</span>, <span class="str">'portrait'</span>);
+            <span class="kw">return</span> <span class="fn">response</span>()-&gt;<span class="hl"><span class="fn">streamDownload</span></span>(
+                <span class="kw">fn</span> () <span class="op">=&gt;</span> <span class="fn">print</span>(<span class="var">$pdf</span>-&gt;<span class="fn">output</span>()), <span class="var">$nombre</span>);
+        });
+}
+
+<span class="cmt">// ③ PowerPoint</span>
+<span class="kw">public function</span> <span class="fn">descargarCaiPptxAction</span>(): <span class="cls">Action</span>
+{
+    <span class="kw">return</span> <span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'descargarCaiPptx'</span>)
+        -&gt;<span class="fn">label</span>(<span class="str">'PowerPoint'</span>)-&gt;<span class="fn">color</span>(<span class="str">'info'</span>)
+        -&gt;<span class="fn">action</span>(<span class="kw">function</span> () {
+            <span class="var">$pptx</span> <span class="op">=</span> <span class="kw">new</span> <span class="cls">PresentacionCAI</span>(...);
+            <span class="var">$tmpFile</span> <span class="op">=</span> <span class="var">$pptx</span>-&gt;<span class="fn">generate</span>();
+            <span class="kw">return</span> <span class="fn">response</span>()-&gt;<span class="fn">streamDownload</span>(
+                <span class="kw">function</span> () <span class="kw">use</span> (<span class="var">$tmpFile</span>) {
+                    <span class="fn">readfile</span>(<span class="var">$tmpFile</span>);
+                    @<span class="fn">unlink</span>(<span class="var">$tmpFile</span>);
+                }, <span class="var">$nombre</span>, [
+                <span class="str">'Content-Type'</span> <span class="op">=&gt;</span> <span class="str">'application/vnd.openxmlformats-...'</span>,
+            ]);
+        });
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Tres patrones de descarga</div>
+      <ul>
+        <li><strong>Excel</strong>: <code>Excel::download(new Export($datos), $nombre)</code> — Maatwebsite genera el .xlsx</li>
+        <li><strong>PDF</strong>: <code>Pdf::loadView(...)->output()</code> + <code>streamDownload()</code> — DomPDF genera el PDF</li>
+        <li><strong>PPTX</strong>: clase custom <code>PresentacionCAI->generate()</code> → archivo temporal → <code>readfile()</code> + <code>unlink()</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: CAUSAS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="causas">
+    <h2><span class="section-number">4</span> Causas de Consulta — con filtro adicional de mes</h2>
+
+    <div class="code-block">
+      <div class="code-header">Reportes.php — Actions de Causas</div>
+      <div class="code-body">
+<pre><span class="kw">public function</span> <span class="fn">descargarCausasExcelAction</span>(): <span class="cls">Action</span>
+{
+    <span class="kw">return</span> <span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'descargarCausasExcel'</span>)
+        -&gt;<span class="fn">label</span>(<span class="str">'Excel'</span>)-&gt;<span class="fn">color</span>(<span class="str">'success'</span>)
+        -&gt;<span class="fn">action</span>(<span class="kw">function</span> () {
+            <span class="hl"><span class="var">$datos</span> <span class="op">=</span> <span class="cls">CausasConsultaHelper</span>::<span class="fn">getTop10</span>(
+                <span class="var">$this</span>-&gt;<span class="var">centroSaludId</span>,
+                <span class="var">$this</span>-&gt;<span class="var">anio</span>,
+                <span class="var">$this</span>-&gt;<span class="var">mesCausas</span>  <span class="cmt">// 0 = año completo</span>
+            );</span>
+            <span class="kw">return</span> <span class="cls">Excel</span>::<span class="fn">download</span>(
+                <span class="kw">new</span> <span class="cls">CausasConsultaExternaExport</span>(<span class="var">$datos</span>),
+                <span class="var">$nombre</span>);
+        });
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">mesCausas = 0 → todo el año</div>
+      <p>La sección de Causas tiene un filtro de mes propio (<code>$mesCausas</code>). Cuando es 0, el helper calcula sobre la gestión completa. Esto permite descargar reportes mensuales o anuales desde la misma interfaz.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: DATOS COMUNIDADES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="datos">
+    <h2><span class="section-number">5</span> getDatosComunidades() — cálculos poblacionales</h2>
+
+    <p>El método más complejo de la página (150+ líneas). Calcula población por comunidad, grupo etáreo, sexo y compara con metas INE.</p>
+
+    <div class="code-block">
+      <div class="code-header">Reportes.php — constantes y estructura</div>
+      <div class="code-body">
+<pre><span class="kw">private const</span> <span class="var">GRUPOS</span> <span class="op">=</span> [
+    <span class="str">'menor_1'</span> <span class="op">=&gt;</span> <span class="str">'&lt;1'</span>, <span class="str">'1_4'</span> <span class="op">=&gt;</span> <span class="str">'1-4'</span>, <span class="str">'5_9'</span> <span class="op">=&gt;</span> <span class="str">'5-9'</span>,
+    <span class="str">'10_14'</span> <span class="op">=&gt;</span> <span class="str">'10-14'</span>, <span class="str">'15_19'</span> <span class="op">=&gt;</span> <span class="str">'15-19'</span>,
+    <span class="str">'20_39'</span> <span class="op">=&gt;</span> <span class="str">'20-39'</span>, <span class="str">'40_49'</span> <span class="op">=&gt;</span> <span class="str">'40-49'</span>,
+    <span class="str">'50_59'</span> <span class="op">=&gt;</span> <span class="str">'50-59'</span>, <span class="str">'mayor_60'</span> <span class="op">=&gt;</span> <span class="str">'60+'</span>,
+];
+
+<span class="hl"><span class="kw">private const</span> <span class="var">RATIO_MASCULINIDAD</span> <span class="op">=</span> [</span>
+    <span class="str">'menor_1'</span> <span class="op">=&gt;</span> <span class="num">1.05</span>, <span class="str">'1_4'</span> <span class="op">=&gt;</span> <span class="num">1.05</span>,
+    <span class="str">'5_9'</span> <span class="op">=&gt;</span> <span class="num">1.04</span>, <span class="str">'10_14'</span> <span class="op">=&gt;</span> <span class="num">1.04</span>,
+    <span class="str">'15_19'</span> <span class="op">=&gt;</span> <span class="num">1.02</span>, <span class="str">'20_39'</span> <span class="op">=&gt;</span> <span class="num">0.96</span>,
+    <span class="str">'40_49'</span> <span class="op">=&gt;</span> <span class="num">0.94</span>, <span class="str">'50_59'</span> <span class="op">=&gt;</span> <span class="num">0.92</span>,
+    <span class="str">'mayor_60'</span> <span class="op">=&gt;</span> <span class="num">0.88</span>,
+];</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">RATIO_MASCULINIDAD — distribución por sexo del INE</div>
+      <p>Cuando la meta INE viene como "ambos sexos", se usa el ratio de masculinidad por grupo etáreo para estimar hombres y mujeres. Ejemplo: ratio 1.05 para menores de 1 año → 51.2% hombres, 48.8% mujeres.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Reportes.php — loop por comunidad + consolidado INE vs Real</div>
+      <div class="code-body">
+<pre><span class="kw">foreach</span> (<span class="var">$comunidades</span> <span class="kw">as</span> <span class="var">$com</span>) {
+    <span class="hl"><span class="var">$base</span> <span class="op">=</span> <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'comunidad_id'</span>, <span class="var">$com</span>-&gt;<span class="var">id</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>);
+    <span class="var">$baseNoMig</span> <span class="op">=</span> (<span class="kw">clone</span> <span class="var">$base</span>)-&gt;<span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'!='</span>, <span class="str">'migrado'</span>);</span>
+
+    <span class="cmt">// Contar por grupo etáreo con whereRaw</span>
+    <span class="var">$grupoVals</span>[<span class="str">'menor_1'</span>] <span class="op">=</span> (<span class="kw">clone</span> <span class="var">$baseNoMig</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'fecha_nacimiento'</span>, <span class="str">'>'</span>, <span class="fn">now</span>()-&gt;<span class="fn">subYear</span>())
+        -&gt;<span class="fn">count</span>();
+    <span class="cmt">// ... 8 grupos más con whereRaw TIMESTAMPDIFF ...</span>
+
+    <span class="cmt">// Detalle por sexo × grupo</span>
+    <span class="kw">foreach</span> (<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$g</span>) {
+        <span class="var">$m</span> <span class="op">=</span> (<span class="kw">clone</span> <span class="var">$baseNoMig</span>)-&gt;<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'M'</span>)
+            -&gt;<span class="fn">whereRaw</span>(<span class="var">$this</span>-&gt;<span class="fn">getAgeFilter</span>(<span class="var">$g</span>))-&gt;<span class="fn">count</span>();
+        <span class="var">$f</span> <span class="op">=</span> (<span class="kw">clone</span> <span class="var">$baseNoMig</span>)-&gt;<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)
+            -&gt;<span class="fn">whereRaw</span>(<span class="var">$this</span>-&gt;<span class="fn">getAgeFilter</span>(<span class="var">$g</span>))-&gt;<span class="fn">count</span>();
+    }
+}
+
+<span class="cmt">// Consolidado: comparar real vs INE</span>
+<span class="kw">foreach</span> (<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$g</span>) {
+    <span class="var">$consolidado</span>[] <span class="op">=</span> [
+        <span class="str">'ine_total'</span>  <span class="op">=&gt;</span> <span class="var">$ineM</span> <span class="op">+</span> <span class="var">$ineF</span>,
+        <span class="str">'real_total'</span> <span class="op">=&gt;</span> <span class="var">$realM</span> <span class="op">+</span> <span class="var">$realF</span>,
+        <span class="str">'diferencia'</span> <span class="op">=&gt;</span> <span class="var">$realTotal</span> <span class="op">-</span> <span class="var">$ineTotal</span>,
+        <span class="hl"><span class="str">'cobertura'</span>  <span class="op">=&gt;</span> <span class="var">$ineTotal</span> <span class="op">&gt;</span> <span class="num">0</span>
+            ? <span class="fn">round</span>(<span class="var">$realTotal</span> <span class="op">/</span> <span class="var">$ineTotal</span> <span class="op">*</span> <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span></span>,
+    ];
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">clone $base — reutilizar queries sin mutar</div>
+      <p>Se construye un <code>$base</code> query y se clona para cada operación. Sin <code>clone</code>, cada <code>->where()</code> adicional modificaría el query original. Patrón necesario cuando se hacen múltiples conteos sobre la misma base de datos.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: BLADE VIEW
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="blade">
+    <h2><span class="section-number">6</span> Vista Blade — Actions renderizadas</h2>
+
+    <div class="code-block">
+      <div class="code-header">reportes.blade.php — renderizar Actions dentro de secciones</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;x-filament::section&gt;</span>
+  <span class="dec">&lt;x-slot</span> <span class="attr">name</span><span class="op">=</span><span class="str">"heading"</span><span class="dec">&gt;</span>
+    <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"flex items-center gap-2"</span><span class="dec">&gt;</span>
+      <span class="dec">&lt;x-heroicon-o-chart-bar-square</span> <span class="attr">class</span><span class="op">=</span><span class="str">"size-5 text-teal-500"</span> <span class="dec">/&gt;</span>
+      Informe C.A.I.
+    <span class="dec">&lt;/div&gt;</span>
+  <span class="dec">&lt;/x-slot&gt;</span>
+  <span class="dec">&lt;x-slot</span> <span class="attr">name</span><span class="op">=</span><span class="str">"description"</span><span class="dec">&gt;</span>Coberturas, vacunas, ...<span class="dec">&lt;/x-slot&gt;</span>
+
+  <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"flex flex-wrap gap-3"</span><span class="dec">&gt;</span>
+    <span class="hl">{{ <span class="var">$this</span>-&gt;<span class="var">descargarCaiExcelAction</span> }}
+    {{ <span class="var">$this</span>-&gt;<span class="var">descargarCaiPdfAction</span> }}
+    {{ <span class="var">$this</span>-&gt;<span class="var">descargarCaiPptxAction</span> }}</span>
+  <span class="dec">&lt;/div&gt;</span>
+<span class="dec">&lt;/x-filament::section&gt;</span>
+
+<span class="cmt">&lt;!-- Al final del archivo --&gt;</span>
+<span class="hl"><span class="dec">&lt;x-filament-actions::modals /&gt;</span></span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">{{ $this->actionName }} — renderizar Actions en Blade</div>
+      <p>Las Actions definidas como <code>descargarCaiExcelAction()</code> se renderizan como <code>{{ $this->descargarCaiExcelAction }}</code> (sin paréntesis). Filament las convierte en botones automáticamente. El bloque <code>&lt;x-filament-actions::modals /&gt;</code> al final es obligatorio para los modales de confirmación.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RESUMEN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen">
+    <h2><span class="section-number">7</span> Resumen</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos</h3>
+      <ul>
+        <li><strong>Filament Page custom</strong> con selectores nativos y Actions de descarga</li>
+        <li><strong>9 Actions</strong> para Excel (Maatwebsite), PDF (DomPDF) y PPTX (PhpPresentation)</li>
+        <li><strong>streamDownload()</strong> — streaming de archivos generados al vuelo</li>
+        <li><strong>disabled(fn () => !$this->centroSaludId)</strong> — botones reactivos</li>
+        <li><strong>wire:model.live</strong> — sincronizar &lt;select&gt; nativo con propiedades Livewire</li>
+        <li><strong>{{ $this->actionName }}</strong> — renderizar Actions dentro de Blade</li>
+        <li><strong>x-filament-actions::modals</strong> — obligatorio para modales de Actions</li>
+        <li><strong>RATIO_MASCULINIDAD</strong> — distribución por sexo cuando la meta INE es "ambos"</li>
+        <li><strong>clone $base</strong> — reutilizar queries builder sin mutación</li>
+        <li><strong>Consolidado INE vs Real</strong> — cobertura = real / proyección × 100</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="33-pagina-prestaciones.html" class="lesson-nav-btn">← Lección 33</a>
+    <a href="35-pagina-importar.html" class="lesson-nav-btn">Lección 35 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 34 de 58</p>
+</footer>
+
+</body>
+</html>

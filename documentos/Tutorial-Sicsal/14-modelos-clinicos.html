@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 14 — Modelos clínicos individuales | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 3 — Modelos Eloquent</div>
+    <div class="lesson-number">Lección 14 de 58</div>
+    <h1 class="lesson-title">Modelos clínicos individuales</h1>
+    <p class="lesson-subtitle">9 modelos para datos persona-por-persona: vacunas, crecimiento, micronutrientes, embarazos, controles prenatales, partos, puerperios, anticoncepción y defunciones.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 9 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~40 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="13-modelo-persona.html" class="lesson-nav-btn">← Lección 13</a>
+    <a href="15-modelos-prestaciones.html" class="lesson-nav-btn">Lección 15 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#patron">Patrón común de los 9 modelos</a></li>
+      <li><a href="#vacuna">VacunaNino</a></li>
+      <li><a href="#crecimiento">CrecimientoInfantil</a></li>
+      <li><a href="#micronutriente">MicronutrienteNino</a></li>
+      <li><a href="#embarazo">Embarazo — cadena de relaciones</a></li>
+      <li><a href="#control">ControlPrenatal</a></li>
+      <li><a href="#parto">Parto y Puerperio</a></li>
+      <li><a href="#anticoncepcion">Anticoncepcion</a></li>
+      <li><a href="#defuncion">Defuncion — el modelo más sofisticado</a></li>
+      <li><a href="#cadena">Cadena completa: Embarazo → Parto → Puerperio</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: PATRÓN COMÚN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="patron">
+    <h2 class="section-title"><span class="number">1</span> Patrón común de los 9 modelos</h2>
+
+    <p>Todos los modelos clínicos comparten estas características:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Característica</th>
+          <th>Detalle</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">$table</code></td><td>Nombre explícito (la convención no aplica para plurales en español)</td></tr>
+        <tr><td><code class="inline">BelongsTo Persona</code></td><td>Todo registro clínico está ligado a una persona</td></tr>
+        <tr><td><code class="inline">BelongsTo User</code></td><td>Auditoría: quién registró el dato (FK personalizada)</td></tr>
+        <tr><td>Cast <code class="inline">'date'</code></td><td>Todas las fechas se castean a Carbon</td></tr>
+        <tr><td><code class="inline">mes + anio</code></td><td>Para agrupar datos por período mensual</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">¿Por qué cada modelo tiene registrado_por / aplicado_por?</div>
+        Es un requisito de auditoría: siempre saber quién ingresó cada dato. La FK apunta a <code class="inline">users</code> con un nombre personalizado (<code class="inline">belongsTo(User::class, 'registrado_por')</code>).
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: VACUNA NIÑO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="vacuna">
+    <h2 class="section-title"><span class="number">2</span> VacunaNino</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/VacunaNino.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">VacunaNino</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'vacunas_ninos'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'persona_id'</span>, <span class="str">'tipo_vacuna'</span>, <span class="str">'fecha_aplicacion'</span>,
+        <span class="str">'dentro_fuera'</span>, <span class="str">'lote'</span>, <span class="str">'aplicado_por'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="str">'fecha_aplicacion'</span> <span class="op">=></span> <span class="str">'date'</span>];
+    }
+
+    <span class="kw">public function</span> <span class="fn">persona</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">Persona</span><span class="op">::</span><span class="kw">class</span>);
+    }
+
+    <span class="kw">public function</span> <span class="fn">aplicadoPor</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">User</span><span class="op">::</span><span class="kw">class</span>, <span class="str">'aplicado_por'</span>);
+    }
+}</pre>
+    </div>
+
+    <p><code class="inline">dentro_fuera</code> indica si la vacuna se aplicó dentro del establecimiento o en la comunidad. <code class="inline">lote</code> es el número de lote de la vacuna (para trazabilidad). Las 31 vacunas disponibles se definen como enum en la migración.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: CRECIMIENTO INFANTIL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="crecimiento">
+    <h2 class="section-title"><span class="number">3</span> CrecimientoInfantil</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/CrecimientoInfantil.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">CrecimientoInfantil</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'crecimiento_infantil'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'persona_id'</span>, <span class="str">'fecha'</span>, <span class="str">'peso_kg'</span>, <span class="str">'talla_cm'</span>,
+        <span class="str">'perimetro_cefalico_cm'</span>, <span class="str">'clasificacion'</span>, <span class="str">'tipo_control'</span>,
+        <span class="str">'dentro_fuera'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>, <span class="str">'registrado_por'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'fecha'</span>                <span class="op">=></span> <span class="str">'date'</span>,
+            <span class="str">'peso_kg'</span>              <span class="op">=></span> <span class="str">'decimal:2'</span>,
+            <span class="str">'talla_cm'</span>             <span class="op">=></span> <span class="str">'decimal:2'</span>,
+            <span class="str">'perimetro_cefalico_cm'</span> <span class="op">=></span> <span class="str">'decimal:2'</span>,
+        ];
+    }
+
+    <span class="kw">public function</span> <span class="fn">persona</span>(): <span class="type">BelongsTo</span> { <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">Persona</span><span class="op">::</span><span class="kw">class</span>); }
+    <span class="kw">public function</span> <span class="fn">registradoPor</span>(): <span class="type">BelongsTo</span> { <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">User</span><span class="op">::</span><span class="kw">class</span>, <span class="str">'registrado_por'</span>); }
+}</pre>
+    </div>
+
+    <p>Nótese el uso de <code class="inline">'decimal:2'</code> para las medidas antropométricas. Un bebé puede pesar 3.45 kg o medir 52.30 cm — necesitamos exactamente 2 decimales.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: MICRONUTRIENTE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="micronutriente">
+    <h2 class="section-title"><span class="number">4</span> MicronutrienteNino</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/MicronutrienteNino.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">MicronutrienteNino</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'micronutrientes_ninos'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'persona_id'</span>, <span class="str">'tipo'</span>, <span class="str">'fecha'</span>,
+        <span class="str">'mes'</span>, <span class="str">'anio'</span>, <span class="str">'registrado_por'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="str">'fecha'</span> <span class="op">=></span> <span class="str">'date'</span>];
+    }
+
+    <span class="kw">public function</span> <span class="fn">persona</span>(): <span class="type">BelongsTo</span> { ... }
+    <span class="kw">public function</span> <span class="fn">registradoPor</span>(): <span class="type">BelongsTo</span> { ... }
+}</pre>
+    </div>
+
+    <p>El más sencillo de los clínicos: solo necesita saber qué micronutriente (<code class="inline">tipo</code> = hierro, vitamina A, zinc, etc.) se entregó a qué persona y cuándo.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: EMBARAZO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="embarazo">
+    <h2 class="section-title"><span class="number">5</span> Embarazo — cadena de relaciones</h2>
+
+    <p>El modelo <code class="inline">Embarazo</code> es especial porque inicia una <strong>cadena de 3 niveles</strong>:</p>
+
+    <div class="flow-diagram">
+      <div class="flow-step">Persona</div>
+      <div class="flow-arrow">→ hasMany →</div>
+      <div class="flow-step">Embarazo</div>
+      <div class="flow-arrow">→ hasMany →</div>
+      <div class="flow-step">ControlPrenatal</div>
+    </div>
+    <div class="flow-diagram" style="margin-top: 0;">
+      <div class="flow-step" style="visibility: hidden;">Persona</div>
+      <div class="flow-arrow" style="visibility: hidden;">→</div>
+      <div class="flow-step">Embarazo</div>
+      <div class="flow-arrow">→ hasOne →</div>
+      <div class="flow-step">Parto</div>
+      <div class="flow-arrow">→ hasOne →</div>
+      <div class="flow-step">Puerperio</div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Embarazo.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">Embarazo</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'persona_id'</span>, <span class="str">'fecha_inicio'</span>, <span class="str">'fecha_probable_parto'</span>,
+        <span class="str">'semanas_gestacion_ingreso'</span>, <span class="str">'estado'</span>, <span class="str">'observaciones'</span>, <span class="str">'activo'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'fecha_inicio'</span>         <span class="op">=></span> <span class="str">'date'</span>,
+            <span class="str">'fecha_probable_parto'</span> <span class="op">=></span> <span class="str">'date'</span>,
+            <span class="str">'activo'</span>               <span class="op">=></span> <span class="str">'boolean'</span>,
+        ];
+    }
+
+    <span class="kw">public function</span> <span class="fn">persona</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">Persona</span><span class="op">::</span><span class="kw">class</span>);
+    }
+
+    <span class="kw">public function</span> <span class="fn">controles</span>(): <span class="type">HasMany</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">ControlPrenatal</span><span class="op">::</span><span class="kw">class</span>);
+    }
+
+    <span class="kw">public function</span> <span class="fn">parto</span>(): <span class="type">HasOne</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasOne</span>(<span class="cls">Parto</span><span class="op">::</span><span class="kw">class</span>);
+    }
+
+    <span class="kw">public function</span> <span class="fn">scopeActivas</span>(<span class="var">$query</span>)
+    {
+        <span class="kw">return</span> <span class="var">$query</span><span class="op">-></span><span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'activa'</span>);
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">HasMany vs HasOne</div>
+        Un embarazo tiene <strong>muchos</strong> controles prenatales (<code class="inline">HasMany</code>), pero solo <strong>un</strong> parto (<code class="inline">HasOne</code>). El scope <code class="inline">activas()</code> filtra embarazos en curso.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: CONTROL PRENATAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="control">
+    <h2 class="section-title"><span class="number">6</span> ControlPrenatal</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/ControlPrenatal.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">ControlPrenatal</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'controles_prenatales'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'embarazo_id'</span>, <span class="str">'numero_control'</span>, <span class="str">'fecha'</span>,
+        <span class="str">'semanas_gestacion'</span>, <span class="str">'dentro_fuera'</span>,
+        <span class="str">'grupo_etareo'</span>, <span class="str">'registrado_por'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="str">'fecha'</span> <span class="op">=></span> <span class="str">'date'</span>];
+    }
+
+    <span class="kw">public function</span> <span class="fn">embarazo</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">Embarazo</span><span class="op">::</span><span class="kw">class</span>);
+    }
+}</pre>
+    </div>
+
+    <p>Nótese que ControlPrenatal <strong>no pertenece a Persona directamente</strong> — pertenece a <strong>Embarazo</strong>. Para llegar a la persona: <code class="inline">$control->embarazo->persona</code>.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: PARTO Y PUERPERIO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="parto">
+    <h2 class="section-title"><span class="number">7</span> Parto y Puerperio</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Parto.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">Parto</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'embarazo_id'</span>, <span class="str">'fecha_parto'</span>, <span class="str">'tipo'</span>, <span class="str">'lugar'</span>,
+        <span class="str">'atendido_por'</span>, <span class="str">'grupo_etareo'</span>, <span class="str">'resultado'</span>,
+        <span class="str">'peso_rn_kg'</span>, <span class="str">'registrado_por'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'fecha_parto'</span> <span class="op">=></span> <span class="str">'date'</span>,
+            <span class="str">'peso_rn_kg'</span>  <span class="op">=></span> <span class="str">'decimal:3'</span>,  <span class="cmt">// 3.250 kg</span>
+        ];
+    }
+
+    <span class="kw">public function</span> <span class="fn">embarazo</span>(): <span class="type">BelongsTo</span> { <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">Embarazo</span><span class="op">::</span><span class="kw">class</span>); }
+    <span class="kw">public function</span> <span class="fn">puerperio</span>(): <span class="type">HasOne</span> { <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasOne</span>(<span class="cls">Puerperio</span><span class="op">::</span><span class="kw">class</span>); }
+}</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Puerperio.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">Puerperio</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'parto_id'</span>, <span class="str">'control_48h'</span>, <span class="str">'control_7d'</span>,
+        <span class="str">'control_28d'</span>, <span class="str">'control_42d'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'control_48h'</span> <span class="op">=></span> <span class="str">'date'</span>,
+            <span class="str">'control_7d'</span>  <span class="op">=></span> <span class="str">'date'</span>,
+            <span class="str">'control_28d'</span> <span class="op">=></span> <span class="str">'date'</span>,
+            <span class="str">'control_42d'</span> <span class="op">=></span> <span class="str">'date'</span>,
+        ];
+    }
+
+    <span class="kw">public function</span> <span class="fn">parto</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">Parto</span><span class="op">::</span><span class="kw">class</span>);
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">4 controles puerperales</div>
+        El puerperio tiene 4 fechas de control obligatorio: 48 horas, 7 días, 28 días y 42 días después del parto. Si una fecha es <code class="inline">null</code>, significa que la paciente no asistió a ese control.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 8: ANTICONCEPCIÓN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="anticoncepcion">
+    <h2 class="section-title"><span class="number">8</span> Anticoncepcion</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Anticoncepcion.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">Anticoncepcion</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'anticoncepcion'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'persona_id'</span>, <span class="str">'metodo'</span>, <span class="str">'tipo_usuaria'</span>,
+        <span class="str">'fecha'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>, <span class="str">'registrado_por'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="str">'fecha'</span> <span class="op">=></span> <span class="str">'date'</span>];
+    }
+
+    <span class="kw">public function</span> <span class="fn">persona</span>(): <span class="type">BelongsTo</span> { ... }
+    <span class="kw">public function</span> <span class="fn">registradoPor</span>(): <span class="type">BelongsTo</span> { ... }
+}</pre>
+    </div>
+
+    <p><code class="inline">tipo_usuaria</code> distingue entre <code class="inline">'nueva'</code> (primera vez con ese método) y <code class="inline">'continua'</code> (renovación). El <code class="inline">metodo</code> es un string libre (no enum) para permitir nuevos métodos sin migración.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 9: DEFUNCIÓN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="defuncion">
+    <h2 class="section-title"><span class="number">9</span> Defuncion — el modelo más sofisticado</h2>
+
+    <p>Defuncion es el único modelo clínico que usa <strong>lifecycle hooks</strong> (<code class="inline">booted()</code>) para ejecutar lógica automática al guardar.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Defuncion.php — lifecycle hooks</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">protected static function</span> <span class="fn">booted</span>(): <span class="type">void</span>
+{
+    <span class="cmt">// ANTES de guardar —————————————————————</span>
+    <span class="kw">static</span><span class="op">::</span><span class="fn">saving</span>(<span class="kw">function</span> (<span class="cls">Defuncion</span> <span class="var">$defuncion</span>) {
+        <span class="cmt">// 1. Calcular grupo etáreo automáticamente</span>
+        <span class="kw">if</span> (<span class="var">$defuncion</span><span class="op">-></span><span class="var">fecha_nacimiento</span> && <span class="var">$defuncion</span><span class="op">-></span><span class="var">fecha_defuncion</span>) {
+            <span class="var">$defuncion</span><span class="op">-></span><span class="var">grupo_etareo_defuncion</span> = <span class="kw">self</span><span class="op">::</span><span class="fn">calcularGrupoEtareo</span>(
+                <span class="var">$defuncion</span><span class="op">-></span><span class="var">fecha_nacimiento</span>,
+                <span class="var">$defuncion</span><span class="op">-></span><span class="var">fecha_defuncion</span>
+            );
+        }
+
+        <span class="cmt">// 2. Asignar centro_salud_id del usuario</span>
+        <span class="kw">if</span> (! <span class="var">$defuncion</span><span class="op">-></span><span class="var">centro_salud_id</span>) {
+            <span class="var">$defuncion</span><span class="op">-></span><span class="var">centro_salud_id</span> = <span class="fn">auth</span>()<span class="op">-></span><span class="fn">user</span>()<span class="op">?-></span><span class="var">centro_salud_id</span>;
+        }
+
+        <span class="cmt">// 3. Asignar registrado_por</span>
+        <span class="kw">if</span> (! <span class="var">$defuncion</span><span class="op">-></span><span class="var">registrado_por</span>) {
+            <span class="var">$defuncion</span><span class="op">-></span><span class="var">registrado_por</span> = <span class="fn">auth</span>()<span class="op">-></span><span class="fn">id</span>();
+        }
+    });
+
+    <span class="cmt">// DESPUÉS de crear —————————————————————</span>
+    <span class="kw">static</span><span class="op">::</span><span class="fn">created</span>(<span class="kw">function</span> (<span class="cls">Defuncion</span> <span class="var">$defuncion</span>) {
+        <span class="cmt">// Marcar la persona como inactiva en el padrón</span>
+        <span class="kw">if</span> (<span class="var">$defuncion</span><span class="op">-></span><span class="var">persona_id</span>) {
+            <span class="cls">Persona</span><span class="op">::</span><span class="fn">where</span>(<span class="str">'id'</span>, <span class="var">$defuncion</span><span class="op">-></span><span class="var">persona_id</span>)
+                <span class="op">-></span><span class="fn">update</span>([<span class="str">'activo'</span> <span class="op">=></span> <span class="kw">false</span>]);
+        }
+    });
+}</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">Efecto en cascada: defunción → persona inactiva</div>
+        Cuando se registra una defunción, el hook <code class="inline">created</code> desactiva automáticamente a la persona en el padrón. Esto es un <strong>borrado lógico</strong> — la persona sigue en la BD pero ya no aparece en conteos activos.
+      </div>
+    </div>
+
+    <h3 class="subsection-title">Cálculo automático de grupo etáreo</h3>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Defuncion.php — calcularGrupoEtareo()</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">public static function</span> <span class="fn">calcularGrupoEtareo</span>(
+    <span class="type">mixed</span> <span class="var">$fechaNacimiento</span>,
+    <span class="type">mixed</span> <span class="var">$fechaDefuncion</span>
+): <span class="type">string</span> {
+    <span class="var">$nacimiento</span> = <span class="cls">Carbon</span><span class="op">::</span><span class="fn">parse</span>(<span class="var">$fechaNacimiento</span>);
+    <span class="var">$defuncion</span>  = <span class="cls">Carbon</span><span class="op">::</span><span class="fn">parse</span>(<span class="var">$fechaDefuncion</span>);
+    <span class="var">$dias</span>       = <span class="var">$nacimiento</span><span class="op">-></span><span class="fn">diffInDays</span>(<span class="var">$defuncion</span>);
+    <span class="var">$anios</span>      = <span class="var">$nacimiento</span><span class="op">-></span><span class="fn">diffInYears</span>(<span class="var">$defuncion</span>);
+
+    <span class="kw">if</span> (<span class="var">$dias</span> < <span class="num">28</span>)  <span class="kw">return</span> <span class="str">'neonatal'</span>;
+    <span class="kw">if</span> (<span class="var">$dias</span> < <span class="num">365</span>) <span class="kw">return</span> <span class="str">'infantil_menor_1'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">5</span>)  <span class="kw">return</span> <span class="str">'menor_5'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">60</span>) <span class="kw">return</span> <span class="str">'5_a_59'</span>;
+    <span class="kw">return</span> <span class="str">'adulto_mayor'</span>;
+}</pre>
+    </div>
+
+    <p>A diferencia de Persona que calcula el grupo respecto a <code class="inline">now()</code>, las defunciones calculan la edad <strong>al momento de la muerte</strong>, usando la diferencia entre fecha de nacimiento y fecha de defunción.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 10: CADENA COMPLETA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="cadena">
+    <h2 class="section-title"><span class="number">10</span> Cadena completa: Embarazo → Parto → Puerperio</h2>
+
+    <p>Con estos 9 modelos, podemos navegar toda la historia clínica de una persona:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Ejemplo — navegación por relaciones</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// Obtener una persona con toda su historia clínica</span>
+<span class="var">$persona</span> = <span class="cls">Persona</span><span class="op">::</span><span class="fn">with</span>([
+    <span class="str">'vacunas'</span>,
+    <span class="str">'crecimiento'</span>,
+    <span class="str">'micronutrientes'</span>,
+    <span class="str">'embarazos.controles'</span>,       <span class="cmt">// eager load anidado</span>
+    <span class="str">'embarazos.parto.puerperio'</span>, <span class="cmt">// 3 niveles de profundidad</span>
+    <span class="str">'anticoncepciones'</span>,
+    <span class="str">'defuncion'</span>,
+])<span class="op">-></span><span class="fn">find</span>(<span class="num">1</span>);
+
+<span class="cmt">// ¿Cuántos controles prenatales tiene el embarazo activo?</span>
+<span class="var">$controles</span> = <span class="var">$persona</span><span class="op">-></span><span class="var">embarazos</span>
+    <span class="op">-></span><span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'activa'</span>)
+    <span class="op">-></span><span class="fn">first</span>()
+    <span class="op">?-></span><span class="var">controles</span>
+    <span class="op">-></span><span class="fn">count</span>();
+
+<span class="cmt">// ¿El puerperio fue a las 48h?</span>
+<span class="var">$puerperio48</span> = <span class="var">$persona</span><span class="op">-></span><span class="var">embarazos</span><span class="op">-></span><span class="fn">last</span>()
+    <span class="op">?-></span><span class="var">parto</span><span class="op">?-></span><span class="var">puerperio</span><span class="op">?-></span><span class="var">control_48h</span>;</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Eager Loading con with()</div>
+        <code class="inline">with(['embarazos.controles'])</code> carga los embarazos <strong>y</strong> sus controles en solo 3 queries SQL (en vez de N+1). La notación con punto (<code class="inline">.</code>) navega relaciones anidadas.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 14</h3>
+    <ul>
+      <li><strong>9 modelos clínicos</strong>: VacunaNino, CrecimientoInfantil, MicronutrienteNino, Embarazo, ControlPrenatal, Parto, Puerperio, Anticoncepcion, Defuncion</li>
+      <li><strong>Patrón común</strong>: BelongsTo Persona + BelongsTo User (auditoría) + casts de fechas</li>
+      <li><strong>Cadena de relaciones</strong>: Embarazo → HasMany Controles + HasOne Parto → HasOne Puerperio</li>
+      <li><strong>Lifecycle hooks</strong> (<code class="inline">booted()</code>): Defuncion auto-calcula grupo etáreo y desactiva la persona</li>
+      <li><strong>Eager loading</strong>: <code class="inline">with(['embarazos.parto.puerperio'])</code> para cargar relaciones anidadas</li>
+      <li><strong>Casts decimal:N</strong>: precisión exacta para medidas médicas (peso 3 decimales, talla 2)</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="13-modelo-persona.html" class="lesson-nav-btn">← Lección 13: Modelo Persona</a>
+    <a href="15-modelos-prestaciones.html" class="lesson-nav-btn">Lección 15: Modelos prest_* y auxiliares →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 14 de 58</span>
+    <span>Siguiente: 16 modelos prest_* + 4 auxiliares</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

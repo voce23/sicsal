@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lección 58 — Rutas, Configuración Final y Verificación Completa | Tutorial SICSAL</title>
+<link rel="stylesheet" href="css/leccion.css">
+<link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <a href="00-indice.html" class="topbar-brand">📚 Tutorial SICSAL</a>
+  <span class="topbar-sep">|</span>
+  <span class="topbar-page">Lección 58 de 58</span>
+</div>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="hero-badge">Fase 13 — Finalización</div>
+  <h1>Rutas, Configuración Final y Verificación Completa</h1>
+  <p class="hero-subtitle">La última pieza: rutas web.php, settings.php, bootstrap, middleware, providers, Vite — y la verificación integral de todo el proyecto SICSAL.</p>
+  <div class="hero-meta">
+    <span>⏱️ 30 min</span>
+    <span>📦 routes/ · bootstrap/ · app/Providers/ · vite.config.js</span>
+    <span>🔗 Última lección del tutorial</span>
+  </div>
+</section>
+
+<!-- ═══ NAV ═══ -->
+<nav class="lesson-nav">
+  <a href="57-vistas-pdf-inicio.html">← 57. Vistas PDF e Inicio</a>
+  <a href="00-indice.html">Índice del Tutorial →</a>
+</nav>
+
+<!-- ═══ TOC ═══ -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">web.php — Rutas públicas y protegidas</a></li>
+    <li><a href="#s2">La ruta inicio: datos de la landing page</a></li>
+    <li><a href="#s3">settings.php — Rutas de perfil y seguridad</a></li>
+    <li><a href="#s4">bootstrap/app.php — Middleware y enrutamiento</a></li>
+    <li><a href="#s5">RequireAprobado — Middleware de activación</a></li>
+    <li><a href="#s6">bootstrap/providers.php — Los 3 providers</a></li>
+    <li><a href="#s7">AppServiceProvider — Observers y defaults</a></li>
+    <li><a href="#s8">vite.config.js — Assets y Tailwind</a></li>
+    <li><a href="#s9">Verificación integral del proyecto</a></li>
+    <li><a href="#s10">Resumen del tutorial completo</a></li>
+  </ol>
+</nav>
+
+<!-- ═══ CONTENIDO ═══ -->
+
+<!-- ────── § 1 ────── -->
+<section class="section" id="s1">
+  <h2>1 · web.php — Rutas públicas y protegidas</h2>
+
+  <p>El archivo <code>routes/web.php</code> define 4 grupos de rutas:</p>
+
+  <pre class="code-block"><span class="kw">use</span> <span class="cls">App\Livewire\Blog</span>;
+<span class="kw">use</span> <span class="cls">App\Livewire\CausasConsulta</span>;
+<span class="kw">use</span> <span class="cls">App\Livewire\ComunidadesPoblacion</span>;
+<span class="kw">use</span> <span class="cls">App\Livewire\PostView</span>;
+<span class="kw">use</span> <span class="cls">App\Livewire\InformeCAI</span>;
+<span class="kw">use</span> <span class="cls">App\Livewire\Poblacion</span>;
+
+<span class="cmt">// ── 1. Rutas públicas (sin autenticación) ──</span>
+<span class="cls">Route</span>::<span class="fn">get</span>(<span class="str">'/'</span>, <span class="kw">function</span> () {
+    <span class="cmt">// Lógica inline de la landing page (ver lección 57)</span>
+    <span class="kw">return</span> <span class="fn">view</span>(<span class="str">'public.inicio'</span>, <span class="fn">compact</span>(<span class="str">'poblacionTotal'</span>, <span class="str">'piramides'</span>, <span class="str">'centrosMapas'</span>, <span class="str">'centrosDb'</span>));
+})<span class="op">-></span><span class="fn">name</span>(<span class="str">'home'</span>);
+
+<span class="cls">Route</span>::<span class="fn">get</span>(<span class="str">'/blog'</span>, <span class="cls">Blog</span>::<span class="kw">class</span>)<span class="op">-></span><span class="fn">name</span>(<span class="str">'blog'</span>);
+<span class="cls">Route</span>::<span class="fn">get</span>(<span class="str">'/blog/{slug}'</span>, <span class="cls">PostView</span>::<span class="kw">class</span>)<span class="op">-></span><span class="fn">name</span>(<span class="str">'blog.post'</span>);
+
+<span class="cmt">// ── 2. Rutas protegidas (auth + aprobado) ──</span>
+<span class="cls">Route</span>::<span class="fn">middleware</span>([<span class="str">'auth'</span>, <span class="str">'aprobado'</span>])<span class="op">-></span><span class="fn">group</span>(<span class="kw">function</span> () {
+    <span class="cls">Route</span>::<span class="fn">redirect</span>(<span class="str">'dashboard'</span>, <span class="str">'/admin'</span>)<span class="op">-></span><span class="fn">name</span>(<span class="str">'dashboard'</span>);
+    <span class="cls">Route</span>::<span class="fn">get</span>(<span class="str">'/comunidades'</span>, <span class="cls">ComunidadesPoblacion</span>::<span class="kw">class</span>)<span class="op">-></span><span class="fn">name</span>(<span class="str">'comunidades'</span>);
+    <span class="cls">Route</span>::<span class="fn">get</span>(<span class="str">'/poblacion'</span>, <span class="cls">Poblacion</span>::<span class="kw">class</span>)<span class="op">-></span><span class="fn">name</span>(<span class="str">'poblacion'</span>);
+    <span class="cls">Route</span>::<span class="fn">get</span>(<span class="str">'/cai'</span>, <span class="cls">InformeCAI</span>::<span class="kw">class</span>)<span class="op">-></span><span class="fn">name</span>(<span class="str">'cai'</span>);
+    <span class="cls">Route</span>::<span class="fn">get</span>(<span class="str">'/causas-consulta'</span>, <span class="cls">CausasConsulta</span>::<span class="kw">class</span>)<span class="op">-></span><span class="fn">name</span>(<span class="str">'causas-consulta'</span>);
+});
+
+<span class="cmt">// ── 3. Ruta de espera post-registro (auth sin aprobación) ──</span>
+<span class="cls">Route</span>::<span class="fn">middleware</span>([<span class="str">'auth'</span>])<span class="op">-></span><span class="fn">get</span>(<span class="str">'/pendiente'</span>, <span class="kw">function</span> () {
+    <span class="kw">if</span> (<span class="fn">auth</span>()<span class="op">-></span><span class="fn">user</span>()<span class="op">-></span><span class="var">activo</span>) {
+        <span class="kw">return</span> <span class="fn">redirect</span>(<span class="str">'/'</span>);
+    }
+    <span class="kw">return</span> <span class="fn">view</span>(<span class="str">'public.pendiente'</span>);
+})<span class="op">-></span><span class="fn">name</span>(<span class="str">'pendiente'</span>);
+
+<span class="cmt">// ── 4. Rutas de configuración (settings) ──</span>
+<span class="kw">require</span> <span class="var">__DIR__</span>.<span class="str">'/settings.php'</span>;</pre>
+
+  <table class="table-ui">
+    <thead>
+      <tr><th>Ruta</th><th>Componente</th><th>Middleware</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>/</code></td><td>Closure → public.inicio</td><td>Ninguno</td></tr>
+      <tr><td><code>/blog</code></td><td>Blog::class</td><td>Ninguno</td></tr>
+      <tr><td><code>/blog/{slug}</code></td><td>PostView::class</td><td>Ninguno</td></tr>
+      <tr><td><code>/comunidades</code></td><td>ComunidadesPoblacion::class</td><td>auth + aprobado</td></tr>
+      <tr><td><code>/poblacion</code></td><td>Poblacion::class</td><td>auth + aprobado</td></tr>
+      <tr><td><code>/cai</code></td><td>InformeCAI::class</td><td>auth + aprobado</td></tr>
+      <tr><td><code>/causas-consulta</code></td><td>CausasConsulta::class</td><td>auth + aprobado</td></tr>
+      <tr><td><code>/pendiente</code></td><td>Closure → public.pendiente</td><td>auth</td></tr>
+      <tr><td><code>/admin/*</code></td><td>Filament Panel</td><td>Filament auth guards</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-info">
+    <strong>Patrón de doble middleware</strong> — El middleware <code>aprobado</code> es adicional a <code>auth</code>. Un usuario registrado pero no aprobado puede ver <code>/pendiente</code> pero no las rutas protegidas.
+  </div>
+</section>
+
+<!-- ────── § 2 ────── -->
+<section class="section" id="s2">
+  <h2>2 · La ruta inicio: datos de la landing page</h2>
+
+  <p>La ruta <code>/</code> usa un closure extenso (~130 líneas) que calcula todo in-place:</p>
+
+  <pre class="code-block"><span class="cls">Route</span>::<span class="fn">get</span>(<span class="str">'/'</span>, <span class="kw">function</span> () {
+    <span class="var">$anio</span> = (<span class="type">int</span>) <span class="fn">date</span>(<span class="str">'Y'</span>);
+    <span class="var">$centrosIds</span> = [<span class="num">38</span>, <span class="num">39</span>, <span class="num">40</span>, <span class="num">41</span>, <span class="num">42</span>, <span class="num">1</span>]; <span class="cmt">// orden de presentación</span>
+
+    <span class="cmt">// 1️⃣ Población total (1 query)</span>
+    <span class="var">$poblacionTotal</span> = <span class="cls">DB</span>::<span class="fn">table</span>(<span class="str">'metas_ine'</span>)
+        <span class="op">-></span><span class="fn">whereIn</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centrosIds</span>)
+        <span class="op">-></span><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)
+        <span class="op">-></span><span class="fn">whereIn</span>(<span class="str">'grupo_etareo'</span>, [<span class="str">'menor_5'</span>, <span class="str">'mayor_5'</span>])
+        <span class="op">-></span><span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+
+    <span class="cmt">// 2️⃣ Metas INE en bulk (1 query)</span>
+    <span class="var">$todasMetas</span> = <span class="cls">DB</span>::<span class="fn">table</span>(<span class="str">'metas_ine'</span>)<span class="op">-></span>...<span class="op">-></span><span class="fn">groupBy</span>(<span class="str">'centro_salud_id'</span>);
+
+    <span class="cmt">// 3️⃣ Personas reales en bulk (1 query)</span>
+    <span class="var">$todasPersonas</span> = <span class="cls">DB</span>::<span class="fn">table</span>(<span class="str">'personas'</span>)
+        <span class="op">-></span><span class="fn">whereIn</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centrosIds</span>)
+        <span class="op">-></span><span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw2">true</span>)
+        <span class="op">-></span><span class="fn">select</span>(<span class="str">'centro_salud_id'</span>, <span class="str">'sexo'</span>,
+            <span class="cls">DB</span>::<span class="fn">raw</span>(<span class="str">'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) AS edad'</span>))
+        <span class="op">-></span><span class="fn">groupBy</span>(<span class="str">'centro_salud_id'</span>);
+
+    <span class="cmt">// 4️⃣ Construir pirámides por centro</span>
+    <span class="kw">foreach</span> (<span class="var">$centrosIds</span> <span class="kw">as</span> <span class="var">$cid</span>) {
+        <span class="cmt">// Calcular ineM, ineF, realM, realF para cada grupo etáreo</span>
+        <span class="var">$piramides</span>[] = [
+            <span class="str">'id'</span> => <span class="var">$cid</span>, <span class="str">'nombre'</span> => ..., <span class="str">'labels'</span> => <span class="var">$labels</span>,
+            <span class="str">'ineM'</span> => <span class="var">$ineM</span>, <span class="str">'ineF'</span> => <span class="var">$ineF</span>,
+            <span class="str">'tieneReal'</span> => <span class="var">$tieneReal</span>,
+            <span class="str">'realM'</span> => <span class="var">$realM</span>, <span class="str">'realF'</span> => <span class="var">$realF</span>,
+        ];
+    }
+
+    <span class="cmt">// 5️⃣ Centros con coordenadas para Leaflet</span>
+    <span class="var">$centrosMapas</span> = <span class="var">$centrosDb</span>
+        <span class="op">-></span><span class="fn">filter</span>(<span class="kw">fn</span>(<span class="var">$c</span>) => <span class="var">$c</span><span class="op">-></span><span class="var">latitud</span> && <span class="var">$c</span><span class="op">-></span><span class="var">longitud</span>)
+        <span class="op">-></span><span class="fn">map</span>(<span class="kw">fn</span>(<span class="var">$c</span>) => [
+            <span class="str">'id'</span> => <span class="var">$c</span><span class="op">-></span><span class="var">id</span>, <span class="str">'nombre'</span> => <span class="var">$c</span><span class="op">-></span><span class="var">nombre</span>,
+            <span class="str">'lat'</span> => (<span class="type">float</span>) <span class="var">$c</span><span class="op">-></span><span class="var">latitud</span>,
+            <span class="str">'lng'</span> => (<span class="type">float</span>) <span class="var">$c</span><span class="op">-></span><span class="var">longitud</span>,
+        ])<span class="op">-></span><span class="fn">values</span>();
+
+    <span class="kw">return</span> <span class="fn">view</span>(<span class="str">'public.inicio'</span>, <span class="fn">compact</span>(...));
+})<span class="op">-></span><span class="fn">name</span>(<span class="str">'home'</span>);</pre>
+
+  <div class="callout callout-warning">
+    <strong>Optimización N+0</strong> — La ruta inicio solo ejecuta 3 queries SQL (metas_ine, personas, centros_salud) para todos los centros. Los datos se agrupan y procesan en PHP con collections.
+  </div>
+</section>
+
+<!-- ────── § 3 ────── -->
+<section class="section" id="s3">
+  <h2>3 · settings.php — Rutas de perfil y seguridad</h2>
+
+  <pre class="code-block"><span class="kw">use</span> <span class="cls">Laravel\Fortify\Features</span>;
+
+<span class="cls">Route</span>::<span class="fn">middleware</span>([<span class="str">'auth'</span>])<span class="op">-></span><span class="fn">group</span>(<span class="kw">function</span> () {
+    <span class="cls">Route</span>::<span class="fn">redirect</span>(<span class="str">'settings'</span>, <span class="str">'settings/profile'</span>);
+    <span class="cls">Route</span>::<span class="fn">livewire</span>(<span class="str">'settings/profile'</span>, <span class="str">'pages::settings.profile'</span>)
+        <span class="op">-></span><span class="fn">name</span>(<span class="str">'profile.edit'</span>);
+});
+
+<span class="cls">Route</span>::<span class="fn">middleware</span>([<span class="str">'auth'</span>, <span class="str">'verified'</span>])<span class="op">-></span><span class="fn">group</span>(<span class="kw">function</span> () {
+    <span class="cls">Route</span>::<span class="fn">livewire</span>(<span class="str">'settings/appearance'</span>, <span class="str">'pages::settings.appearance'</span>)
+        <span class="op">-></span><span class="fn">name</span>(<span class="str">'appearance.edit'</span>);
+
+    <span class="cls">Route</span>::<span class="fn">livewire</span>(<span class="str">'settings/security'</span>, <span class="str">'pages::settings.security'</span>)
+        <span class="op">-></span><span class="fn">middleware</span>(
+            <span class="fn">when</span>(
+                <span class="cls">Features</span>::<span class="fn">canManageTwoFactorAuthentication</span>()
+                    && <span class="cls">Features</span>::<span class="fn">optionEnabled</span>(<span class="cls">Features</span>::<span class="fn">twoFactorAuthentication</span>(), <span class="str">'confirmPassword'</span>),
+                [<span class="str">'password.confirm'</span>],
+            ),
+        )
+        <span class="op">-></span><span class="fn">name</span>(<span class="str">'security.edit'</span>);
+});</pre>
+
+  <p>Tres páginas settings: perfil (auth), apariencia (auth+verified), seguridad (auth+verified, posiblemente password.confirm).</p>
+</section>
+
+<!-- ────── § 4 ────── -->
+<section class="section" id="s4">
+  <h2>4 · bootstrap/app.php — Middleware y enrutamiento</h2>
+
+  <pre class="code-block"><span class="kw">use</span> <span class="cls">Illuminate\Foundation\Application</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Foundation\Configuration\Middleware</span>;
+
+<span class="kw">return</span> <span class="cls">Application</span>::<span class="fn">configure</span>(<span class="attr">basePath</span>: <span class="fn">dirname</span>(<span class="var">__DIR__</span>))
+    <span class="op">-></span><span class="fn">withRouting</span>(
+        <span class="attr">web</span>: <span class="var">__DIR__</span>.<span class="str">'/../routes/web.php'</span>,
+        <span class="attr">commands</span>: <span class="var">__DIR__</span>.<span class="str">'/../routes/console.php'</span>,
+        <span class="attr">health</span>: <span class="str">'/up'</span>,
+    )
+    <span class="op">-></span><span class="fn">withMiddleware</span>(<span class="kw">function</span> (<span class="cls">Middleware</span> <span class="var">$middleware</span>): <span class="type">void</span> {
+        <span class="var">$middleware</span><span class="op">-></span><span class="fn">alias</span>([
+            <span class="str">'aprobado'</span> <span class="op">=></span> \<span class="cls">App\Http\Middleware\RequireAprobado</span>::<span class="kw">class</span>,
+        ]);
+    })
+    <span class="op">-></span><span class="fn">withExceptions</span>(<span class="kw">function</span> (<span class="cls">Exceptions</span> <span class="var">$exceptions</span>): <span class="type">void</span> {
+        <span class="cmt">//</span>
+    })<span class="op">-></span><span class="fn">create</span>();</pre>
+
+  <div class="callout callout-info">
+    <strong>Laravel 12+ bootstrap</strong> — Todo se configura fluentemente en <code>bootstrap/app.php</code> usando la API <code>Application::configure()</code>. No hay <code>Http/Kernel.php</code>. Los alias de middleware se registran inline.
+  </div>
+</section>
+
+<!-- ────── § 5 ────── -->
+<section class="section" id="s5">
+  <h2>5 · RequireAprobado — Middleware de activación</h2>
+
+  <pre class="code-block"><span class="kw">namespace</span> <span class="cls">App\Http\Middleware</span>;
+
+<span class="kw">class</span> <span class="cls">RequireAprobado</span>
+{
+    <span class="kw">public function</span> <span class="fn">handle</span>(<span class="cls">Request</span> <span class="var">$request</span>, <span class="cls">Closure</span> <span class="var">$next</span>): <span class="cls">Response</span>
+    {
+        <span class="kw">if</span> (<span class="var">$request</span><span class="op">-></span><span class="fn">user</span>() && ! <span class="var">$request</span><span class="op">-></span><span class="fn">user</span>()<span class="op">-></span><span class="var">activo</span>) {
+            <span class="kw">return</span> <span class="fn">redirect</span>()<span class="op">-></span><span class="fn">route</span>(<span class="str">'pendiente'</span>);
+        }
+
+        <span class="kw">return</span> <span class="var">$next</span>(<span class="var">$request</span>);
+    }
+}</pre>
+
+  <p>Solo 15 líneas. Si el usuario no tiene <code>activo = true</code>, se redirige a la página de espera. El admin activa al usuario desde el panel Filament.</p>
+</section>
+
+<!-- ────── § 6 ────── -->
+<section class="section" id="s6">
+  <h2>6 · bootstrap/providers.php — Los 3 providers</h2>
+
+  <pre class="code-block"><span class="kw">return</span> [
+    <span class="cls">App\Providers\AppServiceProvider</span>::<span class="kw">class</span>,
+    <span class="cls">App\Providers\Filament\AdminPanelProvider</span>::<span class="kw">class</span>,
+    <span class="cls">App\Providers\FortifyServiceProvider</span>::<span class="kw">class</span>,
+];</pre>
+
+  <table class="table-ui">
+    <thead>
+      <tr><th>Provider</th><th>Responsabilidad</th><th>Lección</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>AppServiceProvider</code></td>
+        <td>Observers, CarbonImmutable, Password defaults, DB safety</td>
+        <td>41</td>
+      </tr>
+      <tr>
+        <td><code>AdminPanelProvider</code></td>
+        <td>Panel Filament: navegación, widgets, tema, auth guard</td>
+        <td>24</td>
+      </tr>
+      <tr>
+        <td><code>FortifyServiceProvider</code></td>
+        <td>Login, registro, 2FA, reset password</td>
+        <td>17</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ────── § 7 ────── -->
+<section class="section" id="s7">
+  <h2>7 · AppServiceProvider — Observers y defaults</h2>
+
+  <pre class="code-block"><span class="kw">class</span> <span class="cls">AppServiceProvider</span> <span class="kw">extends</span> <span class="cls">ServiceProvider</span>
+{
+    <span class="kw">public function</span> <span class="fn">boot</span>(): <span class="type">void</span>
+    {
+        <span class="var">$this</span><span class="op">-></span><span class="fn">configureDefaults</span>();
+        <span class="var">$this</span><span class="op">-></span><span class="fn">registrarObservers</span>();
+    }
+
+    <span class="kw">protected function</span> <span class="fn">registrarObservers</span>(): <span class="type">void</span>
+    {
+        <span class="cls">VacunaNino</span>::<span class="fn">observe</span>(<span class="cls">VacunaNinoObserver</span>::<span class="kw">class</span>);
+        <span class="cls">Parto</span>::<span class="fn">observe</span>(<span class="cls">PartoObserver</span>::<span class="kw">class</span>);
+        <span class="cls">ControlPrenatal</span>::<span class="fn">observe</span>(<span class="cls">ControlPrenatalObserver</span>::<span class="kw">class</span>);
+        <span class="cls">CrecimientoInfantil</span>::<span class="fn">observe</span>(<span class="cls">CrecimientoInfantilObserver</span>::<span class="kw">class</span>);
+        <span class="cls">MicronutrienteNino</span>::<span class="fn">observe</span>(<span class="cls">MicronutrienteNinoObserver</span>::<span class="kw">class</span>);
+        <span class="cls">Anticoncepcion</span>::<span class="fn">observe</span>(<span class="cls">AnticoncepcionObserver</span>::<span class="kw">class</span>);
+    }
+
+    <span class="kw">protected function</span> <span class="fn">configureDefaults</span>(): <span class="type">void</span>
+    {
+        <span class="cmt">// Fechas inmutables por defecto</span>
+        <span class="cls">Date</span>::<span class="fn">use</span>(<span class="cls">CarbonImmutable</span>::<span class="kw">class</span>);
+
+        <span class="cmt">// Prohibir migraciones destructivas en producción</span>
+        <span class="cls">DB</span>::<span class="fn">prohibitDestructiveCommands</span>(<span class="fn">app</span>()<span class="op">-></span><span class="fn">isProduction</span>());
+
+        <span class="cmt">// Contraseñas fuertes en producción</span>
+        <span class="cls">Password</span>::<span class="fn">defaults</span>(<span class="kw">fn</span>() =>
+            <span class="fn">app</span>()<span class="op">-></span><span class="fn">isProduction</span>()
+                ? <span class="cls">Password</span>::<span class="fn">min</span>(<span class="num">12</span>)
+                    <span class="op">-></span><span class="fn">mixedCase</span>()<span class="op">-></span><span class="fn">letters</span>()
+                    <span class="op">-></span><span class="fn">numbers</span>()<span class="op">-></span><span class="fn">symbols</span>()
+                    <span class="op">-></span><span class="fn">uncompromised</span>()
+                : <span class="kw2">null</span>
+        );
+    }
+}</pre>
+
+  <div class="callout callout-warning">
+    <strong>3 protecciones de producción:</strong>
+    <ul>
+      <li><code>CarbonImmutable</code> — Previene mutaciones accidentales de fechas.</li>
+      <li><code>prohibitDestructiveCommands</code> — Bloquea <code>migrate:fresh</code>, <code>db:wipe</code>, etc.</li>
+      <li><code>Password::defaults</code> — 12 caracteres con mixedCase, números, símbolos y verificación HaveIBeenPwned.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ────── § 8 ────── -->
+<section class="section" id="s8">
+  <h2>8 · vite.config.js — Assets y Tailwind</h2>
+
+  <pre class="code-block"><span class="kw">import</span> { <span class="fn">defineConfig</span> } <span class="kw">from</span> <span class="str">'vite'</span>;
+<span class="kw">import</span> <span class="var">laravel</span> <span class="kw">from</span> <span class="str">'laravel-vite-plugin'</span>;
+<span class="kw">import</span> <span class="var">tailwindcss</span> <span class="kw">from</span> <span class="str">'@tailwindcss/vite'</span>;
+
+<span class="kw">export default</span> <span class="fn">defineConfig</span>({
+    <span class="attr">plugins</span>: [
+        <span class="fn">laravel</span>({
+            <span class="attr">input</span>: [
+                <span class="str">'resources/css/app.css'</span>,
+                <span class="str">'resources/js/app.js'</span>,
+                <span class="str">'resources/css/filament/admin/theme.css'</span>,
+            ],
+            <span class="attr">refresh</span>: <span class="kw2">true</span>,
+        }),
+        <span class="fn">tailwindcss</span>(),
+    ],
+    <span class="attr">server</span>: {
+        <span class="attr">cors</span>: <span class="kw2">true</span>,
+        <span class="attr">watch</span>: {
+            <span class="attr">ignored</span>: [<span class="str">'**/storage/framework/views/**'</span>],
+        },
+    },
+});</pre>
+
+  <p>Tres entry points: CSS general, JS general y tema Filament admin personalizado.</p>
+
+  <pre class="code-block"><span class="cmt"># Desarrollo (hot reload)</span>
+npm run dev
+
+<span class="cmt"># Producción (minificado)</span>
+npm run build</pre>
+</section>
+
+<!-- ────── § 9 ────── -->
+<section class="section" id="s9">
+  <h2>9 · Verificación integral del proyecto</h2>
+
+  <p>Ejecuta esta secuencia para verificar que todo el proyecto funciona correctamente:</p>
+
+  <pre class="code-block"><span class="cmt"># 1. Limpiar cachés</span>
+php artisan optimize:clear
+
+<span class="cmt"># 2. Migrar la base de datos</span>
+php artisan migrate --force
+
+<span class="cmt"># 3. Ejecutar seeders</span>
+php artisan db:seed
+
+<span class="cmt"># 4. Verificar rutas registradas</span>
+php artisan route:list --columns=method,uri,name,middleware
+
+<span class="cmt"># 5. Compilar assets</span>
+npm run build
+
+<span class="cmt"># 6. Verificar que el servidor responde</span>
+php artisan serve
+<span class="cmt"># Abrir http://127.0.0.1:8000 (o http://sicsal.test en Laragon)</span>
+
+<span class="cmt"># 7. Verificar el health check</span>
+curl http://sicsal.test/up</pre>
+
+  <h3>Checklist de verificación</h3>
+
+  <table class="table-ui">
+    <thead>
+      <tr><th>Área</th><th>Verificar</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Landing page</td><td><code>/</code> muestra mapa, pirámides, stats</td></tr>
+      <tr><td>Blog</td><td><code>/blog</code> muestra posts publicados</td></tr>
+      <tr><td>Registro</td><td>Crear cuenta → queda en <code>/pendiente</code></td></tr>
+      <tr><td>Login</td><td>Acceder con usuario aprobado</td></tr>
+      <tr><td>Panel admin</td><td><code>/admin</code> muestra dashboard Filament</td></tr>
+      <tr><td>Personas</td><td>CRUD filtra por centro del usuario</td></tr>
+      <tr><td>Prestaciones</td><td>Grid de 12 meses funcional</td></tr>
+      <tr><td>Observadores</td><td>Crear vacuna niño → prest_vacunas se actualiza</td></tr>
+      <tr><td>Reportes</td><td>Descargar PDF/Excel/PPTX</td></tr>
+      <tr><td>Informe CAI</td><td><code>/cai</code> genera Excel + PDF</td></tr>
+      <tr><td>Comunidades</td><td><code>/comunidades</code> muestra tabla + PDF</td></tr>
+      <tr><td>Importación VES</td><td><code>php artisan snis:importar-ves --archivo=test.ves</code></td></tr>
+      <tr><td>Settings</td><td><code>/settings/profile</code> edita nombre, foto</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ────── § 10 ────── -->
+<section class="section" id="s10">
+  <h2>10 · Resumen del tutorial completo</h2>
+
+  <p>En 58 lecciones hemos construido <strong>SICSAL/SIMUES</strong> de cero:</p>
+
+  <table class="table-ui">
+    <thead>
+      <tr><th>Fase</th><th>Lecciones</th><th>Qué construimos</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>01-05</td><td>Entorno: Laragon, Laravel, Vite, Tailwind, Git</td></tr>
+      <tr><td>2</td><td>06-11</td><td>50 migraciones: personas, prestaciones, auxiliares</td></tr>
+      <tr><td>3</td><td>12-16</td><td>37 modelos Eloquent con scopes y relaciones</td></tr>
+      <tr><td>4</td><td>17-21</td><td>Auth: Fortify, Spatie Roles, traits, vistas login</td></tr>
+      <tr><td>5</td><td>22-23</td><td>8 seeders: roles, municipios, comunidades, datos prueba</td></tr>
+      <tr><td>6</td><td>24-35</td><td>Panel Filament: 8 Resources, 4 Widgets, 3 Pages especiales</td></tr>
+      <tr><td>7</td><td>36-39</td><td>Formularios mensuales: Servicios, Materna, PAI, Causas</td></tr>
+      <tr><td>8</td><td>40-41</td><td>6 Observers + trait SincronizaPrestacion</td></tr>
+      <tr><td>9</td><td>42-44</td><td>3 Helpers + VesMdbReader service</td></tr>
+      <tr><td>10</td><td>45-50</td><td>7 componentes Livewire públicos + layouts</td></tr>
+      <tr><td>11</td><td>51-54</td><td>5 Exports Excel + PPTX (33 diapositivas)</td></tr>
+      <tr><td>12</td><td>55-56</td><td>7 Commands: importación SNIS, censo, transferencia SOAPS</td></tr>
+      <tr><td>13</td><td>57-58</td><td>3 vistas PDF + inicio público + rutas + configuración</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Inventario final</h3>
+  <ul>
+    <li><strong>50 migraciones</strong> — Estructura completa de datos</li>
+    <li><strong>37 modelos</strong> — Relaciones, scopes, accessors, casts</li>
+    <li><strong>8 Filament Resources</strong> — CRUD completo filtrado por centro</li>
+    <li><strong>7 Filament Pages</strong> — Prestaciones, Reportes, ImportarVes</li>
+    <li><strong>6 Observers</strong> — Sincronización automática individual → prest_*</li>
+    <li><strong>7 Livewire Components</strong> — Vistas públicas interactivas</li>
+    <li><strong>5 Export classes</strong> — Excel multi-hoja + PPTX profesional</li>
+    <li><strong>3 Helpers</strong> — Lógica CAI, causas, OMS</li>
+    <li><strong>7 Console Commands</strong> — Importación/exportación SNIS + SOAPS</li>
+    <li><strong>3 vistas PDF</strong> — Informes institucionales con DomPDF</li>
+    <li><strong>59 Blade views</strong> — Layouts, componentes, auth, settings</li>
+    <li><strong>3 archivos de rutas</strong> — web.php, settings.php, console.php</li>
+  </ul>
+
+  <div class="callout callout-info">
+    <strong>¡Proyecto completo!</strong> — SICSAL/SIMUES es un sistema real de información municipal de salud en producción para la Red de Salud VII — Capinota, Cochabamba, Bolivia. Gestiona datos del PAI, producción de servicios SNIS, censo poblacional, y genera informes CAI para los 6 centros de salud de la red.
+  </div>
+</section>
+
+<!-- ═══ RESUMEN ═══ -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li><strong>web.php</strong> — 4 grupos: rutas públicas (/, /blog), protegidas (auth+aprobado: /comunidades, /poblacion, /cai, /causas-consulta), /pendiente (auth), y settings.php requireado.</li>
+    <li><strong>Ruta inicio</strong> — Closure de ~130 líneas que calcula pirámides para 6 centros con solo 3 queries SQL.</li>
+    <li><strong>settings.php</strong> — Perfil, apariencia, seguridad con 2FA condicional.</li>
+    <li><strong>bootstrap/app.php</strong> — Configura middleware alias <code>aprobado</code>, enrutamiento y health check <code>/up</code>.</li>
+    <li><strong>RequireAprobado</strong> — 15 líneas: redirige usuarios no activados a <code>/pendiente</code>.</li>
+    <li><strong>AppServiceProvider</strong> — Registra 6 observers, CarbonImmutable, Password defaults seguros, y prohibición de comandos destructivos en producción.</li>
+    <li><strong>vite.config.js</strong> — 3 entry points (CSS, JS, tema Filament) con Tailwind CSS vía plugin dedicado.</li>
+  </ul>
+</section>
+
+<!-- ═══ NAV ═══ -->
+<nav class="lesson-nav">
+  <a href="57-vistas-pdf-inicio.html">← 57. Vistas PDF e Inicio</a>
+  <a href="00-indice.html">Índice del Tutorial →</a>
+</nav>
+
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 58 de 58 — ¡Tutorial completado!</p>
+</footer>
+
+</body>
+</html>

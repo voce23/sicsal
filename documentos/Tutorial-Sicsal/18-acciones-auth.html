@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 18 — Actions de autenticación | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 4 — Autenticación y Seguridad</div>
+    <div class="lesson-number">Lección 18 de 58</div>
+    <h1 class="lesson-title">Actions de autenticación</h1>
+    <p class="lesson-subtitle">CreateNewUser, ResetUserPassword y el middleware RequireAprobado. Tres archivos que controlan quién entra y cómo se registra.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 3 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~15 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="17-fortify-configuracion.html" class="lesson-nav-btn">← Lección 17</a>
+    <a href="19-spatie-permission.html" class="lesson-nav-btn">Lección 19 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#pattern">El patrón Action en Laravel</a></li>
+      <li><a href="#create-user">CreateNewUser — registro con aprobación</a></li>
+      <li><a href="#reset-password">ResetUserPassword — reset seguro</a></li>
+      <li><a href="#require-aprobado">RequireAprobado — middleware guardián</a></li>
+      <li><a href="#flujo-completo">Flujo completo de registro a acceso</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: PATRÓN ACTION
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="pattern">
+    <h2 class="section-title"><span class="number">1</span> El patrón Action en Laravel</h2>
+
+    <p>Un <strong>Action</strong> es una clase con un solo método público que encapsula una operación de negocio. Fortify usa este patrón para que tú controles cómo se crean usuarios y se resetean passwords — sin tocar los controllers internos de Fortify.</p>
+
+    <div class="arch-diagram">
+      <div class="arch-box" style="background:#dbeafe;">Fortify Controller<br><small>(interno, no lo tocas)</small></div>
+      <div class="arch-arrow">→ llama →</div>
+      <div class="arch-box" style="background:#dcfce7;">Tu Action<br><small>CreateNewUser::create()</small></div>
+      <div class="arch-arrow">→ crea →</div>
+      <div class="arch-box" style="background:#fef3c7;">User<br><small>activo = false</small></div>
+    </div>
+
+    <div class="file-tree">
+      <div class="ft-dir">app/Actions/Fortify/</div>
+      <div class="ft-file" style="margin-left:1.5rem;">CreateNewUser.php</div>
+      <div class="ft-file" style="margin-left:1.5rem;">ResetUserPassword.php</div>
+      <div class="ft-dir">app/Http/Middleware/</div>
+      <div class="ft-file" style="margin-left:1.5rem;">RequireAprobado.php</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: CREATE NEW USER
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="create-user">
+    <h2 class="section-title"><span class="number">2</span> CreateNewUser — registro con aprobación</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Actions/Fortify/CreateNewUser.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">use</span> <span class="cls">App\Concerns\PasswordValidationRules</span>;
+<span class="kw">use</span> <span class="cls">Laravel\Fortify\Contracts\CreatesNewUsers</span>;
+
+<span class="kw">class</span> <span class="cls">CreateNewUser</span> <span class="kw">implements</span> <span class="cls">CreatesNewUsers</span>
+{
+    <span class="kw">use</span> <span class="cls">PasswordValidationRules</span>;
+
+    <span class="kw">public function</span> <span class="fn">create</span>(<span class="type">array</span> <span class="var">$input</span>): <span class="type">User</span>
+    {
+        <span class="cls">Validator</span><span class="op">::</span><span class="fn">make</span>(<span class="var">$input</span>, [
+            <span class="str">'name'</span>            <span class="op">=></span> [<span class="str">'required'</span>, <span class="str">'string'</span>, <span class="str">'max:100'</span>],
+            <span class="str">'apellidos'</span>       <span class="op">=></span> [<span class="str">'required'</span>, <span class="str">'string'</span>, <span class="str">'max:100'</span>],
+            <span class="str">'email'</span>           <span class="op">=></span> [<span class="str">'required'</span>, <span class="str">'string'</span>, <span class="str">'email'</span>, <span class="str">'max:255'</span>,
+                                  <span class="cls">Rule</span><span class="op">::</span><span class="fn">unique</span>(<span class="cls">User</span><span class="op">::</span><span class="kw">class</span>)],
+            <span class="str">'centro_salud_id'</span> <span class="op">=></span> [<span class="str">'required'</span>,
+                                  <span class="cls">Rule</span><span class="op">::</span><span class="fn">exists</span>(<span class="cls">CentroSalud</span><span class="op">::</span><span class="kw">class</span>, <span class="str">'id'</span>)],
+            <span class="str">'password'</span>        <span class="op">=></span> <span class="var">$this</span><span class="op">-></span><span class="fn">passwordRules</span>(),
+        ])<span class="op">-></span><span class="fn">validate</span>();
+
+        <span class="kw">return</span> <span class="cls">User</span><span class="op">::</span><span class="fn">create</span>([
+            <span class="str">'name'</span>            <span class="op">=></span> <span class="var">$input</span>[<span class="str">'name'</span>],
+            <span class="str">'apellidos'</span>       <span class="op">=></span> <span class="var">$input</span>[<span class="str">'apellidos'</span>],
+            <span class="str">'email'</span>           <span class="op">=></span> <span class="var">$input</span>[<span class="str">'email'</span>],
+            <span class="str">'centro_salud_id'</span> <span class="op">=></span> <span class="var">$input</span>[<span class="str">'centro_salud_id'</span>],
+            <span class="str">'password'</span>        <span class="op">=></span> <span class="var">$input</span>[<span class="str">'password'</span>], <span class="cmt">// hashed cast lo hashea automáticamente</span>
+            <span class="str">'activo'</span>          <span class="op">=></span> <span class="kw">false</span>,             <span class="cmt">// ← clave: nace inactivo</span>
+        ]);
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">activo = false — la regla de oro</div>
+        Todo usuario nuevo nace con <code class="inline">activo = false</code>. Un admin o superadmin debe activarlo desde el panel Filament. Esto es un requisito del SNIS: no puede haber acceso libre al sistema de salud.
+      </div>
+    </div>
+
+    <p>Puntos clave de la validación:</p>
+    <ul>
+      <li><code class="inline">Rule::unique(User::class)</code> — verifica que el email no exista</li>
+      <li><code class="inline">Rule::exists(CentroSalud::class, 'id')</code> — el centro de salud debe existir</li>
+      <li><code class="inline">$this-&gt;passwordRules()</code> — reglas del trait <code class="inline">PasswordValidationRules</code> (lección 20)</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: RESET USER PASSWORD
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="reset-password">
+    <h2 class="section-title"><span class="number">3</span> ResetUserPassword — reset seguro</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Actions/Fortify/ResetUserPassword.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">ResetUserPassword</span> <span class="kw">implements</span> <span class="cls">ResetsUserPasswords</span>
+{
+    <span class="kw">use</span> <span class="cls">PasswordValidationRules</span>;
+
+    <span class="kw">public function</span> <span class="fn">reset</span>(<span class="cls">User</span> <span class="var">$user</span>, <span class="type">array</span> <span class="var">$input</span>): <span class="type">void</span>
+    {
+        <span class="cls">Validator</span><span class="op">::</span><span class="fn">make</span>(<span class="var">$input</span>, [
+            <span class="str">'password'</span> <span class="op">=></span> <span class="var">$this</span><span class="op">-></span><span class="fn">passwordRules</span>(),
+        ])<span class="op">-></span><span class="fn">validate</span>();
+
+        <span class="var">$user</span><span class="op">-></span><span class="fn">forceFill</span>([
+            <span class="str">'password'</span> <span class="op">=></span> <span class="var">$input</span>[<span class="str">'password'</span>],
+        ])<span class="op">-></span><span class="fn">save</span>();
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">¿Por qué forceFill y no fill?</div>
+        <code class="inline">forceFill()</code> ignora <code class="inline">$fillable</code>. Aunque <code class="inline">password</code> sí está en <code class="inline">$fillable</code> de User, Fortify usa <code class="inline">forceFill()</code> por convención para evitar problemas si alguien lo quita. El cast <code class="inline">'hashed'</code> sigue aplicándose normalmente.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: REQUIRE APROBADO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="require-aprobado">
+    <h2 class="section-title"><span class="number">4</span> RequireAprobado — middleware guardián</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Http/Middleware/RequireAprobado.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">RequireAprobado</span>
+{
+    <span class="kw">public function</span> <span class="fn">handle</span>(<span class="cls">Request</span> <span class="var">$request</span>, <span class="cls">Closure</span> <span class="var">$next</span>): <span class="type">Response</span>
+    {
+        <span class="kw">if</span> (<span class="var">$request</span><span class="op">-></span><span class="fn">user</span>() <span class="op">&&</span> ! <span class="var">$request</span><span class="op">-></span><span class="fn">user</span>()<span class="op">-></span><span class="var">activo</span>) {
+            <span class="kw">return</span> <span class="fn">redirect</span>()<span class="op">-></span><span class="fn">route</span>(<span class="str">'pendiente'</span>);
+        }
+
+        <span class="kw">return</span> <span class="var">$next</span>(<span class="var">$request</span>);
+    }
+}</pre>
+    </div>
+
+    <p>Este middleware se aplica a las rutas protegidas. Verifica dos cosas:</p>
+    <ol>
+      <li>¿Hay un usuario autenticado? (<code class="inline">$request-&gt;user()</code>)</li>
+      <li>¿Su campo <code class="inline">activo</code> es <code class="inline">false</code>?</li>
+    </ol>
+    <p>Si ambas son verdaderas → redirige a <code class="inline">/pendiente</code>. Si no → permite pasar.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Complementa a canAccessPanel</div>
+        <code class="inline">canAccessPanel()</code> en el modelo User bloquea el acceso al <strong>panel Filament</strong>. <code class="inline">RequireAprobado</code> bloquea el acceso a <strong>rutas web normales</strong>. Juntos, garantizan que un usuario inactivo no accede a nada.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: FLUJO COMPLETO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="flujo-completo">
+    <h2 class="section-title"><span class="number">5</span> Flujo completo de registro a acceso</h2>
+
+    <div class="flow-diagram">
+      <div class="flow-step">1. POST /register</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">2. CreateNewUser<br><small>activo = false</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">3. RegisterResponse<br><small>→ /pendiente</small></div>
+    </div>
+
+    <div class="flow-diagram" style="margin-top: 1rem;">
+      <div class="flow-step">4. Admin activa<br><small>activo = true</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">5. POST /login</div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">6. LoginResponse<br><small>→ /dashboard</small></div>
+      <div class="flow-arrow">→</div>
+      <div class="flow-step">7. RequireAprobado<br><small>✓ pasa</small></div>
+    </div>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Capa</th>
+          <th>Archivo</th>
+          <th>Verifica</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Registro</td>
+          <td>CreateNewUser.php</td>
+          <td>Validación + activo=false</td>
+        </tr>
+        <tr>
+          <td>Login response</td>
+          <td>FortifyServiceProvider.php</td>
+          <td>activo → dashboard / pendiente</td>
+        </tr>
+        <tr>
+          <td>Rutas web</td>
+          <td>RequireAprobado.php</td>
+          <td>activo = true para continuar</td>
+        </tr>
+        <tr>
+          <td>Panel Filament</td>
+          <td>User.php → canAccessPanel()</td>
+          <td>activo + hasAnyRole</td>
+        </tr>
+        <tr>
+          <td>Password reset</td>
+          <td>ResetUserPassword.php</td>
+          <td>Reglas de password + forceFill</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 18</h3>
+    <ul>
+      <li><strong>CreateNewUser</strong> — valida input, crea usuario con <code class="inline">activo = false</code></li>
+      <li>Usa <code class="inline">Rule::unique</code> y <code class="inline">Rule::exists</code> para integridad referencial</li>
+      <li><strong>ResetUserPassword</strong> — <code class="inline">forceFill</code> + cast hashed</li>
+      <li><strong>RequireAprobado</strong> — middleware que redirige usuarios inactivos a <code class="inline">/pendiente</code></li>
+      <li>4 capas de protección: CreateNewUser → LoginResponse → RequireAprobado → canAccessPanel</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="17-fortify-configuracion.html" class="lesson-nav-btn">← Lección 17: Fortify configuración</a>
+    <a href="19-spatie-permission.html" class="lesson-nav-btn">Lección 19: Spatie Permission — roles y permisos →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 18 de 58</span>
+    <span>Siguiente: Spatie Permission — roles y permisos</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

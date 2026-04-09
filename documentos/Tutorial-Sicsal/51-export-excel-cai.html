@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 51 · EstiloExcel e InformeCAIExport — Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL · Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+  <span class="badge">Fase 11 — Exportaciones</span>
+  <h1>Lección 51 · EstiloExcel e InformeCAIExport</h1>
+  <p class="subtitle">El trait de estilos institucionales con paleta teal SIMUES, el export multi-sheet con 7 hojas, y los 7 Sheet classes que generan el Informe CAI en Excel.</p>
+  <p class="meta">Lección 51 de 58 · Tiempo estimado: 30 min</p>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="50-comentarios-logout.html">← Lección 50 · Comentarios y Logout</a>
+  <a href="52-export-comunidades-padron.html">Lección 52 · Export Comunidades y Padrón →</a>
+</nav>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">Arquitectura multi-sheet con Maatwebsite</a></li>
+    <li><a href="#s2">EstiloExcel trait — paleta institucional (182 líneas)</a></li>
+    <li><a href="#s3">InformeCAIExport — orquestador de 7 hojas</a></li>
+    <li><a href="#s4">EncabezadoSheet y MigracionSheet</a></li>
+    <li><a href="#s5">CensoSheet — 2 secciones dinámicas</a></li>
+    <li><a href="#s6">CoberturaSheet — semáforo y deserción</a></li>
+    <li><a href="#s7">PrestacionesSheet — 5 sub-secciones</a></li>
+    <li><a href="#s8">CerosSheet y ObservacionesSheet</a></li>
+  </ol>
+</nav>
+
+<!-- ───── Secciones ───── -->
+
+<!-- ───── S1 ───── -->
+<section id="s1">
+  <h2>1 · Arquitectura multi-sheet con Maatwebsite</h2>
+
+  <p>Maatwebsite/Excel permite generar archivos <code>.xlsx</code> con múltiples hojas. La estructura del proyecto:</p>
+
+  <pre><code><span class="cmt">app/Exports/</span>
+├── <span class="cls">InformeCAIExport</span>.php          <span class="cmt">← 31 líneas, WithMultipleSheets</span>
+└── Sheets/
+    ├── Concerns/
+    │   └── <span class="cls">EstiloExcel</span>.php        <span class="cmt">← 182 líneas, trait compartido</span>
+    ├── <span class="cls">EncabezadoSheet</span>.php        <span class="cmt">← 117 líneas</span>
+    ├── <span class="cls">MigracionSheet</span>.php         <span class="cmt">← 79 líneas</span>
+    ├── <span class="cls">CensoSheet</span>.php             <span class="cmt">← 147 líneas</span>
+    ├── <span class="cls">CoberturaSheet</span>.php         <span class="cmt">← 158 líneas</span>
+    ├── <span class="cls">PrestacionesSheet</span>.php      <span class="cmt">← 193 líneas</span>
+    ├── <span class="cls">CerosSheet</span>.php             <span class="cmt">← 84 líneas</span>
+    └── <span class="cls">ObservacionesSheet</span>.php     <span class="cmt">← 98 líneas</span></code></pre>
+
+  <p><strong>Total: 1,089 líneas</strong> para generar un Excel profesional con 7 hojas estilizadas.</p>
+
+  <table>
+    <thead>
+      <tr><th>Interface</th><th>Propósito</th><th>Usado en</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>WithMultipleSheets</code></td><td>Definir hojas del workbook</td><td>InformeCAIExport</td></tr>
+      <tr><td><code>FromArray</code></td><td>Generar datos desde array PHP</td><td>Todos los Sheets</td></tr>
+      <tr><td><code>WithTitle</code></td><td>Nombre de la pestaña</td><td>Todos los Sheets</td></tr>
+      <tr><td><code>WithColumnWidths</code></td><td>Anchos de columna fijos</td><td>Todos los Sheets</td></tr>
+      <tr><td><code>WithEvents</code></td><td>Estilización post-render (AfterSheet)</td><td>6 de 7 Sheets</td></tr>
+      <tr><td><code>WithStyles</code></td><td>Alternativa a WithEvents</td><td>Sheets de Comunidades</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───── S2 ───── -->
+<section id="s2">
+  <h2>2 · EstiloExcel trait — paleta institucional (182 líneas)</h2>
+
+  <p>Todos los Sheets del Informe CAI usan el trait <code>EstiloExcel</code> con la paleta teal de SIMUES:</p>
+
+  <pre><code><span class="kw">trait</span> <span class="cls">EstiloExcel</span>
+{
+    <span class="cmt">// ── Paleta institucional ──</span>
+    <span class="kw">protected const</span> <span class="var">TEAL</span>       = <span class="str">'00897B'</span>;
+    <span class="kw">protected const</span> <span class="var">TEAL_DARK</span>  = <span class="str">'004D40'</span>;
+    <span class="kw">protected const</span> <span class="var">TEAL_LIGHT</span> = <span class="str">'E0F2F1'</span>;
+    <span class="kw">protected const</span> <span class="var">CYAN</span>       = <span class="str">'00ACC1'</span>;
+    <span class="kw">protected const</span> <span class="var">GREEN_OK</span>   = <span class="str">'2E7D32'</span>;
+    <span class="kw">protected const</span> <span class="var">AMBER</span>      = <span class="str">'F57F17'</span>;
+    <span class="kw">protected const</span> <span class="var">RED</span>        = <span class="str">'C62828'</span>;
+    <span class="cmt">// ... 12 constantes de colores más</span>
+}</code></pre>
+
+  <h3>Métodos de estilo reutilizables</h3>
+  <pre><code><span class="cmt">// Título principal — fusionado, fondo teal oscuro, 13pt</span>
+<span class="kw">protected function</span> <span class="fn">estiloTitulo</span>(<span class="cls">Worksheet</span> <span class="var">$sheet</span>, <span class="type">string</span> <span class="var">$rango</span>): <span class="type">void</span>
+{
+    <span class="var">$sheet</span>-><span class="fn">mergeCells</span>(<span class="var">$rango</span>);
+    <span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="var">$rango</span>)-><span class="fn">applyFromArray</span>([
+        <span class="str">'font'</span> => [<span class="str">'bold'</span> => <span class="kw">true</span>, <span class="str">'size'</span> => <span class="num">13</span>, <span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FF'</span> . <span class="kw">self</span>::<span class="var">WHITE</span>]],
+        <span class="str">'fill'</span> => [<span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FF'</span> . <span class="kw">self</span>::<span class="var">TEAL_DARK</span>]],
+    ]);
+}
+
+<span class="cmt">// Header de tabla — centrado, teal, wrapText</span>
+<span class="kw">protected function</span> <span class="fn">estiloHeader</span>(<span class="cls">Worksheet</span> <span class="var">$sheet</span>, <span class="type">string</span> <span class="var">$rango</span>): <span class="type">void</span>
+
+<span class="cmt">// Fila de datos — alternancia blanco/gris</span>
+<span class="kw">protected function</span> <span class="fn">estiloDato</span>(<span class="cls">Worksheet</span> <span class="var">$sheet</span>, <span class="type">string</span> <span class="var">$rango</span>, <span class="type">int</span> <span class="var">$fila</span>): <span class="type">void</span>
+{
+    <span class="var">$bg</span> = (<span class="var">$fila</span> % <span class="num">2</span> === <span class="num">0</span>) ? <span class="kw">self</span>::<span class="var">GRAY_BG</span> : <span class="kw">self</span>::<span class="var">WHITE</span>;
+}
+
+<span class="cmt">// Semáforo de cobertura — 4 niveles de color</span>
+<span class="kw">protected function</span> <span class="fn">estiloSemaforo</span>(<span class="cls">Worksheet</span> <span class="var">$sheet</span>, <span class="type">string</span> <span class="var">$celda</span>, <span class="type">float</span> <span class="var">$pct</span>): <span class="type">void</span>
+{
+    [<span class="var">$bg</span>, <span class="var">$fg</span>] = <span class="kw">match</span> (<span class="kw">true</span>) {
+        <span class="var">$pct</span> >= <span class="num">95</span> => [<span class="kw">self</span>::<span class="var">GREEN_BG</span>,  <span class="kw">self</span>::<span class="var">GREEN_OK</span>],
+        <span class="var">$pct</span> >= <span class="num">80</span> => [<span class="kw">self</span>::<span class="var">AMBER_BG</span>,  <span class="kw">self</span>::<span class="var">AMBER</span>],
+        <span class="var">$pct</span> >= <span class="num">50</span> => [<span class="kw">self</span>::<span class="var">ORANGE_BG</span>, <span class="kw">self</span>::<span class="var">ORANGE</span>],
+        <span class="kw">default</span>    => [<span class="kw">self</span>::<span class="var">RED_BG</span>,     <span class="kw">self</span>::<span class="var">RED</span>],
+    };
+}</code></pre>
+
+  <p>El trait expone <strong>9 métodos protegidos</strong>:</p>
+  <table>
+    <thead>
+      <tr><th>Método</th><th>Propósito</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>estiloTitulo()</code></td><td>Título fusionado, TEAL_DARK, 13pt</td></tr>
+      <tr><td><code>estiloSeccion()</code></td><td>Subtítulo de sección, TEAL, 11pt</td></tr>
+      <tr><td><code>estiloHeader()</code></td><td>Cabecera de tabla, centrado, wrapText</td></tr>
+      <tr><td><code>estiloEtiqueta()</code></td><td>Columna clave (key-value), TEAL_LIGHT</td></tr>
+      <tr><td><code>estiloValor()</code></td><td>Columna valor, fondo blanco</td></tr>
+      <tr><td><code>estiloDato()</code></td><td>Fila de datos con alternancia par/impar</td></tr>
+      <tr><td><code>estiloSemaforo()</code></td><td>4 colores según % cobertura</td></tr>
+      <tr><td><code>bordeExterno()</code></td><td>Borde medium teal alrededor de un bloque</td></tr>
+      <tr><td><code>fijarFila()</code></td><td>freezePane para scroll</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───── S3 ───── -->
+<section id="s3">
+  <h2>3 · InformeCAIExport — orquestador de 7 hojas</h2>
+
+  <pre><code><span class="cmt">// app/Exports/InformeCAIExport.php — 31 líneas</span>
+<span class="kw">class</span> <span class="cls">InformeCAIExport</span> <span class="kw">implements</span> <span class="cls">WithMultipleSheets</span>
+{
+    <span class="kw">use</span> <span class="cls">Exportable</span>;
+
+    <span class="kw">public function</span> <span class="fn">__construct</span>(<span class="kw">private</span> <span class="type">array</span> <span class="var">$datos</span>) {}
+
+    <span class="kw">public function</span> <span class="fn">sheets</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'Encabezado'</span>       => <span class="kw">new</span> <span class="cls">Sheets\EncabezadoSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'encabezado'</span>], <span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'meses_cerrados'</span>]),
+            <span class="str">'Migración'</span>        => <span class="kw">new</span> <span class="cls">Sheets\MigracionSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'migracion'</span>]),
+            <span class="str">'Censo'</span>            => <span class="kw">new</span> <span class="cls">Sheets\CensoSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'censo'</span>]),
+            <span class="str">'Cobertura'</span>        => <span class="kw">new</span> <span class="cls">Sheets\CoberturaSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'cobertura'</span>], <span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'desercion'</span>]),
+            <span class="str">'Prestaciones'</span>     => <span class="kw">new</span> <span class="cls">Sheets\PrestacionesSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'prestaciones'</span>]),
+            <span class="str">'Ceros Justific.'</span>  => <span class="kw">new</span> <span class="cls">Sheets\CerosSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'ceros_justificados'</span>]),
+            <span class="str">'Observaciones'</span>    => <span class="kw">new</span> <span class="cls">Sheets\ObservacionesSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'observaciones'</span>]),
+        ];
+    }
+}</code></pre>
+
+  <p>Cada clave del array asociativo se convierte en el nombre de la pestaña del Excel. Los datos vienen de <code>CaiHelper::getDatosInforme()</code> (Lección 42), que retorna un array con exactamente estas 7 claves.</p>
+
+  <div class="callout info">
+    <strong>Desacople perfecto</strong>: El export no sabe cómo se calculan los datos. El helper no sabe cómo se formatean. Cada Sheet solo conoce la estructura de su sub-array.
+  </div>
+</section>
+
+<!-- ───── S4 ───── -->
+<section id="s4">
+  <h2>4 · EncabezadoSheet y MigracionSheet</h2>
+
+  <h3>EncabezadoSheet (117 líneas)</h3>
+  <p>Dos bloques: datos del establecimiento (key-value) y estado de meses (tabla):</p>
+
+  <pre><code><span class="kw">public function</span> <span class="fn">array</span>(): <span class="type">array</span>
+{
+    <span class="var">$rows</span> = [
+        [<span class="str">'INFORME CAI — '</span> . <span class="fn">strtoupper</span>(<span class="var">$this</span>-><span class="var">encabezado</span>[<span class="str">'periodo_nombre'</span>])],
+        [<span class="str">''</span>],
+        [<span class="str">'DATOS DEL ESTABLECIMIENTO'</span>],
+        [<span class="str">'Establecimiento'</span>,  <span class="var">$this</span>-><span class="var">encabezado</span>[<span class="str">'centro_nombre'</span>]],
+        [<span class="str">'Código SNIS'</span>,      <span class="var">$this</span>-><span class="var">encabezado</span>[<span class="str">'codigo_snis'</span>]],
+        [<span class="str">'Red de Salud'</span>,     <span class="var">$this</span>-><span class="var">encabezado</span>[<span class="str">'red_salud'</span>]],
+        <span class="cmt">// ... 6 filas más de datos institucionales</span>
+    ];
+
+    <span class="cmt">// Estado de meses con ✓ / ○</span>
+    <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">mesesCerrados</span> <span class="kw">as</span> <span class="var">$mc</span>) {
+        <span class="var">$rows</span>[] = [<span class="var">$mc</span>[<span class="str">'mes'</span>], <span class="var">$mc</span>[<span class="str">'cerrado'</span>] ? <span class="str">'✓ Cerrado'</span> : <span class="str">'○ Abierto'</span>];
+    }
+}</code></pre>
+
+  <p>En <code>registerEvents()</code>, los meses cerrados reciben color verde:</p>
+  <pre><code><span class="kw">if</span> (<span class="var">$mc</span>[<span class="str">'cerrado'</span>]) {
+    <span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"B{$fila}"</span>)-><span class="fn">applyFromArray</span>([
+        <span class="str">'font'</span> => [<span class="str">'bold'</span> => <span class="kw">true</span>, <span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FF'</span> . <span class="kw">self</span>::<span class="var">GREEN_OK</span>]],
+    ]);
+}</code></pre>
+
+  <h3>MigracionSheet (79 líneas)</h3>
+  <p>La hoja más simple — 8 filas key-value con valores numéricos alineados a la derecha:</p>
+
+  <pre><code><span class="kw">public function</span> <span class="fn">array</span>(): <span class="type">array</span>
+{
+    <span class="kw">return</span> [
+        [<span class="str">'CONTEXTO DE MIGRACIÓN POBLACIONAL'</span>],
+        [<span class="str">'Indicador'</span>, <span class="str">'Valor'</span>],
+        [<span class="str">'Padrón total'</span>,       <span class="var">$m</span>[<span class="str">'total_padron'</span>]],
+        [<span class="str">'Residentes activos'</span>,  <span class="var">$m</span>[<span class="str">'residentes'</span>]],
+        [<span class="str">'Migrantes'</span>,           <span class="var">$m</span>[<span class="str">'migrantes'</span>]],
+        [<span class="str">'% Migrantes'</span>,         <span class="var">$m</span>[<span class="str">'pct_migrantes'</span>] . <span class="str">'%'</span>],
+        <span class="cmt">// + MEF, hombres migrados</span>
+    ];
+}</code></pre>
+</section>
+
+<!-- ───── S5 ───── -->
+<section id="s5">
+  <h2>5 · CensoSheet — 2 secciones dinámicas</h2>
+
+  <p>CensoSheet (147 líneas) combina <strong>dos tablas</strong> en una misma hoja, con un separador vacío entre ellas:</p>
+
+  <pre><code><span class="kw">public function</span> <span class="fn">array</span>(): <span class="type">array</span>
+{
+    <span class="cmt">// Sección 1: Censo por comunidad</span>
+    <span class="var">$rows</span>[] = [<span class="str">'PADRÓN POBLACIONAL — CENSO POR COMUNIDAD'</span>];
+    <span class="var">$rows</span>[] = [<span class="str">'Comunidad'</span>, <span class="str">'Dist. (km)'</span>, <span class="str">'Total'</span>, <span class="str">'Hombres'</span>, <span class="str">'Mujeres'</span>, <span class="str">'< 5 años'</span>, <span class="str">'Migrantes'</span>];
+    <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">censo</span>[<span class="str">'comunidades'</span>] <span class="kw">as</span> <span class="var">$com</span>) { ... }
+    <span class="var">$rows</span>[] = [<span class="str">'TOTAL'</span>, ...]; <span class="cmt">// Fila sumada con array_reduce</span>
+    <span class="var">$rows</span>[] = [<span class="str">''</span>];                <span class="cmt">// Separador</span>
+
+    <span class="cmt">// Sección 2: Pirámide INE vs Real</span>
+    <span class="var">$rows</span>[] = [<span class="str">'PIRÁMIDE POBLACIONAL — INE vs. REAL'</span>];
+    <span class="var">$rows</span>[] = [<span class="str">'Grupo Etáreo'</span>, <span class="str">'INE M'</span>, <span class="str">'INE F'</span>, <span class="str">'INE Total'</span>, ...];
+    <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">censo</span>[<span class="str">'piramide'</span>] <span class="kw">as</span> <span class="var">$g</span>) { ... }
+}</code></pre>
+
+  <p>El <code>registerEvents()</code> calcula posiciones dinámicas:</p>
+  <pre><code><span class="var">$nComunidades</span> = <span class="fn">count</span>(<span class="var">$this</span>-><span class="var">censo</span>[<span class="str">'comunidades'</span>]);
+<span class="var">$filaTotal</span> = <span class="num">3</span> + <span class="var">$nComunidades</span>;      <span class="cmt">// Fila de la sección TOTAL</span>
+<span class="var">$filaTit2</span>  = <span class="var">$filaTotal</span> + <span class="num">2</span>;           <span class="cmt">// Título "PIRÁMIDE..."</span>
+<span class="var">$filaHdr2</span>  = <span class="var">$filaTit2</span> + <span class="num">1</span>;            <span class="cmt">// Header de pirámide</span></code></pre>
+
+  <div class="callout warning">
+    <strong>Posiciones calculadas</strong>: Como el número de comunidades varía, todas las filas de la sección 2 se calculan relativas a la fila TOTAL de la sección 1. Error común: hardcodear posiciones.
+  </div>
+</section>
+
+<!-- ───── S6 ───── -->
+<section id="s6">
+  <h2>6 · CoberturaSheet — semáforo y deserción</h2>
+
+  <p>CoberturaSheet (158 líneas) es el sheet más rico visualmente — combina <strong>semáforo de cobertura + colores de deserción + leyenda</strong>:</p>
+
+  <pre><code><span class="cmt">// Aplicar semáforo a cada celda de cobertura</span>
+<span class="kw">for</span> (<span class="var">$i</span> = <span class="num">0</span>; <span class="var">$i</span> &lt; <span class="var">$nCob</span>; <span class="var">$i</span>++) {
+    <span class="var">$fila</span> = <span class="num">3</span> + <span class="var">$i</span>;
+    <span class="var">$prog</span> = <span class="var">$this</span>-><span class="var">cobertura</span>[<span class="var">$i</span>];
+
+    <span class="cmt">// estiloSemaforo aplica bg + fg según porcentaje</span>
+    <span class="var">$this</span>-><span class="fn">estiloSemaforo</span>(<span class="var">$sheet</span>, <span class="str">"E{$fila}"</span>, (<span class="type">float</span>) <span class="var">$prog</span>[<span class="str">'cob_ine'</span>]);
+    <span class="var">$this</span>-><span class="fn">estiloSemaforo</span>(<span class="var">$sheet</span>, <span class="str">"F{$fila}"</span>, (<span class="type">float</span>) <span class="var">$prog</span>[<span class="str">'cob_real'</span>]);
+}</code></pre>
+
+  <h3>Deserción con match expression</h3>
+  <pre><code><span class="cmt">// Tasa de deserción: ≤5% verde, ≤15% ámbar, >15% rojo</span>
+<span class="var">$tasa</span> = (<span class="type">float</span>) <span class="var">$des</span>[<span class="str">'tasa'</span>];
+[<span class="var">$bg</span>, <span class="var">$fg</span>] = <span class="kw">match</span> (<span class="kw">true</span>) {
+    <span class="var">$tasa</span> &lt;= <span class="num">5</span>  => [<span class="kw">self</span>::<span class="var">GREEN_BG</span>,  <span class="kw">self</span>::<span class="var">GREEN_OK</span>],
+    <span class="var">$tasa</span> &lt;= <span class="num">15</span> => [<span class="kw">self</span>::<span class="var">AMBER_BG</span>,  <span class="kw">self</span>::<span class="var">AMBER</span>],
+    <span class="kw">default</span>      => [<span class="kw">self</span>::<span class="var">RED_BG</span>,     <span class="kw">self</span>::<span class="var">RED</span>],
+};</code></pre>
+
+  <h3>Leyenda al pie</h3>
+  <pre><code><span class="cmt">// Leyenda visual debajo de la tabla</span>
+<span class="var">$leyenda</span> = [
+    [<span class="str">'B'</span>, <span class="kw">self</span>::<span class="var">GREEN_BG</span>, <span class="kw">self</span>::<span class="var">GREEN_OK</span>, <span class="str">'≥ 95%'</span>],
+    [<span class="str">'C'</span>, <span class="kw">self</span>::<span class="var">AMBER_BG</span>, <span class="kw">self</span>::<span class="var">AMBER</span>,    <span class="str">'80–94%'</span>],
+    [<span class="str">'D'</span>, <span class="kw">self</span>::<span class="var">ORANGE_BG</span>, <span class="kw">self</span>::<span class="var">ORANGE</span>,  <span class="str">'50–79%'</span>],
+    [<span class="str">'E'</span>, <span class="kw">self</span>::<span class="var">RED_BG</span>,   <span class="kw">self</span>::<span class="var">RED</span>,      <span class="str">'< 50%'</span>],
+];</code></pre>
+</section>
+
+<!-- ───── S7 ───── -->
+<section id="s7">
+  <h2>7 · PrestacionesSheet — 5 sub-secciones</h2>
+
+  <p>El sheet más largo (193 líneas) genera <strong>5 tablas consecutivas</strong> con un sistema de tracking de posiciones:</p>
+
+  <pre><code><span class="kw">private</span> <span class="type">array</span> <span class="var">$secciones</span> = [];  <span class="cmt">// Índices de filas</span>
+
+<span class="kw">public function</span> <span class="fn">array</span>(): <span class="type">array</span>
+{
+    <span class="var">$fila</span> = <span class="num">1</span>;
+
+    <span class="cmt">// ── Vacunas ──</span>
+    <span class="var">$this</span>-><span class="var">secciones</span>[<span class="str">'vacunas_titulo'</span>] = <span class="var">$fila</span>;
+    <span class="var">$rows</span>[] = [<span class="str">'VACUNACIONES'</span>, ...]; <span class="var">$fila</span>++;
+    <span class="var">$this</span>-><span class="var">secciones</span>[<span class="str">'vacunas_header'</span>] = <span class="var">$fila</span>;
+    <span class="var">$rows</span>[] = [<span class="str">'Vacuna'</span>, <span class="str">'Grupo Etáreo'</span>, <span class="str">'D.M'</span>, <span class="str">'D.F'</span>, <span class="str">'F.M'</span>, <span class="str">'F.F'</span>, <span class="str">'Total'</span>]; <span class="var">$fila</span>++;
+    <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">prestaciones</span>[<span class="str">'vacunas'</span>] ...) { <span class="var">$fila</span>++; }
+    <span class="var">$this</span>-><span class="var">secciones</span>[<span class="str">'vacunas_fin'</span>] = <span class="var">$fila</span> - <span class="num">1</span>;
+
+    <span class="cmt">// ── Micronutrientes, Crecimiento, RN, Puerperio ──</span>
+    <span class="cmt">// Mismo patrón para cada sub-sección</span>
+}</code></pre>
+
+  <p>El <code>registerEvents()</code> usa un array de bloques para evitar repetición:</p>
+  <pre><code><span class="var">$bloques</span> = [
+    [<span class="str">'tit'</span> => <span class="str">'vacunas_titulo'</span>,  <span class="str">'hdr'</span> => <span class="str">'vacunas_header'</span>, <span class="str">'ncols'</span> => <span class="num">7</span>],
+    [<span class="str">'tit'</span> => <span class="str">'micro_titulo'</span>,    <span class="str">'hdr'</span> => <span class="str">'micro_header'</span>,   <span class="str">'ncols'</span> => <span class="num">2</span>],
+    <span class="cmt">// ... 3 más</span>
+];
+<span class="kw">foreach</span> (<span class="var">$bloques</span> <span class="kw">as</span> <span class="var">$bloque</span>) {
+    <span class="var">$this</span>-><span class="fn">estiloSeccion</span>(...);
+    <span class="var">$this</span>-><span class="fn">estiloHeader</span>(...);
+    <span class="kw">for</span> (...) { <span class="var">$this</span>-><span class="fn">estiloDato</span>(...); }
+    <span class="var">$this</span>-><span class="fn">bordeExterno</span>(...);
+}</code></pre>
+
+  <div class="callout tip">
+    <strong>Patrón $secciones</strong>: El array <code>$secciones</code> actúa como "mapa de posiciones" — se llena en <code>array()</code> y se consume en <code>registerEvents()</code>. Esto evita recalcular posiciones.
+  </div>
+</section>
+
+<!-- ───── S8 ───── -->
+<section id="s8">
+  <h2>8 · CerosSheet y ObservacionesSheet</h2>
+
+  <h3>CerosSheet (84 líneas)</h3>
+  <p>4 columnas: Mes, Indicador, Motivo, Detalle. La columna Detalle usa <code>wrapText</code>:</p>
+  <pre><code><span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"D{$fila}"</span>)
+    -><span class="fn">getAlignment</span>()-><span class="fn">setWrapText</span>(<span class="kw">true</span>);
+<span class="var">$this</span>-><span class="fn">alturaFila</span>(<span class="var">$sheet</span>, <span class="var">$fila</span>, <span class="num">30</span>);</code></pre>
+
+  <h3>ObservacionesSheet (98 líneas)</h3>
+  <p>2 columnas: Mes y Texto. La altura se calcula <strong>dinámicamente</strong> según la longitud del texto:</p>
+  <pre><code><span class="cmt">// Altura proporcional a la longitud del texto</span>
+<span class="var">$texto</span>  = <span class="var">$this</span>-><span class="var">observaciones</span>[<span class="var">$i</span>][<span class="str">'texto'</span>] ?? <span class="str">''</span>;
+<span class="var">$lineas</span> = <span class="fn">max</span>(<span class="num">3</span>, (<span class="type">int</span>) <span class="fn">ceil</span>(<span class="fn">mb_strlen</span>(<span class="var">$texto</span>) / <span class="num">120</span>));
+<span class="var">$this</span>-><span class="fn">alturaFila</span>(<span class="var">$sheet</span>, <span class="var">$fila</span>, <span class="var">$lineas</span> * <span class="num">14</span>);  <span class="cmt">// 14px por línea</span></code></pre>
+
+  <p>Ambos sheets manejan el caso vacío con un mensaje placeholder:</p>
+  <pre><code><span class="kw">if</span> (<span class="fn">empty</span>(<span class="var">$this</span>-><span class="var">ceros</span>)) {
+    <span class="var">$rows</span>[] = [<span class="str">'—'</span>, <span class="str">'Sin ceros justificados en este período'</span>, <span class="str">''</span>, <span class="str">''</span>];
+}</code></pre>
+</section>
+
+<!-- ───── Resumen ───── -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li><strong>InformeCAIExport</strong> (31 líneas) implementa <code>WithMultipleSheets</code> para orquestar 7 hojas desde <code>CaiHelper::getDatosInforme()</code>.</li>
+    <li>El trait <strong>EstiloExcel</strong> (182 líneas) define la paleta teal institucional con 18 constantes de color y 9 métodos de estilo reutilizables.</li>
+    <li><strong>estiloSemaforo()</strong> usa <code>match(true)</code> con 4 niveles (≥95, ≥80, ≥50, &lt;50) para colorear coberturas.</li>
+    <li><strong>CensoSheet</strong> y <strong>CoberturaSheet</strong> combinan 2 secciones en una hoja con posiciones calculadas dinámicamente.</li>
+    <li><strong>PrestacionesSheet</strong> (193 líneas) genera 5 sub-tablas consecutivas usando un mapa <code>$secciones</code> para tracking de posiciones.</li>
+    <li><strong>ObservacionesSheet</strong> calcula alturas de fila dinámicamente: <code>ceil(mb_strlen/120) × 14px</code>.</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Próxima lección</strong>: En la Lección 52 veremos los exports de <strong>ComunidadesPoblacionExport y PadronComunidadesExport</strong> con sus 4 sheets adicionales.
+  </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="50-comentarios-logout.html">← Lección 50 · Comentarios y Logout</a>
+  <a href="52-export-comunidades-padron.html">Lección 52 · Export Comunidades y Padrón →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+  Tutorial SICSAL · <span id="year"></span>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</footer>
+
+</body>
+</html>

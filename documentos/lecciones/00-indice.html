@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SICSAL — Plan de Estudio Completo</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+  <style>
+    .index-hero {
+      background: linear-gradient(135deg, #0f766e 0%, #134e4a 60%, #0891b2 100%);
+      color: white;
+      padding: 3.5rem 2rem 3rem;
+      margin: 0 -1.5rem 2.5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .index-hero::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 300px; height: 300px;
+      background: rgba(255,255,255,.04);
+      border-radius: 50%;
+    }
+    .index-hero h1 { font-size: 2.4rem; margin-bottom: .5rem; }
+    .index-hero p { font-size: 1.1rem; color: #ccfbf1; max-width: 600px; margin: 0 auto; }
+
+    .stack-bar {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .stack-item {
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.2);
+      padding: .4rem 1rem;
+      border-radius: 999px;
+      font-size: .82rem;
+      font-weight: 600;
+      color: #ccfbf1;
+    }
+
+    .phase { margin-bottom: 2.5rem; }
+    .phase-header {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 1rem;
+    }
+    .phase-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      color: white;
+      flex-shrink: 0;
+    }
+    .phase-title { font-size: 1.2rem; font-weight: 700; color: var(--gray-900); }
+    .phase-desc { font-size: .85rem; color: var(--gray-500); }
+
+    .lesson-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: .75rem;
+    }
+    .lesson-card {
+      display: flex;
+      align-items: flex-start;
+      gap: .75rem;
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.1rem;
+      box-shadow: var(--shadow-sm);
+      transition: all .2s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .lesson-card:hover {
+      border-color: var(--teal-400);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+      text-decoration: none;
+    }
+    .lesson-num {
+      background: var(--teal-600);
+      color: white;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .82rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .lesson-card-body { flex: 1; }
+    .lesson-card-title { font-weight: 700; font-size: .92rem; color: var(--gray-800); margin-bottom: .2rem; }
+    .lesson-card-tech { font-size: .72rem; color: var(--gray-400); }
+    .lesson-card-desc { font-size: .8rem; color: var(--gray-500); margin-top: .25rem; }
+
+    .p-base .phase-icon { background: var(--teal-600); }
+    .p-data .phase-icon { background: var(--blue-600); }
+    .p-auth .phase-icon { background: var(--purple-600); }
+    .p-admin .phase-icon { background: var(--amber-600); }
+    .p-front .phase-icon { background: var(--cyan-600); }
+    .p-adv .phase-icon { background: var(--red-600); }
+  </style>
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Plan de Estudio
+  </div>
+  <nav>
+    <span style="color:var(--teal-200); font-size:.82rem;">16 Lecciones · Laravel 13 + Filament 5 + Livewire 4</span>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="index-hero">
+    <h1>Plan de Estudio SICSAL</h1>
+    <p>Aprende a construir un sistema de información de salud completo desde cero. 16 lecciones progresivas con código real del proyecto.</p>
+    <div class="stack-bar">
+      <span class="stack-item">🐘 Laravel 13</span>
+      <span class="stack-item">🛡️ Filament 5</span>
+      <span class="stack-item">⚡ Livewire 4</span>
+      <span class="stack-item">🏔️ Alpine.js</span>
+      <span class="stack-item">🖥️ Laragon</span>
+      <span class="stack-item">📝 VS Code</span>
+    </div>
+  </div>
+
+  <!-- ═══════ FASE 1: FUNDAMENTOS ═══════ -->
+  <div class="phase p-base">
+    <div class="phase-header">
+      <div class="phase-icon">🏗️</div>
+      <div>
+        <div class="phase-title">Fase 1 — Fundamentos</div>
+        <div class="phase-desc">Instalar herramientas, entender Laravel y preparar la base de datos</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="01-entorno.html" class="lesson-card">
+        <div class="lesson-num">01</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Preparando el Entorno</div>
+          <div class="lesson-card-tech">Laragon · VS Code · Composer · Node</div>
+          <div class="lesson-card-desc">Instalar todo lo necesario, crear el proyecto y verificar que funciona.</div>
+        </div>
+      </a>
+      <a href="02-estructura-laravel.html" class="lesson-card">
+        <div class="lesson-num">02</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Estructura de Laravel 13</div>
+          <div class="lesson-card-tech">Laravel · Artisan · MVC</div>
+          <div class="lesson-card-desc">Carpetas, archivos clave, el ciclo de vida de una petición web.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════ FASE 2: BASE DE DATOS ═══════ -->
+  <div class="phase p-data">
+    <div class="phase-header">
+      <div class="phase-icon">🗃️</div>
+      <div>
+        <div class="phase-title">Fase 2 — Base de Datos</div>
+        <div class="phase-desc">Crear tablas, modelos con relaciones y poblar con datos de prueba</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="03-migraciones.html" class="lesson-card">
+        <div class="lesson-num">03</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Migraciones</div>
+          <div class="lesson-card-tech">Laravel · Schema · Blueprint</div>
+          <div class="lesson-card-desc">Crear tablas con código PHP, foreign keys, índices y tipos de columna.</div>
+        </div>
+      </a>
+      <a href="04-modelos-eloquent.html" class="lesson-card">
+        <div class="lesson-num">04</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Modelos Eloquent y Relaciones</div>
+          <div class="lesson-card-tech">Laravel · Eloquent ORM</div>
+          <div class="lesson-card-desc">Fillable, casts, belongsTo, hasMany, scopes y accessors.</div>
+        </div>
+      </a>
+      <a href="05-seeders.html" class="lesson-card">
+        <div class="lesson-num">05</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Seeders y Datos de Prueba</div>
+          <div class="lesson-card-tech">Laravel · Database Seeder</div>
+          <div class="lesson-card-desc">Poblar la base de datos con roles, usuarios y datos iniciales.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════ FASE 3: AUTENTICACIÓN ═══════ -->
+  <div class="phase p-auth">
+    <div class="phase-header">
+      <div class="phase-icon">🔐</div>
+      <div>
+        <div class="phase-title">Fase 3 — Autenticación y Permisos</div>
+        <div class="phase-desc">Login seguro, roles y control de acceso por nivel de usuario</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="06-autenticacion.html" class="lesson-card">
+        <div class="lesson-num">06</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Autenticación con Fortify</div>
+          <div class="lesson-card-tech">Laravel Fortify · Middleware</div>
+          <div class="lesson-card-desc">Login, registro controlado, proteger rutas y middleware personalizado.</div>
+        </div>
+      </a>
+      <a href="07-roles-permisos.html" class="lesson-card">
+        <div class="lesson-num">07</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Roles y Permisos con Spatie</div>
+          <div class="lesson-card-tech">Spatie Permission · Middleware</div>
+          <div class="lesson-card-desc">Crear roles (superadmin, admin, registrador), asignar y verificar acceso.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════ FASE 4: PANEL ADMIN ═══════ -->
+  <div class="phase p-admin">
+    <div class="phase-header">
+      <div class="phase-icon">⚙️</div>
+      <div>
+        <div class="phase-title">Fase 4 — Panel de Administración (Filament)</div>
+        <div class="phase-desc">Construir el CRUD completo, formularios avanzados, páginas y dashboard</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="08-filament-resource.html" class="lesson-card">
+        <div class="lesson-num">08</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Filament: Tu Primer Resource</div>
+          <div class="lesson-card-tech">Filament 5 · Resources · CRUD</div>
+          <div class="lesson-card-desc">Instalar Filament, crear un Resource con listado, creación y edición.</div>
+        </div>
+      </a>
+      <a href="09-filament-formularios.html" class="lesson-card">
+        <div class="lesson-num">09</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Filament: Formularios Avanzados</div>
+          <div class="lesson-card-tech">Filament 5 · Schemas · Validation</div>
+          <div class="lesson-card-desc">Secciones, validación, selects relacionales y campos condicionales.</div>
+        </div>
+      </a>
+      <a href="10-filament-paginas.html" class="lesson-card">
+        <div class="lesson-num">10</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Filament: Páginas y Widgets</div>
+          <div class="lesson-card-tech">Filament 5 · Pages · Widgets</div>
+          <div class="lesson-card-desc">Páginas personalizadas, widgets de estadísticas y dashboard.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════ FASE 5: FRONTEND ═══════ -->
+  <div class="phase p-front">
+    <div class="phase-header">
+      <div class="phase-icon">🎨</div>
+      <div>
+        <div class="phase-title">Fase 5 — Frontend Interactivo</div>
+        <div class="phase-desc">Componentes reactivos con Livewire y Alpine.js para vistas públicas</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="11-livewire.html" class="lesson-card">
+        <div class="lesson-num">11</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Livewire 4: Componentes Reactivos</div>
+          <div class="lesson-card-tech">Livewire 4 · Componentes · Binding</div>
+          <div class="lesson-card-desc">Crear componentes, propiedades reactivas, acciones y ciclo de vida.</div>
+        </div>
+      </a>
+      <a href="12-alpine.html" class="lesson-card">
+        <div class="lesson-num">12</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Alpine.js: Interactividad Ligera</div>
+          <div class="lesson-card-tech">Alpine.js · Directivas · Eventos</div>
+          <div class="lesson-card-desc">x-data, x-show, x-for, tabs y modales integrados con Livewire.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════ FASE 6: AVANZADO ═══════ -->
+  <div class="phase p-adv">
+    <div class="phase-header">
+      <div class="phase-icon">🚀</div>
+      <div>
+        <div class="phase-title">Fase 6 — Funcionalidades Avanzadas</div>
+        <div class="phase-desc">Exportaciones, observers, importación SNIS y seguridad del proyecto</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="13-exportar-excel-pdf.html" class="lesson-card">
+        <div class="lesson-num">13</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Exportar Datos: Excel y PDF</div>
+          <div class="lesson-card-tech">Maatwebsite Excel · DomPDF</div>
+          <div class="lesson-card-desc">Generar reportes multi-hoja en Excel y documentos PDF con DomPDF.</div>
+        </div>
+      </a>
+      <a href="14-observers.html" class="lesson-card">
+        <div class="lesson-num">14</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Observers y Sincronización</div>
+          <div class="lesson-card-tech">Laravel · Observers · Eventos</div>
+          <div class="lesson-card-desc">Auto-sincronizar datos individuales a tablas agregadas con observers.</div>
+        </div>
+      </a>
+      <a href="15-importar-ves.html" class="lesson-card">
+        <div class="lesson-num">15</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Importar Archivos .ves del SNIS</div>
+          <div class="lesson-card-tech">Artisan · Services · Cabinet · MDB</div>
+          <div class="lesson-card-desc">Extraer archivos .ves, leer bases Access y mapear datos al sistema.</div>
+        </div>
+      </a>
+      <a href="16-seguridad.html" class="lesson-card">
+        <div class="lesson-num">16</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Seguridad y Buenas Prácticas</div>
+          <div class="lesson-card-tech">OWASP · .env · CSRF · Filtrado</div>
+          <div class="lesson-card-desc">Credenciales seguras, validación, filtrado por centro y protección CSRF.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══ Diagrama General ═══ -->
+  <div class="section">
+    <h2 class="section-title"><span class="number">📐</span> Arquitectura General del Proyecto</h2>
+
+    <div class="arch-diagram">
+      <div class="arch-label">CAPA DE PRESENTACIÓN</div>
+      <div class="arch-row">
+        <div class="arch-box secondary">Blade Views</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-box secondary">Livewire 4</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-box secondary">Alpine.js</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-box highlight">Filament 5</div>
+      </div>
+
+      <div class="arch-row"><div class="arch-arrow">▼</div></div>
+
+      <div class="arch-label">CAPA DE LÓGICA</div>
+      <div class="arch-row">
+        <div class="arch-box highlight">Laravel 13</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">Controllers</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">Helpers</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">Observers</div>
+      </div>
+
+      <div class="arch-row"><div class="arch-arrow">▼</div></div>
+
+      <div class="arch-label">CAPA DE DATOS</div>
+      <div class="arch-row">
+        <div class="arch-box">Eloquent ORM</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box highlight">MySQL</div>
+        <div class="arch-arrow">←</div>
+        <div class="arch-box">Migraciones</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-box">Seeders</div>
+      </div>
+
+      <div class="arch-row"><div class="arch-arrow">▼</div></div>
+
+      <div class="arch-label">INTEGRACIÓN EXTERNA</div>
+      <div class="arch-row">
+        <div class="arch-box secondary">.ves (SNIS)</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box secondary">Access MDB</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">VesMdbReader</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box highlight">prest_* tables</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Sistema de Información de Centros de Salud</span>
+    <span>Laravel 13 · Filament 5 · Livewire 4 · Alpine.js</span>
+  </div>
+</div>
+</body>
+</html>

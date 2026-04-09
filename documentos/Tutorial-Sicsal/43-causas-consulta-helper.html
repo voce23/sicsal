@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lección 43 — CausasConsultaHelper + OmsHelper | Tutorial SICSAL</title>
+    <link rel="stylesheet" href="css/leccion.css">
+    <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL — Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+    <span class="badge">Fase 9 — Helpers y Servicios</span>
+    <h1>Lección 43 — CausasConsultaHelper + OmsHelper</h1>
+    <p class="subtitle">Dos helpers especializados: Top-10 de causas de consulta externa con agrupación
+        por diagnóstico, y clasificación nutricional OMS con interpolación lineal.</p>
+    <div class="meta-row">
+        <span>📄 2 archivos — 243 líneas</span>
+        <span>⏱️ ~30 min</span>
+        <span>📘 Lección 43 de 58</span>
+    </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+    <a href="42-cai-helper.html">← 42. CaiHelper</a>
+    <a href="44-ves-mdb-reader.html">44. VesMdbReader →</a>
+</nav>
+
+<!-- ───── Archivos ───── -->
+<div class="info-box" style="margin:2rem auto;max-width:54rem;">
+    <strong>Archivos creados en esta lección:</strong>
+    <table class="file-table" style="margin-top:.5rem">
+        <tr><td><code>app/Helpers/CausasConsultaHelper.php</code></td><td>107 líneas</td><td>Top-10 causas de consulta externa</td></tr>
+        <tr><td><code>app/Helpers/OmsHelper.php</code></td><td>136 líneas</td><td>Clasificación nutricional OMS</td></tr>
+    </table>
+</div>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+    <h3>Contenido</h3>
+    <ol>
+        <li><a href="#s1">CausasConsultaHelper — visión general</a></li>
+        <li><a href="#s2">Los 10 grupos etáreos</a></li>
+        <li><a href="#s3">getTop10() — agrupación por diagnóstico</a></li>
+        <li><a href="#s4">Ranking, porcentajes y resultado final</a></li>
+        <li><a href="#s5">OmsHelper — visión general</a></li>
+        <li><a href="#s6">Tablas de referencia OMS simplificadas</a></li>
+        <li><a href="#s7">clasificar() — lógica de decisión</a></li>
+        <li><a href="#s8">Interpolación lineal entre puntos</a></li>
+        <li><a href="#s9">Labels y colores para Filament</a></li>
+        <li><a href="#s10">Resumen</a></li>
+    </ol>
+</nav>
+
+<!-- ═══════════ Sección 1 ═══════════ -->
+<section class="section" id="s1">
+    <h2>1 — CausasConsultaHelper — visión general</h2>
+    <p>Este helper soporta el informe de <strong>10 principales causas de consulta externa</strong>,
+        un formulario estándar del SNIS boliviano. Recibe centro, año y mes (opcional), y devuelve
+        las 10 causas con mayor morbilidad, desglosadas por grupo etáreo y sexo.</p>
+
+    <div class="arch-diagram">
+        <div class="arch-box">CausasConsultaHelper::getTop10(centroId, anio, mes)</div>
+        <div class="arch-arrow">↓ consulta</div>
+        <div class="arch-box">CausaConsultaExterna (tabla causas_consulta_externa)</div>
+        <div class="arch-arrow">↓ agrupa por diagnóstico</div>
+        <div class="arch-box">Top 10 ordenados por total desc</div>
+    </div>
+</section>
+
+<!-- ═══════════ Sección 2 ═══════════ -->
+<section class="section" id="s2">
+    <h2>2 — Los 10 grupos etáreos</h2>
+    <p>El SNIS define 10 columnas de grupo etáreo para causas de consulta:</p>
+
+    <div class="code-block">
+        <div class="code-header">app/Helpers/CausasConsultaHelper.php — constante GRUPOS_LABEL</div>
+        <pre><code><span class="kw">class</span> <span class="cls">CausasConsultaHelper</span>
+{
+    <span class="kw">public const</span> <span class="var">GRUPOS_LABEL</span> = [
+        <span class="str">'menor_6m'</span>   =&gt; <span class="str">'&lt;6m'</span>,
+        <span class="str">'6m_menor_1'</span> =&gt; <span class="str">'6m-1a'</span>,
+        <span class="str">'1_4'</span>        =&gt; <span class="str">'1-4a'</span>,
+        <span class="str">'5_9'</span>        =&gt; <span class="str">'5-9a'</span>,
+        <span class="str">'10_14'</span>      =&gt; <span class="str">'10-14a'</span>,
+        <span class="str">'15_19'</span>      =&gt; <span class="str">'15-19a'</span>,
+        <span class="str">'20_39'</span>      =&gt; <span class="str">'20-39a'</span>,
+        <span class="str">'40_49'</span>      =&gt; <span class="str">'40-49a'</span>,
+        <span class="str">'50_59'</span>      =&gt; <span class="str">'50-59a'</span>,
+        <span class="str">'mayor_60'</span>   =&gt; <span class="str">'≥60a'</span>,
+    ];</code></pre>
+    </div>
+
+    <p>Estas claves coinciden con los valores de <code>grupo_etareo</code> en la tabla
+        <code>causas_consulta_externa</code>. Las etiquetas cortas se usan en encabezados de tablas
+        y exportaciones Excel.</p>
+</section>
+
+<!-- ═══════════ Sección 3 ═══════════ -->
+<section class="section" id="s3">
+    <h2>3 — getTop10() — agrupación por diagnóstico</h2>
+    <p>El método principal recibe tres parámetros:</p>
+    <ul>
+        <li><code>$centroSaludId</code> — 0 para todos los centros</li>
+        <li><code>$anio</code> — año de la consulta</li>
+        <li><code>$mes</code> — 0 para acumular todo el año</li>
+    </ul>
+
+    <div class="code-block">
+        <div class="code-header">getTop10() — consulta y agrupación</div>
+        <pre><code><span class="kw">public static function</span> <span class="fn">getTop10</span>(
+    <span class="type">int</span> <span class="var">$centroSaludId</span>, <span class="type">int</span> <span class="var">$anio</span>, <span class="type">int</span> <span class="var">$mes</span> = <span class="num">0</span>
+): <span class="type">array</span> {
+    <span class="var">$query</span> = <span class="cls">CausaConsultaExterna</span>::<span class="fn">query</span>()-&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>);
+
+    <span class="kw">if</span> (<span class="var">$centroSaludId</span> &gt; <span class="num">0</span>) {
+        <span class="var">$query</span>-&gt;<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroSaludId</span>);
+    }
+    <span class="kw">if</span> (<span class="var">$mes</span> &gt; <span class="num">0</span>) {
+        <span class="var">$query</span>-&gt;<span class="fn">where</span>(<span class="str">'mes'</span>, <span class="var">$mes</span>);
+    }
+
+    <span class="var">$registros</span> = <span class="var">$query</span>-&gt;<span class="fn">get</span>();
+
+    <span class="cmt">// Agrupar por diagnóstico (case-insensitive trim)</span>
+    <span class="var">$porDiag</span> = [];
+    <span class="kw">foreach</span> (<span class="var">$registros</span> <span class="kw">as</span> <span class="var">$reg</span>) {
+        <span class="var">$key</span> = <span class="fn">mb_strtolower</span>(<span class="fn">trim</span>(<span class="var">$reg</span>-&gt;<span class="var">diagnostico</span>));
+
+        <span class="cmt">// Ignorar placeholders vacíos ("Causa 1", "Causa 2", etc.)</span>
+        <span class="kw">if</span> (<span class="var">$key</span> === <span class="str">''</span> || <span class="var">$key</span> === <span class="str">'causa '</span> . <span class="var">$reg</span>-&gt;<span class="var">posicion</span>) {
+            <span class="kw">continue</span>;
+        }
+
+        <span class="kw">if</span> (! <span class="fn">isset</span>(<span class="var">$porDiag</span>[<span class="var">$key</span>])) {
+            <span class="var">$porDiag</span>[<span class="var">$key</span>] = [
+                <span class="str">'diagnostico'</span> =&gt; <span class="fn">trim</span>(<span class="var">$reg</span>-&gt;<span class="var">diagnostico</span>),
+                <span class="str">'grupos'</span>      =&gt; <span class="fn">array_fill_keys</span>(
+                    <span class="fn">array_keys</span>(<span class="kw">self</span>::<span class="var">GRUPOS_LABEL</span>),
+                    [<span class="str">'m'</span> =&gt; <span class="num">0</span>, <span class="str">'f'</span> =&gt; <span class="num">0</span>]
+                ),
+                <span class="str">'total_m'</span> =&gt; <span class="num">0</span>,
+                <span class="str">'total_f'</span> =&gt; <span class="num">0</span>,
+            ];
+        }
+
+        <span class="var">$g</span> = <span class="var">$reg</span>-&gt;<span class="var">grupo_etareo</span>;
+        <span class="var">$porDiag</span>[<span class="var">$key</span>][<span class="str">'grupos'</span>][<span class="var">$g</span>][<span class="str">'m'</span>] += <span class="var">$reg</span>-&gt;<span class="var">masculino</span>;
+        <span class="var">$porDiag</span>[<span class="var">$key</span>][<span class="str">'grupos'</span>][<span class="var">$g</span>][<span class="str">'f'</span>] += <span class="var">$reg</span>-&gt;<span class="var">femenino</span>;
+        <span class="var">$porDiag</span>[<span class="var">$key</span>][<span class="str">'total_m'</span>] += <span class="var">$reg</span>-&gt;<span class="var">masculino</span>;
+        <span class="var">$porDiag</span>[<span class="var">$key</span>][<span class="str">'total_f'</span>] += <span class="var">$reg</span>-&gt;<span class="var">femenino</span>;
+    }</code></pre>
+    </div>
+
+    <div class="callout warning">
+        <div class="callout-title">¿Por qué agrupar en PHP?</div>
+        Un mismo diagnóstico puede aparecer en diferentes posiciones y meses. Por ejemplo, «Resfriado común»
+        podría estar en posición 1 de enero y posición 3 de febrero. La agrupación por
+        <code>mb_strtolower(trim())</code> los consolida en una sola fila. Hacerlo en SQL requeriría
+        un GROUP BY sobre texto libre — menos fiable con acentos y mayúsculas.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 4 ═══════════ -->
+<section class="section" id="s4">
+    <h2>4 — Ranking, porcentajes y resultado final</h2>
+
+    <div class="code-block">
+        <div class="code-header">getTop10() — ordenamiento y resultado</div>
+        <pre><code><span class="cmt">// Calcular totales por diagnóstico</span>
+<span class="kw">foreach</span> (<span class="var">$porDiag</span> <span class="kw">as</span> &amp;<span class="var">$c</span>) {
+    <span class="var">$c</span>[<span class="str">'total'</span>] = <span class="var">$c</span>[<span class="str">'total_m'</span>] + <span class="var">$c</span>[<span class="str">'total_f'</span>];
+}
+<span class="kw">unset</span>(<span class="var">$c</span>);
+
+<span class="cmt">// Ordenar por total desc → tomar primeros 10</span>
+<span class="fn">usort</span>(<span class="var">$porDiag</span>, <span class="kw">fn</span> (<span class="var">$a</span>, <span class="var">$b</span>) =&gt; <span class="var">$b</span>[<span class="str">'total'</span>] &lt;=&gt; <span class="var">$a</span>[<span class="str">'total'</span>]);
+<span class="var">$top10</span> = <span class="fn">array_slice</span>(<span class="fn">array_values</span>(<span class="var">$porDiag</span>), <span class="num">0</span>, <span class="num">10</span>);
+
+<span class="cmt">// Gran total (solo del top 10)</span>
+<span class="var">$grandTotal</span>  = <span class="fn">array_sum</span>(<span class="fn">array_column</span>(<span class="var">$top10</span>, <span class="str">'total'</span>));
+<span class="var">$grandTotalM</span> = <span class="fn">array_sum</span>(<span class="fn">array_column</span>(<span class="var">$top10</span>, <span class="str">'total_m'</span>));
+<span class="var">$grandTotalF</span> = <span class="fn">array_sum</span>(<span class="fn">array_column</span>(<span class="var">$top10</span>, <span class="str">'total_f'</span>));
+
+<span class="cmt">// Agregar ranking y porcentaje</span>
+<span class="kw">foreach</span> (<span class="var">$top10</span> <span class="kw">as</span> <span class="var">$i</span> =&gt; &amp;<span class="var">$causa</span>) {
+    <span class="var">$causa</span>[<span class="str">'rank'</span>]       = <span class="var">$i</span> + <span class="num">1</span>;
+    <span class="var">$causa</span>[<span class="str">'porcentaje'</span>] = <span class="var">$grandTotal</span> &gt; <span class="num">0</span>
+        ? <span class="fn">round</span>(<span class="var">$causa</span>[<span class="str">'total'</span>] / <span class="var">$grandTotal</span> * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>;
+}
+<span class="kw">unset</span>(<span class="var">$causa</span>);
+
+<span class="cmt">// Nombre del centro y etiqueta del período</span>
+<span class="var">$centro</span> = <span class="var">$centroSaludId</span> &gt; <span class="num">0</span>
+    ? <span class="cls">CentroSalud</span>::<span class="fn">find</span>(<span class="var">$centroSaludId</span>)?-&gt;<span class="var">nombre</span> ?? <span class="str">'Todos los centros'</span>
+    : <span class="str">'Todos los centros'</span>;
+
+<span class="kw">return</span> [
+    <span class="str">'causas'</span>        =&gt; <span class="var">$top10</span>,
+    <span class="str">'grand_total'</span>   =&gt; <span class="var">$grandTotal</span>,
+    <span class="str">'grand_total_m'</span> =&gt; <span class="var">$grandTotalM</span>,
+    <span class="str">'grand_total_f'</span> =&gt; <span class="var">$grandTotalF</span>,
+    <span class="str">'anio'</span>          =&gt; <span class="var">$anio</span>,
+    <span class="str">'mes'</span>           =&gt; <span class="var">$mes</span>,
+    <span class="str">'centro'</span>        =&gt; <span class="var">$centro</span>,
+    <span class="str">'periodo_label'</span> =&gt; <span class="var">$periodoLabel</span>,
+];</code></pre>
+    </div>
+
+    <p>La estructura resultante proporciona todo lo necesario para la tabla del informe: nombre
+        del diagnóstico, M y F por cada uno de los 10 grupos etáreos, totales, ranking y porcentaje.</p>
+
+    <div class="callout tip">
+        <div class="callout-title">Centro 0 = todos</div>
+        Si <code>$centroSaludId</code> es 0, la consulta no filtra por centro. Esto es útil para
+        superadmin que quiere ver las causas a nivel municipal o departamental.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 5 ═══════════ -->
+<section class="section" id="s5">
+    <h2>5 — OmsHelper — visión general</h2>
+    <p><code>OmsHelper</code> clasifica el estado nutricional de niños menores de 5 años usando
+        tablas simplificadas de la <strong>OMS 2006</strong>. Se aplica automáticamente cuando
+        se registra un control de crecimiento infantil.</p>
+
+    <div class="arch-diagram">
+        <div class="arch-box">OmsHelper::clasificar(persona, pesoKg, tallaCm)</div>
+        <div class="arch-arrow">↓ evalúa 3 criterios en orden</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;max-width:36rem;margin:0 auto">
+            <div class="arch-box" style="font-size:.85rem">Peso/Talla<br>→ aguda</div>
+            <div class="arch-box" style="font-size:.85rem">Talla/Edad<br>→ crónica</div>
+            <div class="arch-box" style="font-size:.85rem">Peso/Edad<br>→ global</div>
+        </div>
+        <div class="arch-arrow">↓ si ninguno aplica</div>
+        <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:.5rem;max-width:24rem;margin:0 auto">
+            <div class="arch-box" style="font-size:.85rem">Ratio > 1.4<br>→ obesidad</div>
+            <div class="arch-box" style="font-size:.85rem">Ratio > 1.2<br>→ sobrepeso</div>
+        </div>
+        <div class="arch-arrow">↓ sino</div>
+        <div class="arch-box">normal</div>
+    </div>
+</section>
+
+<!-- ═══════════ Sección 6 ═══════════ -->
+<section class="section" id="s6">
+    <h2>6 — Tablas de referencia OMS simplificadas</h2>
+    <p>Tres constantes almacenan los umbrales z-score -2 (límite inferior de normalidad):</p>
+
+    <div class="code-block">
+        <div class="code-header">app/Helpers/OmsHelper.php — tablas OMS</div>
+        <pre><code><span class="kw">class</span> <span class="cls">OmsHelper</span>
+{
+    <span class="cmt">/**
+     * Peso-para-talla (z-score -2).
+     * Clave = talla cm, valor = peso mínimo normal kg.
+     */</span>
+    <span class="kw">private const</span> <span class="var">PESO_TALLA_MINIMO</span> = [
+        <span class="num">45</span> =&gt; <span class="num">2.0</span>,  <span class="num">50</span> =&gt; <span class="num">2.6</span>,  <span class="num">55</span> =&gt; <span class="num">3.4</span>,
+        <span class="num">60</span> =&gt; <span class="num">4.4</span>,  <span class="num">65</span> =&gt; <span class="num">5.5</span>,  <span class="num">70</span> =&gt; <span class="num">6.4</span>,
+        <span class="num">75</span> =&gt; <span class="num">7.2</span>,  <span class="num">80</span> =&gt; <span class="num">8.0</span>,  <span class="num">85</span> =&gt; <span class="num">8.8</span>,
+        <span class="num">90</span> =&gt; <span class="num">9.6</span>,  <span class="num">95</span> =&gt; <span class="num">10.5</span>, <span class="num">100</span> =&gt; <span class="num">11.4</span>,
+        <span class="num">105</span> =&gt; <span class="num">12.5</span>, <span class="num">110</span> =&gt; <span class="num">13.7</span>, <span class="num">115</span> =&gt; <span class="num">15.1</span>,
+        <span class="num">120</span> =&gt; <span class="num">16.6</span>,
+    ];
+
+    <span class="cmt">/**
+     * Talla-para-edad (z-score -2).
+     * Clave = edad en meses, valor = talla mínima normal cm.
+     */</span>
+    <span class="kw">private const</span> <span class="var">TALLA_EDAD_MINIMA</span> = [
+        <span class="num">0</span> =&gt; <span class="num">44</span>,  <span class="num">3</span> =&gt; <span class="num">55</span>,  <span class="num">6</span> =&gt; <span class="num">61</span>,
+        <span class="num">9</span> =&gt; <span class="num">65</span>,  <span class="num">12</span> =&gt; <span class="num">68</span>, <span class="num">18</span> =&gt; <span class="num">73</span>,
+        <span class="num">24</span> =&gt; <span class="num">78</span>, <span class="num">36</span> =&gt; <span class="num">85</span>, <span class="num">48</span> =&gt; <span class="num">91</span>,
+        <span class="num">60</span> =&gt; <span class="num">96</span>, <span class="num">72</span> =&gt; <span class="num">101</span>, <span class="num">84</span> =&gt; <span class="num">106</span>,
+        <span class="num">96</span> =&gt; <span class="num">111</span>, <span class="num">108</span> =&gt; <span class="num">116</span>, <span class="num">120</span> =&gt; <span class="num">120</span>,
+    ];
+
+    <span class="cmt">/**
+     * Peso-para-edad (z-score -2).
+     * Clave = edad en meses, valor = peso mínimo normal kg.
+     */</span>
+    <span class="kw">private const</span> <span class="var">PESO_EDAD_MINIMO</span> = [
+        <span class="num">0</span> =&gt; <span class="num">2.5</span>,  <span class="num">3</span> =&gt; <span class="num">4.5</span>,  <span class="num">6</span> =&gt; <span class="num">5.9</span>,
+        <span class="num">9</span> =&gt; <span class="num">6.9</span>,  <span class="num">12</span> =&gt; <span class="num">7.5</span>, <span class="num">18</span> =&gt; <span class="num">8.5</span>,
+        <span class="num">24</span> =&gt; <span class="num">9.5</span>, <span class="num">36</span> =&gt; <span class="num">11.0</span>, <span class="num">48</span> =&gt; <span class="num">12.5</span>,
+        <span class="num">60</span> =&gt; <span class="num">14.0</span>,
+    ];</code></pre>
+    </div>
+
+    <div class="callout info">
+        <div class="callout-title">Z-score -2</div>
+        En la curva normal, z-score -2 representa el percentil 2.3. Un niño cuyo peso o talla
+        cae por debajo de este umbral se clasifica como desnutrido según la OMS. Las tablas están
+        simplificadas — solo puntos de referencia clave, con interpolación para edades intermedias.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 7 ═══════════ -->
+<section class="section" id="s7">
+    <h2>7 — clasificar() — lógica de decisión</h2>
+    <p>El método principal evalúa tres tipos de desnutrición en orden de prioridad:</p>
+
+    <div class="code-block">
+        <div class="code-header">OmsHelper::clasificar()</div>
+        <pre><code><span class="kw">public static function</span> <span class="fn">clasificar</span>(
+    <span class="cls">Persona</span> <span class="var">$persona</span>,
+    ?<span class="type">float</span> <span class="var">$pesoKg</span>,
+    ?<span class="type">float</span> <span class="var">$tallaCm</span>
+): <span class="type">string</span> {
+    <span class="kw">if</span> (<span class="var">$pesoKg</span> === <span class="kw">null</span> || <span class="var">$tallaCm</span> === <span class="kw">null</span>) {
+        <span class="kw">return</span> <span class="str">'normal'</span>;
+    }
+
+    <span class="var">$meses</span> = <span class="var">$persona</span>-&gt;<span class="var">edad_meses</span>;
+
+    <span class="cmt">// 1. Desnutrición aguda: bajo peso para la talla</span>
+    <span class="var">$tallaRef</span> = <span class="kw">self</span>::<span class="fn">interpolate</span>(<span class="kw">self</span>::<span class="var">PESO_TALLA_MINIMO</span>, (<span class="type">int</span>) <span class="fn">round</span>(<span class="var">$tallaCm</span>));
+    <span class="kw">if</span> (<span class="var">$tallaRef</span> !== <span class="kw">null</span> &amp;&amp; <span class="var">$pesoKg</span> &lt; <span class="var">$tallaRef</span>) {
+        <span class="kw">return</span> <span class="str">'desnutricion_aguda'</span>;
+    }
+
+    <span class="cmt">// 2. Desnutrición crónica: baja talla para la edad</span>
+    <span class="var">$tallaMinima</span> = <span class="kw">self</span>::<span class="fn">interpolate</span>(<span class="kw">self</span>::<span class="var">TALLA_EDAD_MINIMA</span>, <span class="var">$meses</span>);
+    <span class="kw">if</span> (<span class="var">$tallaMinima</span> !== <span class="kw">null</span> &amp;&amp; <span class="var">$tallaCm</span> &lt; <span class="var">$tallaMinima</span>) {
+        <span class="kw">return</span> <span class="str">'desnutricion_cronica'</span>;
+    }
+
+    <span class="cmt">// 3. Desnutrición global: bajo peso para la edad</span>
+    <span class="var">$pesoMinimo</span> = <span class="kw">self</span>::<span class="fn">interpolate</span>(<span class="kw">self</span>::<span class="var">PESO_EDAD_MINIMO</span>, <span class="var">$meses</span>);
+    <span class="kw">if</span> (<span class="var">$pesoMinimo</span> !== <span class="kw">null</span> &amp;&amp; <span class="var">$pesoKg</span> &lt; <span class="var">$pesoMinimo</span>) {
+        <span class="kw">return</span> <span class="str">'desnutricion_global'</span>;
+    }
+
+    <span class="cmt">// 4. Sobrepeso/Obesidad: peso excesivo para la talla</span>
+    <span class="kw">if</span> (<span class="var">$tallaRef</span> !== <span class="kw">null</span>) {
+        <span class="var">$ratio</span> = <span class="var">$pesoKg</span> / <span class="var">$tallaRef</span>;
+        <span class="kw">if</span> (<span class="var">$ratio</span> &gt; <span class="num">1.4</span>) <span class="kw">return</span> <span class="str">'obesidad'</span>;
+        <span class="kw">if</span> (<span class="var">$ratio</span> &gt; <span class="num">1.2</span>) <span class="kw">return</span> <span class="str">'sobrepeso'</span>;
+    }
+
+    <span class="kw">return</span> <span class="str">'normal'</span>;
+}</code></pre>
+    </div>
+
+    <table class="file-table">
+        <tr><th>Prioridad</th><th>Criterio</th><th>Indicador</th><th>Resultado</th></tr>
+        <tr><td>1</td><td>Peso < mínimo para su talla</td><td>Peso/Talla</td><td><code>desnutricion_aguda</code></td></tr>
+        <tr><td>2</td><td>Talla < mínima para su edad</td><td>Talla/Edad</td><td><code>desnutricion_cronica</code></td></tr>
+        <tr><td>3</td><td>Peso < mínimo para su edad</td><td>Peso/Edad</td><td><code>desnutricion_global</code></td></tr>
+        <tr><td>4</td><td>Ratio peso/ref > 1.4</td><td>Exceso</td><td><code>obesidad</code></td></tr>
+        <tr><td>5</td><td>Ratio peso/ref > 1.2</td><td>Exceso</td><td><code>sobrepeso</code></td></tr>
+        <tr><td>6</td><td>Ninguno de los anteriores</td><td>—</td><td><code>normal</code></td></tr>
+    </table>
+
+    <div class="callout warning">
+        <div class="callout-title">Orden importa</div>
+        La aguda tiene prioridad sobre la crónica porque es más urgente médicamente: un niño
+        con bajo peso para su talla necesita atención inmediata. Un niño con baja talla para
+        su edad tiene un problema de largo plazo.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 8 ═══════════ -->
+<section class="section" id="s8">
+    <h2>8 — Interpolación lineal entre puntos</h2>
+    <p>Las tablas OMS solo tienen puntos discretos (ej. 0, 3, 6, 9, 12 meses). Para edades
+        intermedias (ej. 7 meses) se usa interpolación lineal:</p>
+
+    <div class="code-block">
+        <div class="code-header">interpolate() — cálculo entre puntos</div>
+        <pre><code><span class="kw">private static function</span> <span class="fn">interpolate</span>(
+    <span class="type">array</span> <span class="var">$table</span>, <span class="type">int</span> <span class="var">$key</span>
+): ?<span class="type">float</span> {
+    <span class="cmt">// Si la clave existe exacta, devolver directamente</span>
+    <span class="kw">if</span> (<span class="fn">isset</span>(<span class="var">$table</span>[<span class="var">$key</span>])) {
+        <span class="kw">return</span> <span class="var">$table</span>[<span class="var">$key</span>];
+    }
+
+    <span class="cmt">// Buscar puntos inferior y superior</span>
+    <span class="var">$keys</span> = <span class="fn">array_keys</span>(<span class="var">$table</span>);
+    <span class="var">$lower</span> = <span class="kw">null</span>;
+    <span class="var">$upper</span> = <span class="kw">null</span>;
+    <span class="kw">foreach</span> (<span class="var">$keys</span> <span class="kw">as</span> <span class="var">$k</span>) {
+        <span class="kw">if</span> (<span class="var">$k</span> &lt;= <span class="var">$key</span>) <span class="var">$lower</span> = <span class="var">$k</span>;
+        <span class="kw">if</span> (<span class="var">$k</span> &gt;= <span class="var">$key</span> &amp;&amp; <span class="var">$upper</span> === <span class="kw">null</span>) <span class="var">$upper</span> = <span class="var">$k</span>;
+    }
+
+    <span class="cmt">// Fallback si solo hay un lado</span>
+    <span class="kw">if</span> (<span class="var">$lower</span> === <span class="kw">null</span> || <span class="var">$upper</span> === <span class="kw">null</span> || <span class="var">$lower</span> === <span class="var">$upper</span>) {
+        <span class="kw">return</span> <span class="var">$lower</span> !== <span class="kw">null</span>
+            ? <span class="var">$table</span>[<span class="var">$lower</span>]
+            : (<span class="var">$upper</span> !== <span class="kw">null</span> ? <span class="var">$table</span>[<span class="var">$upper</span>] : <span class="kw">null</span>);
+    }
+
+    <span class="cmt">// Fórmula: valor = lower + (upper - lower) × ratio</span>
+    <span class="var">$ratio</span> = (<span class="var">$key</span> - <span class="var">$lower</span>) / (<span class="var">$upper</span> - <span class="var">$lower</span>);
+    <span class="kw">return</span> <span class="var">$table</span>[<span class="var">$lower</span>]
+        + (<span class="var">$table</span>[<span class="var">$upper</span>] - <span class="var">$table</span>[<span class="var">$lower</span>]) * <span class="var">$ratio</span>;
+}</code></pre>
+    </div>
+
+    <p><strong>Ejemplo</strong>: Para un niño de 7 meses, interpolamos entre los puntos de 6 y 9 meses.
+        Si el peso mínimo a 6m es 5.9 kg y a 9m es 6.9 kg:</p>
+    <ul>
+        <li>ratio = (7 − 6) / (9 − 6) = 0.333</li>
+        <li>peso mínimo = 5.9 + (6.9 − 5.9) × 0.333 = <strong>6.23 kg</strong></li>
+    </ul>
+</section>
+
+<!-- ═══════════ Sección 9 ═══════════ -->
+<section class="section" id="s9">
+    <h2>9 — Labels y colores para Filament</h2>
+    <p>Dos constantes públicas facilitan la presentación en tablas y badges de Filament:</p>
+
+    <div class="code-block">
+        <div class="code-header">OmsHelper — presentación</div>
+        <pre><code><span class="kw">public const</span> <span class="var">CLASIFICACION_LABELS</span> = [
+    <span class="str">'normal'</span>               =&gt; <span class="str">'Normal'</span>,
+    <span class="str">'desnutricion_aguda'</span>   =&gt; <span class="str">'Desnutrición aguda'</span>,
+    <span class="str">'desnutricion_cronica'</span> =&gt; <span class="str">'Desnutrición crónica'</span>,
+    <span class="str">'desnutricion_global'</span>  =&gt; <span class="str">'Desnutrición global'</span>,
+    <span class="str">'sobrepeso'</span>            =&gt; <span class="str">'Sobrepeso'</span>,
+    <span class="str">'obesidad'</span>             =&gt; <span class="str">'Obesidad'</span>,
+];
+
+<span class="kw">public const</span> <span class="var">CLASIFICACION_COLORS</span> = [
+    <span class="str">'normal'</span>               =&gt; <span class="str">'success'</span>,   <span class="cmt">// verde</span>
+    <span class="str">'desnutricion_aguda'</span>   =&gt; <span class="str">'danger'</span>,    <span class="cmt">// rojo</span>
+    <span class="str">'desnutricion_cronica'</span> =&gt; <span class="str">'warning'</span>,   <span class="cmt">// naranja</span>
+    <span class="str">'desnutricion_global'</span>  =&gt; <span class="str">'danger'</span>,    <span class="cmt">// rojo</span>
+    <span class="str">'sobrepeso'</span>            =&gt; <span class="str">'warning'</span>,   <span class="cmt">// naranja</span>
+    <span class="str">'obesidad'</span>             =&gt; <span class="str">'danger'</span>,    <span class="cmt">// rojo</span>
+];</code></pre>
+    </div>
+
+    <p>Estos colores mapean directamente a los estilos de badge de Filament:
+        <code>success</code> (verde), <code>warning</code> (naranja), <code>danger</code> (rojo).
+        Se usan en la tabla de crecimiento infantil y en el formulario de registro.</p>
+</section>
+
+<!-- ═══════════ Resumen ═══════════ -->
+<section class="section lesson-summary" id="s10">
+    <h2>10 — Resumen de la lección</h2>
+    <table class="file-table">
+        <tr><th>Helper</th><th>Responsabilidad</th><th>Líneas</th></tr>
+        <tr><td><code>CausasConsultaHelper</code></td><td>Top-10 causas de consulta externa con 10 grupos etáreos × M/F</td><td>107</td></tr>
+        <tr><td><code>OmsHelper</code></td><td>Clasificación nutricional OMS con interpolación lineal</td><td>136</td></tr>
+    </table>
+
+    <table class="file-table" style="margin-top:1rem">
+        <tr><th>Patrón</th><th>CausasConsultaHelper</th><th>OmsHelper</th></tr>
+        <tr><td>Tipo</td><td>Clase estática, métodos puros</td><td>Clase estática, métodos puros</td></tr>
+        <tr><td>Input</td><td>centroId, año, mes</td><td>Persona + peso + talla</td></tr>
+        <tr><td>Output</td><td>Array con 10 causas rankeadas</td><td>String de clasificación</td></tr>
+        <tr><td>Técnica clave</td><td>Agrupación case-insensitive en PHP</td><td>Interpolación lineal OMS</td></tr>
+        <tr><td>Consumido por</td><td>CausasConsultaExport, Livewire CausasConsulta</td><td>CrecimientoInfantil model/observer</td></tr>
+    </table>
+
+    <div class="callout tip">
+        <div class="callout-title">Próxima lección</div>
+        En la lección 44 veremos <code>VesMdbReader</code>, el servicio que lee archivos
+        <code>.mdb</code> (Access) del sistema SNIS para importar datos al padrón SICSAL.
+    </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+    <a href="42-cai-helper.html">← 42. CaiHelper</a>
+    <a href="44-ves-mdb-reader.html">44. VesMdbReader →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+    <p>Tutorial SICSAL — Lección 43 de 58</p>
+</footer>
+
+</body>
+</html>

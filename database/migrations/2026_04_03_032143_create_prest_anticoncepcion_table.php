@@ -1,0 +1,34 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    /**
+     * Run the migrations.
+     */
+    public function up(): void
+    {
+        Schema::create('prest_anticoncepcion', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('centro_salud_id')->constrained('centros_salud');
+            $table->tinyInteger('mes');
+            $table->year('anio');
+            $table->string('metodo', 60);
+            $table->enum('tipo_usuaria', ['nueva', 'continua']);
+            $table->enum('grupo_etareo', ['menor_10', '10_14', '15_19', '20_34', '35_49', '50_mas']);
+            $table->integer('cantidad')->default(0);
+            $table->timestamps();
+        });
+    }
+
+    /**
+     * Reverse the migrations.
+     */
+    public function down(): void
+    {
+        Schema::dropIfExists('prest_anticoncepcion');
+    }
+};

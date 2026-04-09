@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 24 — Instalar Filament y configurar el panel | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 6 — Panel Admin (Filament)</div>
+    <div class="lesson-number">Lección 24 de 58</div>
+    <h1 class="lesson-title">Instalar Filament y configurar el panel</h1>
+    <p class="lesson-subtitle">AdminPanelProvider: login, colores, navegación por grupos, sidebar accordion, Vite theme y middleware.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 3 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~25 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="23-seeders-datos.html" class="lesson-nav-btn">← Lección 23</a>
+    <a href="25-resource-centro-salud.html" class="lesson-nav-btn">Lección 25 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#que-es">¿Qué es Filament?</a></li>
+      <li><a href="#instalar">Instalación</a></li>
+      <li><a href="#provider">AdminPanelProvider — configuración completa</a></li>
+      <li><a href="#colores-brand">Colores y marca</a></li>
+      <li><a href="#nav-groups">Grupos de navegación</a></li>
+      <li><a href="#discover">Auto-descubrimiento de Resources, Pages y Widgets</a></li>
+      <li><a href="#render-hooks">Render hooks: Vite + sidebar accordion</a></li>
+      <li><a href="#middleware">Middleware del panel</a></li>
+      <li><a href="#theme">Tema CSS personalizado</a></li>
+      <li><a href="#providers">Registro del provider</a></li>
+      <li><a href="#resumen">Resumen</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: QUÉ ES FILAMENT
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="que-es">
+    <h2><span class="section-number">1</span> ¿Qué es Filament?</h2>
+
+    <p><strong>Filament</strong> es un framework de paneles de administración para Laravel. En SICSAL lo usamos para todo el backend: CRUD de personas, centros de salud, metas, usuarios, y las páginas de prestaciones mensuales.</p>
+
+    <div class="arch-diagram">
+      <div class="arch-box">Filament Panel (/admin)</div>
+      <div class="arch-arrow">contiene</div>
+      <div style="display: flex; gap: 1rem; flex-wrap: wrap; justify-content: center;">
+        <div class="arch-box">8 Resources</div>
+        <div class="arch-box">7 Pages</div>
+        <div class="arch-box">4 Widgets</div>
+        <div class="arch-box">Dashboard</div>
+      </div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-title">Inventario del panel SICSAL</div>
+      <table>
+        <thead><tr><th>Tipo</th><th>Cantidad</th><th>Ejemplos</th></tr></thead>
+        <tbody>
+          <tr><td>Resources</td><td>8</td><td>Personas, Users, CentroSaluds, MetaInes, Defuncions, Posts...</td></tr>
+          <tr><td>Pages</td><td>7</td><td>Prestaciones, Reportes, ImportarDesdeVes, 4 formularios mensuales</td></tr>
+          <tr><td>Widgets</td><td>4</td><td>Alertas, CoberturaMensual, EstadísticasPoblación, MigraciónContexto</td></tr>
+          <tr><td>Concern</td><td>1</td><td>FormularioMensualTrait (Pages/Concerns/)</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: INSTALACIÓN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="instalar">
+    <h2><span class="section-number">2</span> Instalación</h2>
+
+    <div class="code-block">
+      <div class="code-header">Terminal — instalar Filament 5</div>
+      <div class="code-body">
+<pre><span class="cmt"># Instalar el paquete</span>
+<span class="fn">composer</span> require filament/filament <span class="str">"~5.0"</span>
+
+<span class="cmt"># Ejecutar el instalador (crea AdminPanelProvider + assets)</span>
+<span class="fn">php artisan</span> filament:install <span class="op">--</span>panels</pre>
+      </div>
+    </div>
+
+    <p>El instalador crea:</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">Archivos creados por filament:install</div>
+      <div class="ft-dir">app/Providers/Filament/
+        <div class="ft-file ft-new">AdminPanelProvider.php</div>
+      </div>
+      <div class="ft-dir">app/Filament/
+        <div class="ft-dir ft-new">Resources/</div>
+        <div class="ft-dir ft-new">Pages/</div>
+        <div class="ft-dir ft-new">Widgets/</div>
+      </div>
+      <div class="ft-dir">resources/css/filament/admin/
+        <div class="ft-file ft-new">theme.css</div>
+      </div>
+    </div>
+
+    <p>En <code>composer.json</code>, Filament añade un hook post-autoload:</p>
+
+    <div class="code-block">
+      <div class="code-header">composer.json — script de actualización</div>
+      <div class="code-body">
+<pre><span class="str">"scripts"</span>: {
+    <span class="str">"post-autoload-dump"</span>: [
+        <span class="cmt">// ... otros scripts</span>
+        <span class="str">"@php artisan filament:upgrade"</span>
+    ]
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: ADMIN PANEL PROVIDER
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="provider">
+    <h2><span class="section-number">3</span> AdminPanelProvider — configuración completa</h2>
+
+    <p>El corazón de Filament. Todo el panel se configura aquí con una API fluent (method chaining):</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Providers/Filament/AdminPanelProvider.php</div>
+      <div class="code-body">
+<pre><span class="kw">&lt;?php</span>
+
+<span class="kw">namespace</span> <span class="cls">App\Providers\Filament</span>;
+
+<span class="kw">use</span> <span class="cls">Filament\Http\Middleware\Authenticate</span>;
+<span class="kw">use</span> <span class="cls">Filament\Http\Middleware\AuthenticateSession</span>;
+<span class="kw">use</span> <span class="cls">Filament\Http\Middleware\DisableBladeIconComponents</span>;
+<span class="kw">use</span> <span class="cls">Filament\Http\Middleware\DispatchServingFilamentEvent</span>;
+<span class="kw">use</span> <span class="cls">Filament\Navigation\NavigationGroup</span>;
+<span class="kw">use</span> <span class="cls">Filament\Pages\Dashboard</span>;
+<span class="kw">use</span> <span class="cls">Filament\Panel</span>;
+<span class="kw">use</span> <span class="cls">Filament\PanelProvider</span>;
+<span class="kw">use</span> <span class="cls">Filament\Support\Colors\Color</span>;
+<span class="kw">use</span> <span class="cls">Filament\Support\Icons\Heroicon</span>;
+<span class="kw">use</span> <span class="cls">Filament\View\PanelsRenderHook</span>;
+<span class="kw">use</span> <span class="cls">Filament\Widgets\AccountWidget</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Cookie\Middleware\AddQueuedCookiesToResponse</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Cookie\Middleware\EncryptCookies</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Foundation\Http\Middleware\PreventRequestForgery</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Routing\Middleware\SubstituteBindings</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Session\Middleware\StartSession</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Support\Facades\Vite</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Support\HtmlString</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\View\Middleware\ShareErrorsFromSession</span>;
+
+<span class="kw">class</span> <span class="cls">AdminPanelProvider</span> <span class="kw">extends</span> <span class="cls">PanelProvider</span>
+{
+    <span class="kw">public function</span> <span class="fn">panel</span>(<span class="cls">Panel</span> <span class="var">$panel</span>): <span class="cls">Panel</span>
+    {
+        <span class="kw">return</span> <span class="var">$panel</span>
+            -&gt;<span class="fn">default</span>()
+            -&gt;<span class="fn">id</span>(<span class="str">'admin'</span>)
+            -&gt;<span class="fn">path</span>(<span class="str">'admin'</span>)
+            -&gt;<span class="fn">viteTheme</span>(<span class="str">'resources/css/filament/admin/theme.css'</span>)
+            -&gt;<span class="fn">login</span>()
+            -&gt;<span class="fn">colors</span>([<span class="str">'primary'</span> <span class="op">=&gt;</span> <span class="cls">Color</span>::<span class="var">Green</span>])
+            -&gt;<span class="fn">brandName</span>(<span class="str">'SIMUES'</span>)
+            -&gt;<span class="fn">sidebarCollapsibleOnDesktop</span>()
+            <span class="cmt">// ... auto-descubrimiento, grupos nav, hooks, middleware</span>
+    }
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: COLORES Y MARCA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="colores-brand">
+    <h2><span class="section-number">4</span> Colores y marca</h2>
+
+    <div class="code-block">
+      <div class="code-header">Configuración de identidad visual</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">default</span>()                     <span class="cmt">// Panel principal (solo puede haber uno)</span>
+-&gt;<span class="fn">id</span>(<span class="str">'admin'</span>)                   <span class="cmt">// Identificador interno</span>
+-&gt;<span class="fn">path</span>(<span class="str">'admin'</span>)                 <span class="cmt">// URL: sicsal.test/admin</span>
+-&gt;<span class="fn">login</span>()                        <span class="cmt">// Habilita /admin/login</span>
+-&gt;<span class="fn">colors</span>([<span class="str">'primary'</span> <span class="op">=&gt;</span> <span class="cls">Color</span>::<span class="var">Green</span>]) <span class="cmt">// Todo verde — salud</span>
+-&gt;<span class="fn">brandName</span>(<span class="str">'SIMUES'</span>)            <span class="cmt">// Nombre en el sidebar</span>
+-&gt;<span class="fn">sidebarCollapsibleOnDesktop</span>()  <span class="cmt">// Sidebar plegable</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">¿Por qué "SIMUES" y no "SICSAL"?</div>
+      <p><code>SIMUES</code> es el nombre de la marca visible: <strong>Sistema Municipal de Salud</strong>. SICSAL es el nombre técnico del proyecto. Los usuarios del sistema ven "SIMUES" en el panel.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: GRUPOS DE NAVEGACIÓN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="nav-groups">
+    <h2><span class="section-number">5</span> Grupos de navegación</h2>
+
+    <p>El sidebar organiza los Resources y Pages en <strong>7 grupos con iconos Heroicon</strong>:</p>
+
+    <div class="code-block">
+      <div class="code-header">navigationGroups()</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">navigationGroups</span>([
+    <span class="cls">NavigationGroup</span>::<span class="fn">make</span>()
+        -&gt;<span class="fn">label</span>(<span class="str">'Configuración'</span>)
+        -&gt;<span class="fn">icon</span>(<span class="cls">Heroicon</span>::<span class="var">OutlinedCog6Tooth</span>)
+        -&gt;<span class="fn">collapsed</span>(),
+    <span class="cls">NavigationGroup</span>::<span class="fn">make</span>()
+        -&gt;<span class="fn">label</span>(<span class="str">'Padrón Poblacional'</span>)
+        -&gt;<span class="fn">icon</span>(<span class="cls">Heroicon</span>::<span class="var">OutlinedUserGroup</span>)
+        -&gt;<span class="fn">collapsed</span>(),
+    <span class="cls">NavigationGroup</span>::<span class="fn">make</span>()
+        -&gt;<span class="fn">label</span>(<span class="str">'Salud Infantil'</span>)
+        -&gt;<span class="fn">icon</span>(<span class="cls">Heroicon</span>::<span class="var">OutlinedFaceSmile</span>)
+        -&gt;<span class="fn">collapsed</span>(),
+    <span class="cls">NavigationGroup</span>::<span class="fn">make</span>()
+        -&gt;<span class="fn">label</span>(<span class="str">'Salud Materna'</span>)
+        -&gt;<span class="fn">icon</span>(<span class="cls">Heroicon</span>::<span class="var">OutlinedHeart</span>)
+        -&gt;<span class="fn">collapsed</span>(),
+    <span class="cls">NavigationGroup</span>::<span class="fn">make</span>()
+        -&gt;<span class="fn">label</span>(<span class="str">'Prestaciones Mensuales'</span>)
+        -&gt;<span class="fn">icon</span>(<span class="cls">Heroicon</span>::<span class="var">OutlinedClipboardDocumentList</span>)
+        -&gt;<span class="fn">collapsed</span>(),
+    <span class="cls">NavigationGroup</span>::<span class="fn">make</span>()
+        -&gt;<span class="fn">label</span>(<span class="str">'Estadísticas'</span>)
+        -&gt;<span class="fn">icon</span>(<span class="cls">Heroicon</span>::<span class="var">OutlinedChartBarSquare</span>)
+        -&gt;<span class="fn">collapsed</span>(),
+    <span class="cls">NavigationGroup</span>::<span class="fn">make</span>()
+        -&gt;<span class="fn">label</span>(<span class="str">'Informes'</span>)
+        -&gt;<span class="fn">icon</span>(<span class="cls">Heroicon</span>::<span class="var">OutlinedDocumentText</span>)
+        -&gt;<span class="fn">collapsed</span>(),
+])</pre>
+      </div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-title">Los 7 grupos del sidebar</div>
+      <table>
+        <thead><tr><th>Grupo</th><th>Icono</th><th>Contenido</th></tr></thead>
+        <tbody>
+          <tr><td>Configuración</td><td>⚙️ Cog6Tooth</td><td>CentroSaluds, Users, MetaInes</td></tr>
+          <tr><td>Padrón Poblacional</td><td>👥 UserGroup</td><td>Personas, Comunidads, Defuncions</td></tr>
+          <tr><td>Salud Infantil</td><td>😊 FaceSmile</td><td>Registros individuales infantiles</td></tr>
+          <tr><td>Salud Materna</td><td>❤️ Heart</td><td>Embarazos, prenatales, partos</td></tr>
+          <tr><td>Prestaciones Mensuales</td><td>📋 ClipboardDocumentList</td><td>4 formularios mensuales + Prestaciones</td></tr>
+          <tr><td>Estadísticas</td><td>📊 ChartBarSquare</td><td>Widgets de cobertura</td></tr>
+          <tr><td>Informes</td><td>📄 DocumentText</td><td>Reportes, Blog/Posts</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Todos los grupos inician <code>collapsed()</code> — colapsados. Se expanden al hacer clic.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: AUTO-DESCUBRIMIENTO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="discover">
+    <h2><span class="section-number">6</span> Auto-descubrimiento de Resources, Pages y Widgets</h2>
+
+    <div class="code-block">
+      <div class="code-header">Discover pattern</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">discoverResources</span>(
+    <span class="var">in</span>:  <span class="fn">app_path</span>(<span class="str">'Filament/Resources'</span>),
+    <span class="var">for</span>: <span class="str">'App\Filament\Resources'</span>
+)
+-&gt;<span class="fn">discoverPages</span>(
+    <span class="var">in</span>:  <span class="fn">app_path</span>(<span class="str">'Filament/Pages'</span>),
+    <span class="var">for</span>: <span class="str">'App\Filament\Pages'</span>
+)
+-&gt;<span class="fn">discoverWidgets</span>(
+    <span class="var">in</span>:  <span class="fn">app_path</span>(<span class="str">'Filament/Widgets'</span>),
+    <span class="var">for</span>: <span class="str">'App\Filament\Widgets'</span>
+)</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">No necesitas registrar nada manualmente</div>
+      <p>Con <code>discoverResources()</code>, Filament escanea automáticamente la carpeta <code>app/Filament/Resources/</code> y registra cualquier clase Resource que encuentre. Lo mismo para Pages y Widgets. Solo creas el archivo y Filament lo detecta.</p>
+    </div>
+
+    <p>Adicionalmente, se registran explícitamente el Dashboard y el AccountWidget:</p>
+
+    <div class="code-block">
+      <div class="code-header">Registros explícitos</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">pages</span>([
+    <span class="cls">Dashboard</span>::<span class="kw">class</span>,  <span class="cmt">// Página principal del panel</span>
+])
+-&gt;<span class="fn">widgets</span>([
+    <span class="cls">AccountWidget</span>::<span class="kw">class</span>,  <span class="cmt">// Widget "Mi cuenta" en dashboard</span>
+])</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: RENDER HOOKS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="render-hooks">
+    <h2><span class="section-number">7</span> Render hooks: Vite + sidebar accordion</h2>
+
+    <p>Los <strong>render hooks</strong> permiten inyectar HTML/JS en puntos específicos del panel.</p>
+
+    <h3>Hook 1: Inyectar app.js con Vite</h3>
+
+    <div class="code-block">
+      <div class="code-header">HEAD_END — cargar JS del proyecto</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">renderHook</span>(
+    <span class="cls">PanelsRenderHook</span>::<span class="var">HEAD_END</span>,
+    <span class="kw">fn</span> () <span class="op">=&gt;</span> <span class="fn">app</span>(<span class="cls">\Illuminate\Foundation\Vite</span>::<span class="kw">class</span>)(<span class="str">'resources/js/app.js'</span>),
+)</pre>
+      </div>
+    </div>
+
+    <p>Esto carga <code>app.js</code> (que incluye Chart.js y Alpine.js) dentro del panel admin.</p>
+
+    <h3>Hook 2: Sidebar accordion (solo un grupo abierto)</h3>
+
+    <div class="code-block">
+      <div class="code-header">SCRIPTS_AFTER — comportamiento accordion</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">renderHook</span>(
+    <span class="cls">PanelsRenderHook</span>::<span class="var">SCRIPTS_AFTER</span>,
+    <span class="kw">fn</span> () <span class="op">=&gt;</span> <span class="kw">new</span> <span class="cls">HtmlString</span>(<span class="str">'
+        &lt;script&gt;
+            document.addEventListener("alpine:initialized", () =&gt; {
+                const store = Alpine.store("sidebar");
+                if (!store) return;
+
+                store.toggleCollapsedGroup = function(group) {
+                    const groups = Array.isArray(this.collapsedGroups)
+                        ? this.collapsedGroups : [];
+                    const isCollapsed = groups.includes(group);
+
+                    if (isCollapsed) {
+                        // Al expandir: colapsar todos los demás
+                        const allGroups = [...document.querySelectorAll(
+                            "[data-group-label]"
+                        )].map(el =&gt; el.dataset.groupLabel);
+                        this.collapsedGroups = allGroups
+                            .filter(g =&gt; g !== group);
+                    } else {
+                        this.collapsedGroups = groups.concat(group);
+                    }
+                };
+            });
+        &lt;/script&gt;
+    '</span>)
+)</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Comportamiento accordion</div>
+      <p>Este script modifica el Alpine.js store del sidebar para que al abrir un grupo de navegación, <strong>todos los demás se colapsen</strong>. Sin esto, puedes tener múltiples grupos abiertos a la vez, lo que en un sidebar de 7 grupos quedaría muy largo.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 8: MIDDLEWARE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="middleware">
+    <h2><span class="section-number">8</span> Middleware del panel</h2>
+
+    <div class="code-block">
+      <div class="code-header">Dos capas de middleware</div>
+      <div class="code-body">
+<pre><span class="cmt">// Middleware para TODAS las rutas del panel</span>
+-&gt;<span class="fn">middleware</span>([
+    <span class="cls">EncryptCookies</span>::<span class="kw">class</span>,
+    <span class="cls">AddQueuedCookiesToResponse</span>::<span class="kw">class</span>,
+    <span class="cls">StartSession</span>::<span class="kw">class</span>,
+    <span class="cls">AuthenticateSession</span>::<span class="kw">class</span>,
+    <span class="cls">ShareErrorsFromSession</span>::<span class="kw">class</span>,
+    <span class="cls">PreventRequestForgery</span>::<span class="kw">class</span>,       <span class="cmt">// CSRF</span>
+    <span class="cls">SubstituteBindings</span>::<span class="kw">class</span>,
+    <span class="cls">DisableBladeIconComponents</span>::<span class="kw">class</span>, <span class="cmt">// Filament</span>
+    <span class="cls">DispatchServingFilamentEvent</span>::<span class="kw">class</span>,
+])
+
+<span class="cmt">// Middleware adicional para rutas que requieren autenticación</span>
+-&gt;<span class="fn">authMiddleware</span>([
+    <span class="cls">Authenticate</span>::<span class="kw">class</span>,  <span class="cmt">// Redirige a login si no está autenticado</span>
+])</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">¿Y RequireAprobado?</div>
+      <p>El middleware <code>RequireAprobado</code> (lección 18) se registra a nivel global en el kernel, no aquí. Actúa antes que los middleware del panel — si el usuario no tiene <code>activo = true</code>, se redirige a <code>/pendiente</code> antes de llegar al panel.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 9: THEME CSS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="theme">
+    <h2><span class="section-number">9</span> Tema CSS personalizado</h2>
+
+    <div class="code-block">
+      <div class="code-header">resources/css/filament/admin/theme.css</div>
+      <div class="code-body">
+<pre><span class="kw">@import</span> <span class="str">'../../../../vendor/filament/filament/resources/css/theme.css'</span>;
+
+<span class="kw">@source</span> <span class="str">'../../../../app/Filament/**/*'</span>;
+<span class="kw">@source</span> <span class="str">'../../../../resources/views/filament/**/*'</span>;
+
+<span class="cmt">/* SICSAL — Sidebar personalizado para personal de salud */</span>
+
+<span class="cmt">/* Grupos de navegación coloreados por data-group-label:
+   - Configuración: slate
+   - Padrón Poblacional: blue
+   - Salud Infantil: amber
+   - Salud Materna: pink
+   - Prestaciones Mensuales: emerald
+   - Estadísticas: violet
+   - Informes: cyan
+*/</span>
+
+<span class="cmt">/* Items activos: green bg + shadow */</span>
+<span class="cmt">/* Hover: green-50 */</span>
+<span class="cmt">/* Brand/header area: green-50 */</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">@source — para que Tailwind escanee Filament</div>
+      <p>Las directivas <code>@source</code> le dicen a Tailwind CSS que escanee las carpetas de Filament al generar clases CSS. Sin esto, las clases personalizadas en tus Resources/Pages no serían incluidas en el build.</p>
+    </div>
+
+    <p>El tema se conecta con <code>->viteTheme('resources/css/filament/admin/theme.css')</code> en el provider. Vite lo compila junto con el resto de assets.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 10: REGISTRO DEL PROVIDER
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="providers">
+    <h2><span class="section-number">10</span> Registro del provider</h2>
+
+    <p>El <code>AdminPanelProvider</code> se registra en <code>bootstrap/providers.php</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">bootstrap/providers.php</div>
+      <div class="code-body">
+<pre><span class="kw">&lt;?php</span>
+
+<span class="kw">return</span> [
+    <span class="cls">App\Providers\AppServiceProvider</span>::<span class="kw">class</span>,
+    <span class="cls">App\Providers\Filament\AdminPanelProvider</span>::<span class="kw">class</span>,
+    <span class="cls">App\Providers\FortifyServiceProvider</span>::<span class="kw">class</span>,
+];</pre>
+      </div>
+    </div>
+
+    <p>Laravel carga estos providers al arrancar. El orden importa poco aquí porque cada provider se resuelve de forma independiente.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 11: RESUMEN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen">
+    <h2><span class="section-number">11</span> Resumen</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos</h3>
+      <ul>
+        <li><strong>Filament 5</strong> se instala con <code>composer require</code> + <code>filament:install --panels</code></li>
+        <li><strong>AdminPanelProvider</strong> configura todo: ruta (<code>/admin</code>), colores (Green), marca (SIMUES)</li>
+        <li><strong>7 NavigationGroups</strong> con iconos Heroicon organizan el sidebar</li>
+        <li><strong>discoverResources/Pages/Widgets</strong> detecta automáticamente clases en las carpetas</li>
+        <li><strong>Render hooks</strong>: HEAD_END para Vite JS, SCRIPTS_AFTER para sidebar accordion</li>
+        <li><strong>Middleware</strong>: 9 para todas las rutas + Authenticate para rutas protegidas</li>
+        <li><strong>theme.css</strong>: importa el tema base de Filament + @source para Tailwind</li>
+        <li>El provider se registra en <code>bootstrap/providers.php</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="23-seeders-datos.html" class="lesson-nav-btn">← Lección 23</a>
+    <a href="25-resource-centro-salud.html" class="lesson-nav-btn">Lección 25 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 24 de 58</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 12 — Modelos: Municipio, CentroSalud, Comunidad | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 3 — Modelos Eloquent</div>
+    <div class="lesson-number">Lección 12 de 58</div>
+    <h1 class="lesson-title">Modelos: Municipio, CentroSalud, Comunidad</h1>
+    <p class="lesson-subtitle">Tus primeros modelos Eloquent. Aprende $fillable, casts, relaciones HasMany/BelongsTo, y la convención de tabla personalizada.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 3 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~25 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Básico-Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="11-migraciones-prestaciones2.html" class="lesson-nav-btn">← Lección 11</a>
+    <a href="13-modelo-persona.html" class="lesson-nav-btn">Lección 13 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#que-es-modelo">¿Qué es un modelo Eloquent?</a></li>
+      <li><a href="#crear-modelo">Crear un modelo con Artisan</a></li>
+      <li><a href="#municipio">Modelo Municipio</a></li>
+      <li><a href="#centro-salud">Modelo CentroSalud</a></li>
+      <li><a href="#comunidad">Modelo Comunidad</a></li>
+      <li><a href="#relaciones">Mapa de relaciones</a></li>
+      <li><a href="#tinker">Probando con Tinker</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: QUÉ ES UN MODELO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="que-es-modelo">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es un modelo Eloquent?</h2>
+
+    <p>Un <strong>modelo</strong> es una clase PHP que representa una tabla de la base de datos. Con Eloquent (el ORM de Laravel):</p>
+
+    <ul>
+      <li>Cada fila de la tabla es un <strong>objeto</strong> del modelo</li>
+      <li>Cada columna es una <strong>propiedad</strong> del objeto</li>
+      <li>Las relaciones entre tablas se definen como <strong>métodos</strong></li>
+      <li>No escribes SQL — usas métodos como <code class="inline">find()</code>, <code class="inline">create()</code>, <code class="inline">where()</code></li>
+    </ul>
+
+    <div class="arch-diagram">
+      <div class="arch-box" style="background: var(--badge-blue);">Tabla <code class="inline">municipios</code></div>
+      <div class="arch-arrow">↔</div>
+      <div class="arch-box" style="background: var(--badge-green);">Modelo <code class="inline">Municipio</code></div>
+      <div class="arch-arrow">↔</div>
+      <div class="arch-box" style="background: var(--badge-purple);">Controller / Resource</div>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Convención: nombre singular</div>
+        La tabla se llama <code class="inline">municipios</code> (plural), el modelo <code class="inline">Municipio</code> (singular). Laravel asume automáticamente que el modelo <code class="inline">Municipio</code> usa la tabla <code class="inline">municipios</code>. Cuando los nombres no siguen esta convención (como <code class="inline">centros_salud</code>), debes especificarlo manualmente con <code class="inline">$table</code>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: CREAR MODELO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="crear-modelo">
+    <h2 class="section-title"><span class="number">2</span> Crear un modelo con Artisan</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan make:model Municipio
+<span class="output">   INFO  Model [app/Models/Municipio.php] created successfully.</span></pre>
+    </div>
+
+    <p>Esto crea un archivo mínimo en <code class="inline">app/Models/Municipio.php</code>. Ahora lo completamos con las propiedades y relaciones que necesita SICSAL.</p>
+
+    <div class="file-tree">
+      <div class="ft-dir">app/
+        <div class="ft-dir">Models/
+          <div class="ft-file ft-new">Municipio.php</div>
+          <div class="ft-file ft-new">CentroSalud.php</div>
+          <div class="ft-file ft-new">Comunidad.php</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: MUNICIPIO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="municipio">
+    <h2 class="section-title"><span class="number">3</span> Modelo Municipio</h2>
+
+    <p>El más sencillo de los tres: nombre, departamento y activo.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Municipio.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">&lt;?php</span>
+
+<span class="kw">namespace</span> <span class="cls">App\Models</span>;
+
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Model</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Relations\HasMany</span>;
+
+<span class="kw">class</span> <span class="cls">Municipio</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [<span class="str">'nombre'</span>, <span class="str">'departamento'</span>, <span class="str">'activo'</span>];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="str">'activo'</span> <span class="op">=></span> <span class="str">'boolean'</span>];
+    }
+
+    <span class="kw">public function</span> <span class="fn">centrosSalud</span>(): <span class="type">HasMany</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">CentroSalud</span><span class="op">::</span><span class="kw">class</span>);
+    }
+}</pre>
+    </div>
+
+    <p>Desglosemos cada parte:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong><code class="inline">$fillable</code></strong> — Lista de columnas que se pueden asignar masivamente con <code class="inline">create()</code> o <code class="inline">fill()</code>. Es una protección contra <em>mass assignment</em>: solo estas columnas se aceptan.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong><code class="inline">casts()</code></strong> — En Laravel 12+, usamos un método en vez de la propiedad <code class="inline">$casts</code>. Aquí convertimos <code class="inline">activo</code> de <code class="inline">0/1</code> en la BD a <code class="inline">true/false</code> en PHP.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong><code class="inline">centrosSalud()</code></strong> — Relación <code class="inline">HasMany</code>: un municipio <strong>tiene muchos</strong> centros de salud. Laravel busca automáticamente la columna <code class="inline">municipio_id</code> en la tabla del modelo relacionado.
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">¿Por qué no incluimos 'id' en $fillable?</div>
+        El <code class="inline">id</code> es auto-incremental — Laravel lo genera automáticamente. Incluirlo en <code class="inline">$fillable</code> sería un riesgo de seguridad: un atacante podría asignar un ID específico.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: CENTRO SALUD
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="centro-salud">
+    <h2 class="section-title"><span class="number">4</span> Modelo CentroSalud</h2>
+
+    <p>Este modelo es más complejo: tiene <code class="inline">$table</code> personalizado, múltiples casts, y <strong>5 relaciones</strong>.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/CentroSalud.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">&lt;?php</span>
+
+<span class="kw">namespace</span> <span class="cls">App\Models</span>;
+
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Model</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Relations\BelongsTo</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Relations\HasMany</span>;
+
+<span class="kw">class</span> <span class="cls">CentroSalud</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'centros_salud'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'municipio_id'</span>, <span class="str">'nombre'</span>, <span class="str">'codigo_snis'</span>,
+        <span class="str">'subsector'</span>, <span class="str">'red_salud'</span>, <span class="str">'poblacion_ine'</span>, <span class="str">'activo'</span>,
+        <span class="str">'latitud'</span>, <span class="str">'longitud'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'activo'</span>        <span class="op">=></span> <span class="str">'boolean'</span>,
+            <span class="str">'poblacion_ine'</span> <span class="op">=></span> <span class="str">'integer'</span>,
+            <span class="str">'latitud'</span>       <span class="op">=></span> <span class="str">'float'</span>,
+            <span class="str">'longitud'</span>      <span class="op">=></span> <span class="str">'float'</span>,
+        ];
+    }
+
+    <span class="kw">public function</span> <span class="fn">municipio</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">Municipio</span><span class="op">::</span><span class="kw">class</span>);
+    }
+
+    <span class="kw">public function</span> <span class="fn">comunidades</span>(): <span class="type">HasMany</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">Comunidad</span><span class="op">::</span><span class="kw">class</span>);
+    }
+
+    <span class="kw">public function</span> <span class="fn">personas</span>(): <span class="type">HasMany</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">Persona</span><span class="op">::</span><span class="kw">class</span>);
+    }
+
+    <span class="kw">public function</span> <span class="fn">metasIne</span>(): <span class="type">HasMany</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">MetaIne</span><span class="op">::</span><span class="kw">class</span>);
+    }
+
+    <span class="kw">public function</span> <span class="fn">usuarios</span>(): <span class="type">HasMany</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">User</span><span class="op">::</span><span class="kw">class</span>);
+    }
+}</pre>
+    </div>
+
+    <h3 class="subsection-title">Conceptos nuevos</h3>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong><code class="inline">$table = 'centros_salud'</code></strong> — Como el nombre de la tabla (<code class="inline">centros_salud</code>) no coincide con la convención automática (<code class="inline">centro_saluds</code>), debemos especificarlo manualmente.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong><code class="inline">BelongsTo</code></strong> — Es la inversa de <code class="inline">HasMany</code>. Un centro de salud <strong>pertenece a</strong> un municipio. Laravel busca la columna <code class="inline">municipio_id</code> en esta misma tabla.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>Múltiples <code class="inline">HasMany</code></strong> — Un centro tiene comunidades, personas, metas INE y usuarios. Cada relación es un método que devuelve <code class="inline">HasMany</code>.
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">BelongsTo vs HasMany: ¿quién tiene la FK?</div>
+        <code class="inline">BelongsTo</code> = "Yo tengo la columna <code class="inline">municipio_id</code> en mi tabla"<br>
+        <code class="inline">HasMany</code> = "La otra tabla tiene mi <code class="inline">centro_salud_id</code>"<br>
+        La FK siempre está en el lado de <code class="inline">BelongsTo</code>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: COMUNIDAD
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="comunidad">
+    <h2 class="section-title"><span class="number">5</span> Modelo Comunidad</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Comunidad.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">&lt;?php</span>
+
+<span class="kw">namespace</span> <span class="cls">App\Models</span>;
+
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Model</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Relations\BelongsTo</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Relations\HasMany</span>;
+
+<span class="kw">class</span> <span class="cls">Comunidad</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'comunidades'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'centro_salud_id'</span>, <span class="str">'nombre'</span>, <span class="str">'distancia_km'</span>,
+        <span class="str">'latitud'</span>, <span class="str">'longitud'</span>, <span class="str">'activo'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'activo'</span>       <span class="op">=></span> <span class="str">'boolean'</span>,
+            <span class="str">'distancia_km'</span> <span class="op">=></span> <span class="str">'decimal:2'</span>,
+            <span class="str">'latitud'</span>      <span class="op">=></span> <span class="str">'decimal:7'</span>,
+            <span class="str">'longitud'</span>     <span class="op">=></span> <span class="str">'decimal:7'</span>,
+        ];
+    }
+
+    <span class="kw">public function</span> <span class="fn">centroSalud</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">CentroSalud</span><span class="op">::</span><span class="kw">class</span>);
+    }
+
+    <span class="kw">public function</span> <span class="fn">personas</span>(): <span class="type">HasMany</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">Persona</span><span class="op">::</span><span class="kw">class</span>);
+    }
+}</pre>
+    </div>
+
+    <h3 class="subsection-title">Casts avanzados: decimal:N</h3>
+
+    <p>A diferencia de CentroSalud que usa <code class="inline">'float'</code>, Comunidad usa <code class="inline">'decimal:7'</code>. La diferencia:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Cast</th>
+          <th>Tipo PHP</th>
+          <th>Precisión</th>
+          <th>Ejemplo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="inline">'float'</code></td>
+          <td>float</td>
+          <td>~15 dígitos (IEEE 754)</td>
+          <td>-17.78350067138672</td>
+        </tr>
+        <tr>
+          <td><code class="inline">'decimal:7'</code></td>
+          <td>string</td>
+          <td>Exactamente 7 decimales</td>
+          <td>-17.7835000</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">¿Cuándo usar decimal vs float?</div>
+        Usa <code class="inline">decimal:N</code> cuando necesitas precisión exacta (coordenadas GPS, dinero). Usa <code class="inline">float</code> cuando la aproximación es aceptable. En SICSAL, las coordenadas de comunidades son más precisas porque se usan para calcular distancias.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: MAPA DE RELACIONES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="relaciones">
+    <h2 class="section-title"><span class="number">6</span> Mapa de relaciones</h2>
+
+    <div class="arch-diagram">
+      <div class="arch-box" style="background: var(--badge-blue);">
+        <strong>Municipio</strong><br>
+        ↓ hasMany
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="background: var(--badge-green);">
+        <strong>CentroSalud</strong><br>
+        ↑ belongsTo Municipio<br>
+        ↓ hasMany ×4
+      </div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="background: var(--badge-purple);">
+        <strong>Comunidad</strong><br>
+        ↑ belongsTo CentroSalud<br>
+        ↓ hasMany Persona
+      </div>
+    </div>
+
+    <p>Desde CentroSalud, las 4 relaciones <code class="inline">HasMany</code> apuntan a:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Método</th>
+          <th>Modelo destino</th>
+          <th>FK usada</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code class="inline">comunidades()</code></td><td>Comunidad</td><td>centro_salud_id</td></tr>
+        <tr><td><code class="inline">personas()</code></td><td>Persona</td><td>centro_salud_id</td></tr>
+        <tr><td><code class="inline">metasIne()</code></td><td>MetaIne</td><td>centro_salud_id</td></tr>
+        <tr><td><code class="inline">usuarios()</code></td><td>User</td><td>centro_salud_id</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Regla SICSAL: Todo filtrado por centro_salud_id</div>
+        Cuando un <code class="inline">admin</code> o <code class="inline">registrador</code> accede al sistema, solo ve datos de su propio centro. Estas relaciones son la base de ese filtrado.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: TINKER
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="tinker">
+    <h2 class="section-title"><span class="number">7</span> Probando con Tinker</h2>
+
+    <p>Tinker es la consola interactiva de Laravel. Te permite ejecutar código PHP en el contexto de tu aplicación:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal — Tinker</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan tinker
+
+<span class="cmt">// Crear un municipio</span>
+<span class="prompt">>>></span> <span class="var">$mun</span> = <span class="cls">App\Models\Municipio</span><span class="op">::</span><span class="fn">create</span>([
+        <span class="str">'nombre'</span> <span class="op">=></span> <span class="str">'Hornoma'</span>,
+        <span class="str">'departamento'</span> <span class="op">=></span> <span class="str">'La Paz'</span>,
+        <span class="str">'activo'</span> <span class="op">=></span> <span class="kw">true</span>,
+    ]);
+<span class="output">=> App\Models\Municipio {id: 1, nombre: "Hornoma", ...}</span>
+
+<span class="cmt">// Crear un centro de salud DENTRO de ese municipio</span>
+<span class="prompt">>>></span> <span class="var">$centro</span> = <span class="cls">App\Models\CentroSalud</span><span class="op">::</span><span class="fn">create</span>([
+        <span class="str">'municipio_id'</span> <span class="op">=></span> <span class="var">$mun</span><span class="op">-></span><span class="var">id</span>,
+        <span class="str">'nombre'</span> <span class="op">=></span> <span class="str">'Centro de Salud Hornoma'</span>,
+        <span class="str">'codigo_snis'</span> <span class="op">=></span> <span class="str">'020301'</span>,
+        <span class="str">'activo'</span> <span class="op">=></span> <span class="kw">true</span>,
+    ]);
+
+<span class="cmt">// Acceder a la relación</span>
+<span class="prompt">>>></span> <span class="var">$mun</span><span class="op">-></span><span class="fn">centrosSalud</span>;
+<span class="output">=> Collection {#items: [CentroSalud {id: 1, ...}]}</span>
+
+<span class="cmt">// Navegar en reversa</span>
+<span class="prompt">>>></span> <span class="var">$centro</span><span class="op">-></span><span class="fn">municipio</span><span class="op">-></span><span class="var">nombre</span>;
+<span class="output">=> "Hornoma"</span>
+
+<span class="cmt">// Contar comunidades de un centro</span>
+<span class="prompt">>>></span> <span class="var">$centro</span><span class="op">-></span><span class="fn">comunidades</span>()<span class="op">-></span><span class="fn">count</span>();
+<span class="output">=> 0</span></pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">$centro->comunidades vs $centro->comunidades()</div>
+        Sin paréntesis: devuelve la <strong>colección</strong> de resultados (ejecuta la query).<br>
+        Con paréntesis: devuelve el <strong>builder</strong> de la query (puedes agregar <code class="inline">->where()</code>, <code class="inline">->count()</code>, etc.).
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 12</h3>
+    <ul>
+      <li><strong>Modelo = clase PHP</strong> que representa una tabla de la BD</li>
+      <li><strong>$fillable</strong> — protección contra mass assignment (lista de columnas permitidas)</li>
+      <li><strong>casts()</strong> — convierte tipos de BD a tipos PHP (boolean, integer, float, decimal:N)</li>
+      <li><strong>$table</strong> — necesario cuando el nombre de la tabla no sigue la convención plural</li>
+      <li><strong>HasMany</strong> — "tengo muchos" (la FK está en la otra tabla)</li>
+      <li><strong>BelongsTo</strong> — "pertenezco a" (la FK está en mi tabla)</li>
+      <li><strong>Tinker</strong> — consola interactiva para probar modelos y relaciones</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="11-migraciones-prestaciones2.html" class="lesson-nav-btn">← Lección 11: prest_* Parte 2 + Auxiliares</a>
+    <a href="13-modelo-persona.html" class="lesson-nav-btn">Lección 13: Modelo Persona →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 12 de 58</span>
+    <span>Siguiente: Modelo Persona — scopes, accessors, 148 líneas</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

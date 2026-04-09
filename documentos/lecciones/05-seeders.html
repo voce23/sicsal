@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 05 — Seeders y Datos de Prueba | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand"><span class="dot"></span> SICSAL — Lección 05</div>
+  <nav>
+    <a href="04-modelos-eloquent.html">← Anterior</a>
+    <a href="00-indice.html">Índice</a>
+    <a href="06-autenticacion.html">Siguiente →</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 05 de 16</span>
+    <h1>Seeders y Datos de Prueba</h1>
+    <p>Poblar la base de datos con roles, usuarios, centros de salud y metas INE usando seeders. Datos iniciales que el sistema necesita para funcionar.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos</h2>
+    <table class="db-table">
+      <thead><tr><th>Archivo</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>database/seeders/DatabaseSeeder.php</code></td><td>Orquestador: ejecuta los seeders en orden</td></tr>
+        <tr><td><code>database/seeders/RolesSeeder.php</code></td><td>Crea roles: superadmin, admin, registrador</td></tr>
+        <tr><td><code>database/seeders/CentroSaludSeeder.php</code></td><td>Crea centros de salud con código SNIS</td></tr>
+        <tr><td><code>database/seeders/UserSeeder.php</code></td><td>Crea usuarios iniciales con roles asignados</td></tr>
+        <tr><td><code>database/seeders/MetaIneSeeder.php</code></td><td>Carga metas de población del INE</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. ¿Qué es un seeder?</a></li>
+      <li><a href="#s2">2. El orquestador: DatabaseSeeder</a></li>
+      <li><a href="#s3">3. Primer seeder: RolesSeeder</a></li>
+      <li><a href="#s4">4. Seeders encadenados: Municipio → Centro → Comunidad</a></li>
+      <li><a href="#s5">5. UserSeeder: usuarios con roles y contraseñas seguras</a></li>
+      <li><a href="#s6">6. MetaIneSeeder: datos de población</a></li>
+      <li><a href="#s7">7. firstOrCreate: la técnica idempotente</a></li>
+      <li><a href="#s8">8. Comandos artisan para seeders</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es un seeder?</h2>
+
+    <p>Un <strong>seeder</strong> (del inglés "sembrar") es una clase PHP que inserta datos iniciales en la base de datos. Después de crear las tablas con migraciones, los seeders las "llenan" con datos que el sistema necesita para funcionar.</p>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Analogía</div>
+      <p>Si las migraciones son los <strong>planos de la casa</strong>, los seeders son los <strong>muebles</strong> que pones adentro. Sin muebles, la casa existe pero no es funcional.</p>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">¿Cuándo usar seeders?</div>
+      <ul>
+        <li><strong>Datos obligatorios</strong> — Roles (superadmin, admin, registrador), que sin ellos el sistema no funciona.</li>
+        <li><strong>Datos de referencia</strong> — Municipios, centros de salud, comunidades.</li>
+        <li><strong>Usuarios iniciales</strong> — Al menos un superadmin para poder acceder por primera vez.</li>
+        <li><strong>Datos de prueba</strong> — Datos ficticios para desarrollo y testing.</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> El orquestador: DatabaseSeeder</h2>
+
+    <p><code>DatabaseSeeder</code> es el seeder principal. No inserta datos por sí mismo — llama a otros seeders en el orden correcto:</p>
+
+    <div class="code-block">
+      <div class="code-header">database/seeders/DatabaseSeeder.php</div>
+      <pre class="code-body language-php"><span class="kw">&lt;?php</span>
+
+<span class="kw">namespace</span> <span class="cls">Database\Seeders</span>;
+
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Seeder</span>;
+
+<span class="kw">class</span> <span class="cls">DatabaseSeeder</span> <span class="kw">extends</span> <span class="cls">Seeder</span>
+{
+    <span class="kw">public function</span> <span class="fn">run</span>(): <span class="kw">void</span>
+    {
+        <span class="var">$this</span>-><span class="fn">call</span>([
+            <span class="cls">RolesSeeder</span>::<span class="kw">class</span>,         <span class="cmt">// 1° Roles (no depende de nada)</span>
+            <span class="cls">MunicipioSeeder</span>::<span class="kw">class</span>,     <span class="cmt">// 2° Municipios</span>
+            <span class="cls">CentroSaludSeeder</span>::<span class="kw">class</span>,   <span class="cmt">// 3° Centros (depende de municipio)</span>
+            <span class="cls">ComunidadSeeder</span>::<span class="kw">class</span>,     <span class="cmt">// 4° Comunidades (depende de centro)</span>
+            <span class="cls">MetaIneSeeder</span>::<span class="kw">class</span>,       <span class="cmt">// 5° Metas INE (depende de centro)</span>
+            <span class="cls">UserSeeder</span>::<span class="kw">class</span>,          <span class="cmt">// 6° Usuarios (depende de centro + roles)</span>
+        ]);
+    }
+}</pre>
+    </div>
+
+    <div class="flow-diagram">
+      <div class="flow-step">
+        <div class="flow-icon">🎭</div>
+        <div class="flow-label">RolesSeeder → superadmin, admin, registrador</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">🗺️</div>
+        <div class="flow-label">MunicipioSeeder → Capinota</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">🏥</div>
+        <div class="flow-label">CentroSaludSeeder → C.S.A. Hornoma (código SNIS 300183)</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">🏘️</div>
+        <div class="flow-label">ComunidadSeeder → Hornoma, Huaychoma, Villcabamba...</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">📊</div>
+        <div class="flow-label">MetaIneSeeder → Población por grupo etáreo</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">👤</div>
+        <div class="flow-label">UserSeeder → superadmin, médico, registrador</div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">El orden importa</div>
+      <p>Los seeders se ejecutan de arriba a abajo. Si <code>UserSeeder</code> necesita asignar un rol y un centro de salud, entonces <code>RolesSeeder</code> y <code>CentroSaludSeeder</code> deben ejecutarse antes.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> Primer seeder: RolesSeeder</h2>
+
+    <p>SICSAL tiene 3 roles. Sin ellos, nadie puede hacer nada en el sistema:</p>
+
+    <div class="code-block">
+      <div class="code-header">database/seeders/RolesSeeder.php</div>
+      <pre class="code-body language-php"><span class="kw">&lt;?php</span>
+
+<span class="kw">namespace</span> <span class="cls">Database\Seeders</span>;
+
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Seeder</span>;
+<span class="kw">use</span> <span class="cls">Spatie\Permission\Models\Role</span>;
+
+<span class="kw">class</span> <span class="cls">RolesSeeder</span> <span class="kw">extends</span> <span class="cls">Seeder</span>
+{
+    <span class="kw">public function</span> <span class="fn">run</span>(): <span class="kw">void</span>
+    {
+        <span class="cls">Role</span>::<span class="fn">firstOrCreate</span>(
+            [<span class="str">'name'</span> => <span class="str">'superadmin'</span>, <span class="str">'guard_name'</span> => <span class="str">'web'</span>]
+        );
+        <span class="cls">Role</span>::<span class="fn">firstOrCreate</span>(
+            [<span class="str">'name'</span> => <span class="str">'admin'</span>,      <span class="str">'guard_name'</span> => <span class="str">'web'</span>]
+        );
+        <span class="cls">Role</span>::<span class="fn">firstOrCreate</span>(
+            [<span class="str">'name'</span> => <span class="str">'registrador'</span>,<span class="str">'guard_name'</span> => <span class="str">'web'</span>]
+        );
+    }
+}</pre>
+    </div>
+
+    <table class="db-table">
+      <thead><tr><th>Rol</th><th>¿Quién es?</th><th>¿Qué puede hacer?</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>superadmin</code></td>
+          <td>Administrador del sistema</td>
+          <td>Todo: crear centros, usuarios, ver todos los datos</td>
+        </tr>
+        <tr>
+          <td><code>admin</code></td>
+          <td>Médico/responsable del centro</td>
+          <td>Gestionar datos de SU centro de salud</td>
+        </tr>
+        <tr>
+          <td><code>registrador</code></td>
+          <td>Personal de estadística</td>
+          <td>Registrar datos clínicos de SU centro</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> Seeders encadenados: Municipio → Centro → Comunidad</h2>
+
+    <p>Estos tres seeders crean la estructura geográfica en orden de dependencia:</p>
+
+    <div class="code-block">
+      <div class="code-header">database/seeders/MunicipioSeeder.php</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">MunicipioSeeder</span> <span class="kw">extends</span> <span class="cls">Seeder</span>
+{
+    <span class="kw">public function</span> <span class="fn">run</span>(): <span class="kw">void</span>
+    {
+        <span class="cls">Municipio</span>::<span class="fn">firstOrCreate</span>(
+            [<span class="str">'nombre'</span> => <span class="str">'Capinota'</span>],                    <span class="cmt">// Buscar por nombre</span>
+            [<span class="str">'departamento'</span> => <span class="str">'Cochabamba'</span>, <span class="str">'activo'</span> => <span class="kw2">true</span>]  <span class="cmt">// Crear si no existe</span>
+        );
+    }
+}</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">database/seeders/CentroSaludSeeder.php</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">CentroSaludSeeder</span> <span class="kw">extends</span> <span class="cls">Seeder</span>
+{
+    <span class="kw">public function</span> <span class="fn">run</span>(): <span class="kw">void</span>
+    {
+        <span class="cmt">// Primero buscar el municipio (ya fue creado por MunicipioSeeder)</span>
+        <span class="var">$municipio</span> = <span class="cls">Municipio</span>::<span class="fn">where</span>(<span class="str">'nombre'</span>, <span class="str">'Capinota'</span>)-><span class="fn">first</span>();
+
+        <span class="cls">CentroSalud</span>::<span class="fn">firstOrCreate</span>(
+            [<span class="str">'codigo_snis'</span> => <span class="str">'300183'</span>],              <span class="cmt">// Buscar por código SNIS</span>
+            [
+                <span class="str">'municipio_id'</span>  => <span class="var">$municipio</span>-><span class="var">id</span>,     <span class="cmt">// FK al municipio</span>
+                <span class="str">'nombre'</span>        => <span class="str">'C.S.A. HORNOMA'</span>,
+                <span class="str">'subsector'</span>     => <span class="str">'Público'</span>,
+                <span class="str">'red_salud'</span>     => <span class="str">'Capinota'</span>,
+                <span class="str">'poblacion_ine'</span> => <span class="num">641</span>,
+                <span class="str">'activo'</span>        => <span class="kw2">true</span>,
+            ]
+        );
+    }
+}</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">database/seeders/ComunidadSeeder.php — Usando un array con foreach</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">ComunidadSeeder</span> <span class="kw">extends</span> <span class="cls">Seeder</span>
+{
+    <span class="kw">public function</span> <span class="fn">run</span>(): <span class="kw">void</span>
+    {
+        <span class="var">$centro</span> = <span class="cls">CentroSalud</span>::<span class="fn">where</span>(<span class="str">'codigo_snis'</span>, <span class="str">'300183'</span>)-><span class="fn">first</span>();
+
+        <span class="cmt">// Array con datos de todas las comunidades</span>
+        <span class="var">$comunidades</span> = [
+            [<span class="str">'nombre'</span> => <span class="str">'Hornoma'</span>,      <span class="str">'distancia_km'</span> => <span class="num">0</span>],
+            [<span class="str">'nombre'</span> => <span class="str">'Huaychoma'</span>,    <span class="str">'distancia_km'</span> => <span class="num">5</span>],
+            [<span class="str">'nombre'</span> => <span class="str">'Villcabamba'</span>,  <span class="str">'distancia_km'</span> => <span class="num">6</span>],
+            [<span class="str">'nombre'</span> => <span class="str">'Cocoma'</span>,       <span class="str">'distancia_km'</span> => <span class="num">24</span>],
+            [<span class="str">'nombre'</span> => <span class="str">'Tocohalla'</span>,    <span class="str">'distancia_km'</span> => <span class="num">48</span>],
+            [<span class="str">'nombre'</span> => <span class="str">'Challavilque'</span>, <span class="str">'distancia_km'</span> => <span class="num">48</span>],
+            [<span class="str">'nombre'</span> => <span class="str">'Calacaja'</span>,     <span class="str">'distancia_km'</span> => <span class="num">72</span>],
+        ];
+
+        <span class="kw">foreach</span> (<span class="var">$comunidades</span> <span class="kw">as</span> <span class="var">$datos</span>) {
+            <span class="cls">Comunidad</span>::<span class="fn">firstOrCreate</span>(
+                [<span class="str">'centro_salud_id'</span> => <span class="var">$centro</span>-><span class="var">id</span>, <span class="str">'nombre'</span> => <span class="var">$datos</span>[<span class="str">'nombre'</span>]],
+                [<span class="str">'distancia_km'</span> => <span class="var">$datos</span>[<span class="str">'distancia_km'</span>], <span class="str">'activo'</span> => <span class="kw2">true</span>]
+            );
+        }
+    }
+}</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> UserSeeder: usuarios con roles y contraseñas seguras</h2>
+
+    <div class="code-block">
+      <div class="code-header">database/seeders/UserSeeder.php</div>
+      <pre class="code-body language-php"><span class="kw">use</span> <span class="cls">Illuminate\Support\Facades\Hash</span>;
+
+<span class="kw">class</span> <span class="cls">UserSeeder</span> <span class="kw">extends</span> <span class="cls">Seeder</span>
+{
+    <span class="kw">public function</span> <span class="fn">run</span>(): <span class="kw">void</span>
+    {
+        <span class="var">$centro</span> = <span class="cls">CentroSalud</span>::<span class="fn">where</span>(<span class="str">'codigo_snis'</span>, <span class="str">'300183'</span>)-><span class="fn">first</span>();
+
+        <span class="cmt">// ─── Superadmin (sin centro asignado, ve todo) ───</span>
+        <span class="var">$superadmin</span> = <span class="cls">User</span>::<span class="fn">firstOrCreate</span>(
+            [<span class="str">'usuario'</span> => <span class="str">'superadmin'</span>],
+            [
+                <span class="str">'name'</span>            => <span class="str">'Administrador'</span>,
+                <span class="str">'apellidos'</span>       => <span class="str">'Sistema'</span>,
+                <span class="str">'email'</span>           => <span class="str">'admin@sicsal.bo'</span>,
+                <span class="str">'password'</span>        => <span class="cls">Hash</span>::<span class="fn">make</span>(
+                    <span class="fn">env</span>(<span class="str">'SEED_SUPERADMIN_PASS'</span>, <span class="str">'Cambiar123!'</span>)
+                ),                                     <span class="cmt">// ← Contraseña del .env</span>
+                <span class="str">'centro_salud_id'</span> => <span class="kw2">null</span>,             <span class="cmt">// ← Sin centro = ve todo</span>
+                <span class="str">'activo'</span>          => <span class="kw2">true</span>,
+            ]
+        );
+        <span class="var">$superadmin</span>-><span class="fn">assignRole</span>(<span class="str">'superadmin'</span>);       <span class="cmt">// Spatie: asignar rol</span>
+
+        <span class="cmt">// ─── Admin del centro (médico responsable) ───</span>
+        <span class="var">$admin</span> = <span class="cls">User</span>::<span class="fn">firstOrCreate</span>(
+            [<span class="str">'usuario'</span> => <span class="str">'medico.hornoma'</span>],
+            [
+                <span class="str">'name'</span>            => <span class="str">'Eusebio'</span>,
+                <span class="str">'apellidos'</span>       => <span class="str">'Panozo Franco'</span>,
+                <span class="str">'password'</span>        => <span class="cls">Hash</span>::<span class="fn">make</span>(
+                    <span class="fn">env</span>(<span class="str">'SEED_ADMIN_PASS'</span>, <span class="str">'Cambiar123!'</span>)
+                ),
+                <span class="str">'centro_salud_id'</span> => <span class="var">$centro</span>-><span class="var">id</span>,       <span class="cmt">// ← Atado a SU centro</span>
+                <span class="str">'activo'</span>          => <span class="kw2">true</span>,
+            ]
+        );
+        <span class="var">$admin</span>-><span class="fn">assignRole</span>(<span class="str">'admin'</span>);
+
+        <span class="cmt">// ─── Registrador (personal de estadística) ───</span>
+        <span class="var">$registrador</span> = <span class="cls">User</span>::<span class="fn">firstOrCreate</span>(
+            [<span class="str">'usuario'</span> => <span class="str">'registrador.hornoma'</span>],
+            [
+                <span class="str">'name'</span>            => <span class="str">'María'</span>,
+                <span class="str">'apellidos'</span>       => <span class="str">'Quispe Mamani'</span>,
+                <span class="str">'password'</span>        => <span class="cls">Hash</span>::<span class="fn">make</span>(
+                    <span class="fn">env</span>(<span class="str">'SEED_REGISTRADOR_PASS'</span>, <span class="str">'Cambiar123!'</span>)
+                ),
+                <span class="str">'centro_salud_id'</span> => <span class="var">$centro</span>-><span class="var">id</span>,
+                <span class="str">'activo'</span>          => <span class="kw2">true</span>,
+            ]
+        );
+        <span class="var">$registrador</span>-><span class="fn">assignRole</span>(<span class="str">'registrador'</span>);
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">Seguridad: contraseñas del .env</div>
+      <p>Las contraseñas NO están en el código. Usamos <code>env('SEED_SUPERADMIN_PASS', 'Cambiar123!')</code>: lee la contraseña del <code>.env</code>, y usa <code>'Cambiar123!'</code> como respaldo. En producción, el <code>.env</code> debe tener contraseñas fuertes y únicas.</p>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">¿Qué es Hash::make()?</div>
+      <p><code>Hash::make()</code> convierte la contraseña en texto a un hash irreversible usando <strong>bcrypt</strong>. En la base de datos se guarda algo como <code>$2y$10$xk3...</code>, no la contraseña real. Incluso si alguien roba la BD, no puede ver las contraseñas.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> MetaIneSeeder: datos de población</h2>
+
+    <p>Las metas INE son datos de población por grupo etáreo que proporciona el Instituto Nacional de Estadística. Son la base para calcular coberturas:</p>
+
+    <div class="code-block">
+      <div class="code-header">database/seeders/MetaIneSeeder.php — Fragmento</div>
+      <pre class="code-body language-php"><span class="var">$centro</span> = <span class="cls">CentroSalud</span>::<span class="fn">where</span>(<span class="str">'codigo_snis'</span>, <span class="str">'300183'</span>)-><span class="fn">first</span>();
+
+<span class="var">$metas</span> = [
+    [<span class="str">'grupo_etareo'</span> => <span class="str">'menor_1'</span>,             <span class="str">'sexo'</span> => <span class="str">'ambos'</span>, <span class="str">'cantidad'</span> => <span class="num">12</span>],
+    [<span class="str">'grupo_etareo'</span> => <span class="str">'1_4'</span>,                  <span class="str">'sexo'</span> => <span class="str">'ambos'</span>, <span class="str">'cantidad'</span> => <span class="num">50</span>],
+    [<span class="str">'grupo_etareo'</span> => <span class="str">'menor_5'</span>,             <span class="str">'sexo'</span> => <span class="str">'ambos'</span>, <span class="str">'cantidad'</span> => <span class="num">62</span>],
+    [<span class="str">'grupo_etareo'</span> => <span class="str">'embarazos_esperados'</span>, <span class="str">'sexo'</span> => <span class="str">'F'</span>,     <span class="str">'cantidad'</span> => <span class="num">15</span>],
+    [<span class="str">'grupo_etareo'</span> => <span class="str">'partos_esperados'</span>,    <span class="str">'sexo'</span> => <span class="str">'F'</span>,     <span class="str">'cantidad'</span> => <span class="num">12</span>],
+    [<span class="str">'grupo_etareo'</span> => <span class="str">'mef_15_40'</span>,           <span class="str">'sexo'</span> => <span class="str">'F'</span>,     <span class="str">'cantidad'</span> => <span class="num">153</span>],
+    <span class="cmt">// ... 25 grupos en total</span>
+];
+
+<span class="kw">foreach</span> (<span class="var">$metas</span> <span class="kw">as</span> <span class="var">$meta</span>) {
+    <span class="cls">MetaIne</span>::<span class="fn">firstOrCreate</span>(
+        [
+            <span class="str">'centro_salud_id'</span> => <span class="var">$centro</span>-><span class="var">id</span>,
+            <span class="str">'anio'</span>            => <span class="num">2026</span>,
+            <span class="str">'grupo_etareo'</span>    => <span class="var">$meta</span>[<span class="str">'grupo_etareo'</span>],
+            <span class="str">'sexo'</span>            => <span class="var">$meta</span>[<span class="str">'sexo'</span>],
+        ],
+        [<span class="str">'cantidad'</span> => <span class="var">$meta</span>[<span class="str">'cantidad'</span>]]
+    );
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">¿Para qué sirven las metas INE?</div>
+      <p>Se usan para calcular <strong>coberturas</strong>. Por ejemplo: si el INE dice que hay 12 menores de 1 año y vacunamos a 10, la cobertura de BCG es <code>10/12 × 100 = 83%</code>. Sin metas INE, no podemos medir el rendimiento del centro de salud.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 7 ════════════════════════ -->
+  <div class="section" id="s7">
+    <h2 class="section-title"><span class="number">7</span> firstOrCreate: la técnica idempotente</h2>
+
+    <p>Todos los seeders de SICSAL usan <code>firstOrCreate()</code> en vez de <code>create()</code>. ¿Por qué?</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-title">❌ create() — falla si ya existe</div>
+        <div class="card-body">
+<pre class="code-body language-php" style="margin:0"><span class="cls">Role</span>::<span class="fn">create</span>([<span class="str">'name'</span> => <span class="str">'superadmin'</span>]);
+<span class="cmt">// Si ejecutas 2 veces → ERROR de duplicado</span></pre>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">✅ firstOrCreate() — seguro</div>
+        <div class="card-body">
+<pre class="code-body language-php" style="margin:0"><span class="cls">Role</span>::<span class="fn">firstOrCreate</span>([<span class="str">'name'</span> => <span class="str">'superadmin'</span>]);
+<span class="cmt">// Si ya existe → lo devuelve sin error</span>
+<span class="cmt">// Si no existe → lo crea</span></pre>
+        </div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Cómo funciona firstOrCreate()</div>
+      <pre class="code-body language-php"><span class="cls">Modelo</span>::<span class="fn">firstOrCreate</span>(
+    [<span class="str">'campo_busqueda'</span> => <span class="str">'valor'</span>],    <span class="cmt">// 1° BUSCAR por estos campos</span>
+    [<span class="str">'campo_extra'</span>    => <span class="str">'valor2'</span>]    <span class="cmt">// 2° CREAR con estos datos si no se encontró</span>
+);
+
+<span class="cmt">// Equivale a:
+// "Busca un registro donde campo_busqueda = valor.
+//  Si lo encuentras, devuélvelo.
+//  Si NO, créalo con ambos arrays combinados."</span></pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Idempotente</div>
+      <p>Un proceso es <strong>idempotente</strong> cuando puedes ejecutarlo muchas veces y el resultado es siempre el mismo. Con <code>firstOrCreate</code>, puedes correr <code>php artisan db:seed</code> 10 veces sin problemas — no duplicará datos.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 8 ════════════════════════ -->
+  <div class="section" id="s8">
+    <h2 class="section-title"><span class="number">8</span> Comandos artisan para seeders</h2>
+
+    <div class="code-block">
+      <div class="code-header">Terminal</div>
+      <pre class="code-body bash"><span class="cmt"># Ejecutar todos los seeders (DatabaseSeeder)</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan db:seed
+
+<span class="cmt"># Ejecutar un seeder específico</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan db:seed <span class="flag">--class</span>=UserSeeder
+
+<span class="cmt"># Borrar todo + migrar + seedear (desarrollo)</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate:fresh <span class="flag">--seed</span>
+
+<span class="cmt"># Crear un nuevo seeder</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan make:seeder NombreSeeder</pre>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 05</h3>
+    <ul>
+      <li>Los <strong>seeders</strong> insertan datos iniciales que el sistema necesita para funcionar.</li>
+      <li><code>DatabaseSeeder</code> orquesta el orden de ejecución de los demás seeders.</li>
+      <li>SICSAL tiene 6 seeders: Roles → Municipio → Centro → Comunidad → MetasINE → Users.</li>
+      <li>Las contraseñas se leen del <code>.env</code> con <code>env('VAR', 'fallback')</code> — nunca hardcodeadas.</li>
+      <li><code>firstOrCreate()</code> hace los seeders <strong>idempotentes</strong> — seguros de ejecutar múltiples veces.</li>
+      <li><code>assignRole()</code> de Spatie Permission asigna roles a usuarios — lo veremos en la Lección 07.</li>
+    </ul>
+  </div>
+
+  <div class="lesson-nav">
+    <a href="04-modelos-eloquent.html">← Lección 04: Modelos Eloquent</a>
+    <a href="06-autenticacion.html">Lección 06: Autenticación →</a>
+  </div>
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 05: Seeders</span>
+    <span>Seeders · firstOrCreate · Hash · Spatie Roles</span>
+  </div>
+</div>
+</body>
+</html>

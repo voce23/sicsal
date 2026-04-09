@@ -1,0 +1,606 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 02 — Crear el Proyecto Laravel | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 1 — Fundamentos</div>
+    <div class="lesson-number">Lección 02 de 58</div>
+    <h1 class="lesson-title">Crear el Proyecto Laravel</h1>
+    <p class="lesson-subtitle">Usar Composer para crear un proyecto Laravel 13 nuevo, configurar .env, generar APP_KEY e instalar paquetes base.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 3 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~20 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Principiante</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="01-instalar-herramientas.html" class="lesson-nav-btn">← Lección 01</a>
+    <a href="03-estructura-proyecto.html" class="lesson-nav-btn">Lección 03 →</a>
+  </div>
+
+  <!-- ═══ Tabla de Contenidos ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#crear-proyecto">Crear el proyecto con Composer</a></li>
+      <li><a href="#starter-kit">¿Por qué Livewire Starter Kit?</a></li>
+      <li><a href="#configurar-env">Configurar el archivo .env</a></li>
+      <li><a href="#generar-appkey">Generar APP_KEY</a></li>
+      <li><a href="#crear-bd">Crear la base de datos</a></li>
+      <li><a href="#probar-servidor">Probar el servidor local</a></li>
+      <li><a href="#virtual-host">Virtual host con Laragon</a></li>
+      <li><a href="#instalar-paquetes">Instalar paquetes del proyecto</a></li>
+      <li><a href="#archivos-creados">Archivos creados en esta lección</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: CREAR PROYECTO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="crear-proyecto">
+    <h2 class="section-title"><span class="number">1</span> Crear el proyecto con Composer</h2>
+
+    <p>Abre la terminal de Laragon (clic derecho → Terminal) y navega a la carpeta de proyectos:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">cd</span> C:\laragon\www
+
+<span class="cmt"># Crear proyecto Laravel 13 con el starter kit de Livewire</span>
+<span class="prompt">$</span> <span class="cmd">composer</span> create-project laravel/livewire-starter-kit sicsal
+
+<span class="output">Creating a "laravel/livewire-starter-kit" project at "./sicsal"</span>
+<span class="output">Installing laravel/livewire-starter-kit (v1.x.x)</span>
+<span class="output">  - Downloading laravel/livewire-starter-kit (v1.x.x)</span>
+<span class="output">  ...</span>
+<span class="output">Application key set successfully.</span></pre>
+    </div>
+
+    <p>Esto creará la carpeta <code class="inline">C:\laragon\www\sicsal\</code> con Laravel 13, Livewire 4 y Flux preinstalados.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">¿Qué es un Starter Kit?</div>
+        Laravel ofrece starter kits preconfigurados. El <strong>livewire-starter-kit</strong> incluye autenticación (login/register), Livewire 4 y Flux (componentes UI). Es la base perfecta para SICSAL porque usamos Livewire para todo lo interactivo.
+      </div>
+    </div>
+
+    <p>Entra al proyecto y abre VS Code:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">cd</span> sicsal
+<span class="prompt">$</span> <span class="cmd">code</span> .</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: STARTER KIT
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="starter-kit">
+    <h2 class="section-title"><span class="number">2</span> ¿Por qué Livewire Starter Kit?</h2>
+
+    <p>SICSAL usa estas tecnologías del starter kit:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Componente</th>
+          <th>Versión</th>
+          <th>Uso en SICSAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Laravel Framework</td>
+          <td>13.x</td>
+          <td>Backend completo: rutas, modelos, migraciones</td>
+        </tr>
+        <tr>
+          <td>Livewire</td>
+          <td>4.x</td>
+          <td>Componentes reactivos (InformeCAI, Poblacion, Blog)</td>
+        </tr>
+        <tr>
+          <td>Flux</td>
+          <td>2.x</td>
+          <td>Componentes UI (modals, dropdowns, navigation)</td>
+        </tr>
+        <tr>
+          <td>Fortify</td>
+          <td>1.x</td>
+          <td>Autenticación (login, register, 2FA, verificar email)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Además de lo que trae el starter kit, agregaremos estos paquetes manualmente en la sección 8:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Paquete</th>
+          <th>Para qué</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>filament/filament</td>
+          <td>Panel de administración con CRUD</td>
+        </tr>
+        <tr>
+          <td>spatie/laravel-permission</td>
+          <td>Roles y permisos (superadmin, admin, registrador)</td>
+        </tr>
+        <tr>
+          <td>maatwebsite/excel</td>
+          <td>Exportar/importar Excel</td>
+        </tr>
+        <tr>
+          <td>barryvdh/laravel-dompdf</td>
+          <td>Generar PDFs</td>
+        </tr>
+        <tr>
+          <td>phpoffice/phppresentation</td>
+          <td>Generar presentaciones PowerPoint</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: CONFIGURAR .ENV
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="configurar-env">
+    <h2 class="section-title"><span class="number">3</span> Configurar el archivo .env</h2>
+
+    <p>El archivo <code class="inline">.env</code> contiene la configuración del entorno (base de datos, correo, etc.). <strong>Nunca</strong> subas este archivo a Git — contiene datos sensibles.</p>
+
+    <p>Abre <code class="inline">.env</code> en VS Code y modifica estas líneas:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">.env</span>
+        <span class="code-lang">env</span>
+      </div>
+      <pre class="code-body"><span class="var">APP_NAME</span><span class="op">=</span><span class="str">SICSAL</span>
+<span class="var">APP_ENV</span><span class="op">=</span><span class="str">local</span>
+<span class="var">APP_KEY</span><span class="op">=</span><span class="str">base64:xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx</span>
+<span class="var">APP_DEBUG</span><span class="op">=</span><span class="str">true</span>
+<span class="var">APP_URL</span><span class="op">=</span><span class="str">http://sicsal.test</span>
+
+<span class="var">DB_CONNECTION</span><span class="op">=</span><span class="str">mysql</span>
+<span class="var">DB_HOST</span><span class="op">=</span><span class="str">127.0.0.1</span>
+<span class="var">DB_PORT</span><span class="op">=</span><span class="str">3306</span>
+<span class="var">DB_DATABASE</span><span class="op">=</span><span class="str">sicsal</span>
+<span class="var">DB_USERNAME</span><span class="op">=</span><span class="str">root</span>
+<span class="var">DB_PASSWORD</span><span class="op">=</span></pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">Seguridad</div>
+        <strong>Nunca</strong> escribas contraseñas reales en código ni en archivos que suban al repositorio. El archivo <code class="inline">.env</code> ya está listado en <code class="inline">.gitignore</code> por defecto — no lo quites de ahí. En producción, usarás una contraseña fuerte para la base de datos.
+      </div>
+    </div>
+
+    <h3 class="subsection-title">¿Qué significa cada variable?</h3>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Variable</th>
+          <th>Significado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>APP_NAME</code></td>
+          <td>Nombre de la aplicación. Aparece en títulos y correos.</td>
+        </tr>
+        <tr>
+          <td><code>APP_ENV</code></td>
+          <td><code>local</code> en desarrollo, <code>production</code> en servidor real.</td>
+        </tr>
+        <tr>
+          <td><code>APP_KEY</code></td>
+          <td>Clave de encriptación. Se genera automáticamente.</td>
+        </tr>
+        <tr>
+          <td><code>APP_DEBUG</code></td>
+          <td><code>true</code> muestra errores detallados. Siempre <code>false</code> en producción.</td>
+        </tr>
+        <tr>
+          <td><code>APP_URL</code></td>
+          <td>URL base. Laragon crea <code>sicsal.test</code> automáticamente.</td>
+        </tr>
+        <tr>
+          <td><code>DB_DATABASE</code></td>
+          <td>Nombre de la base de datos que crearemos en el siguiente paso.</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: GENERAR APP_KEY
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="generar-appkey">
+    <h2 class="section-title"><span class="number">4</span> Generar APP_KEY</h2>
+
+    <p>Si <code class="inline">APP_KEY</code> está vacío (no debería, el instalador lo genera), ejecuta:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan key:generate
+<span class="output">INFO  Application key set successfully.</span></pre>
+    </div>
+
+    <p>Este comando genera una clave aleatoria de 32 bytes (codificada en base64) y la escribe en <code class="inline">.env</code>. Laravel la usa para encriptar cookies, sesiones y tokens CSRF.</p>
+
+    <div class="callout callout-danger">
+      <span class="callout-icon">🚨</span>
+      <div>
+        <div class="callout-title">No compartas tu APP_KEY</div>
+        Cada instalación debe tener su propia clave. Nunca copies una APP_KEY entre proyectos ni la publiques.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: CREAR BD
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="crear-bd">
+    <h2 class="section-title"><span class="number">5</span> Crear la base de datos</h2>
+
+    <p>Necesitamos crear la base de datos <code class="inline">sicsal</code> que configuramos en el <code class="inline">.env</code>.</p>
+
+    <h3 class="subsection-title">Opción A: Desde terminal</h3>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">mysql</span> <span class="flag">-u root</span>
+<span class="output">mysql></span> <span class="cmd">CREATE DATABASE</span> sicsal <span class="cmd">CHARACTER SET</span> utf8mb4 <span class="cmd">COLLATE</span> utf8mb4_unicode_ci;
+<span class="output">Query OK, 1 row affected</span>
+<span class="output">mysql></span> <span class="cmd">exit</span></pre>
+    </div>
+
+    <h3 class="subsection-title">Opción B: Desde Laragon (más fácil)</h3>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          En Laragon, clic derecho → <strong>MySQL → Create database...</strong>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          Escribe <strong>sicsal</strong> como nombre y presiona OK.
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Laragon auto-crea bases de datos</div>
+        Laragon puede crear automáticamente una base de datos con el mismo nombre del proyecto cuando usas "Quick app" o creas un proyecto desde el menú. Si ya lo hiciste así, la BD <code class="inline">sicsal</code> ya existe.
+      </div>
+    </div>
+
+    <p>Verifica que la BD existe:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan db:show
+<span class="output">  MySQL ........................................ 8.0.30</span>
+<span class="output">  Database ..................................... sicsal</span>
+<span class="output">  Tables ....................................... 0</span></pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: PROBAR SERVIDOR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="probar-servidor">
+    <h2 class="section-title"><span class="number">6</span> Probar el servidor local</h2>
+
+    <p>Primero, instalemos las dependencias de npm y compilemos los assets:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">npm</span> install
+<span class="output">added 22 packages in 8s</span>
+
+<span class="prompt">$</span> <span class="cmd">npm</span> run build
+<span class="output">vite v8.0.0 building for production...</span>
+<span class="output">✓ 50 modules transformed.</span>
+<span class="output">✓ built in 3.20s</span></pre>
+    </div>
+
+    <p>Ahora levanta el servidor de desarrollo. Hay dos formas:</p>
+
+    <h3 class="subsection-title">Opción A: Artisan serve (básico)</h3>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan serve
+<span class="output">INFO  Server running on [http://127.0.0.1:8000].</span></pre>
+    </div>
+
+    <h3 class="subsection-title">Opción B: Composer dev (recomendado)</h3>
+
+    <p>Este comando levanta el servidor, la cola de trabajos y Vite simultáneamente:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">composer</span> dev
+<span class="output">[server] INFO  Server running on [http://127.0.0.1:8000].</span>
+<span class="output">[queue]  INFO  Processing jobs from the [default] queue.</span>
+<span class="output">[vite]   VITE v8.0.0  ready in 300 ms</span></pre>
+    </div>
+
+    <p>Abre tu navegador y visita <code class="inline">http://127.0.0.1:8000</code>. Deberías ver la página de bienvenida de Laravel.</p>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">¿Artisan serve o Apache de Laragon?</div>
+        Con Laragon puedes usar directamente <code class="inline">http://sicsal.test</code> (el virtual host de Apache) sin necesidad de <code class="inline">artisan serve</code>. Pero necesitas tener <code class="inline">npm run dev</code> corriendo en otra terminal para que Vite compile cambios en tiempo real. El comando <code class="inline">composer dev</code> lanza todo junto.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: VIRTUAL HOST
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="virtual-host">
+    <h2 class="section-title"><span class="number">7</span> Virtual host con Laragon</h2>
+
+    <p>Laragon crea automáticamente un virtual host para cada carpeta en <code class="inline">C:\laragon\www\</code>. Como nuestro proyecto está en <code class="inline">www\sicsal</code>, automáticamente tenemos:</p>
+
+    <div class="result-box">
+<span class="info">http://sicsal.test</span> → apunta a C:\laragon\www\sicsal\public\</div>
+
+    <p>Si no funciona, verifica:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          Laragon debe estar con Apache corriendo (indicador verde).
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          Clic derecho en Laragon → <strong>Apache → sites-enabled</strong> → verifica que existe <code class="inline">auto.sicsal.test.conf</code>.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          Si acabas de crear el proyecto, reinicia Laragon (Stop All → Start All) para que genere el virtual host.
+        </div>
+      </div>
+    </div>
+
+    <p>A partir de ahora usaremos <code class="inline">http://sicsal.test</code> como la URL del proyecto.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 8: INSTALAR PAQUETES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="instalar-paquetes">
+    <h2 class="section-title"><span class="number">8</span> Instalar paquetes del proyecto</h2>
+
+    <p>El starter kit trae Laravel, Livewire y Fortify. Necesitamos agregar los paquetes adicionales que usa SICSAL:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="cmt"># Panel de administración</span>
+<span class="prompt">$</span> <span class="cmd">composer</span> require filament/filament <span class="str">"~5.0"</span>
+
+<span class="cmt"># Roles y permisos</span>
+<span class="prompt">$</span> <span class="cmd">composer</span> require spatie/laravel-permission
+
+<span class="cmt"># Exportar Excel</span>
+<span class="prompt">$</span> <span class="cmd">composer</span> require maatwebsite/excel
+
+<span class="cmt"># Generar PDFs</span>
+<span class="prompt">$</span> <span class="cmd">composer</span> require barryvdh/laravel-dompdf
+
+<span class="cmt"># Generar PowerPoint</span>
+<span class="prompt">$</span> <span class="cmd">composer</span> require phpoffice/phppresentation</pre>
+    </div>
+
+    <p>También necesitamos Chart.js para gráficos (pirámide poblacional, coberturas):</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">npm</span> install chart.js</pre>
+    </div>
+
+    <p>Después de instalar Filament, ejecuta la instalación del panel:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan filament:install <span class="flag">--panels</span>
+<span class="output"> What is the ID? (e.g. app, admin):</span>
+<span class="output"> > admin</span>
+
+<span class="output">INFO  Filament panel [admin] created successfully.</span></pre>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Panel ID: admin</div>
+        Usamos <code class="inline">admin</code> como ID del panel. Esto significa que el panel administrativo será accesible en <code class="inline">http://sicsal.test/admin</code>. Filament creará el archivo <code class="inline">app/Providers/Filament/AdminPanelProvider.php</code> que configuraremos más adelante.
+      </div>
+    </div>
+
+    <p>Publica la configuración de Spatie Permission:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan vendor:publish <span class="flag">--provider=</span><span class="str">"Spatie\Permission\PermissionServiceProvider"</span>
+<span class="output">Copied File [.../permission.php] To [/config/permission.php]</span>
+<span class="output">Copied File [.../create_permission_tables.php] To [/database/migrations/...]</span></pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 9: ARCHIVOS CREADOS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="archivos-creados">
+    <h2 class="section-title"><span class="number">9</span> Archivos creados/modificados en esta lección</h2>
+
+    <p>Estos son los archivos relevantes que tocamos o revisamos:</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">C:\laragon\www\sicsal\</div>
+      <ul>
+        <li><span class="ft-file ft-new">.env</span> — configuración del entorno (modificado)</li>
+        <li><span class="ft-file">composer.json</span> — dependencias PHP (actualizado con paquetes)</li>
+        <li><span class="ft-file">package.json</span> — dependencias npm (actualizado con chart.js)</li>
+        <li><span class="ft-file">.gitignore</span> — archivos ignorados por Git (viene por defecto)</li>
+        <li><span class="ft-dir">app/Providers/Filament/</span></li>
+        <li class="indent"><span class="ft-file ft-new">AdminPanelProvider.php</span> — creado por <code>filament:install</code></li>
+        <li><span class="ft-dir">config/</span></li>
+        <li class="indent"><span class="ft-file ft-new">permission.php</span> — config de Spatie Permission</li>
+      </ul>
+    </div>
+
+    <h3 class="subsection-title">composer.json final (sección require)</h3>
+
+    <p>Así se ve la sección <code class="inline">require</code> del <code class="inline">composer.json</code> con todos los paquetes instalados:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">composer.json (sección require)</span>
+        <span class="code-lang">json</span>
+      </div>
+      <pre class="code-body"><span class="str">"require"</span><span class="op">:</span> {
+    <span class="str">"php"</span><span class="op">:</span> <span class="str">"^8.3"</span><span class="op">,</span>
+    <span class="str">"barryvdh/laravel-dompdf"</span><span class="op">:</span> <span class="str">"*"</span><span class="op">,</span>
+    <span class="str">"filament/filament"</span><span class="op">:</span> <span class="str">"~5.0"</span><span class="op">,</span>
+    <span class="str">"laravel/fortify"</span><span class="op">:</span> <span class="str">"^1.34"</span><span class="op">,</span>
+    <span class="str">"laravel/framework"</span><span class="op">:</span> <span class="str">"^13.0"</span><span class="op">,</span>
+    <span class="str">"laravel/tinker"</span><span class="op">:</span> <span class="str">"^3.0"</span><span class="op">,</span>
+    <span class="str">"livewire/flux"</span><span class="op">:</span> <span class="str">"^2.12.0"</span><span class="op">,</span>
+    <span class="str">"livewire/livewire"</span><span class="op">:</span> <span class="str">"^4.1"</span><span class="op">,</span>
+    <span class="str">"maatwebsite/excel"</span><span class="op">:</span> <span class="str">"*"</span><span class="op">,</span>
+    <span class="str">"phpoffice/phppresentation"</span><span class="op">:</span> <span class="str">"*"</span><span class="op">,</span>
+    <span class="str">"spatie/laravel-permission"</span><span class="op">:</span> <span class="str">"*"</span>
+}</pre>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 02</h3>
+    <ul>
+      <li>Creaste el proyecto con <code class="inline">composer create-project laravel/livewire-starter-kit sicsal</code></li>
+      <li>Configuraste <code class="inline">.env</code> con nombre, URL y credenciales de base de datos</li>
+      <li>Generaste (o verificaste) la <code class="inline">APP_KEY</code></li>
+      <li>Creaste la base de datos <code class="inline">sicsal</code> en MySQL</li>
+      <li>Probaste el servidor con <code class="inline">composer dev</code> o <code class="inline">artisan serve</code></li>
+      <li>Configuraste el virtual host <code class="inline">http://sicsal.test</code></li>
+      <li>Instalaste los 5 paquetes PHP: Filament, Spatie Permission, Maatwebsite Excel, DomPDF, PhpPresentation</li>
+      <li>Instalaste Chart.js con npm</li>
+      <li>Ejecutaste <code class="inline">filament:install --panels</code> para crear el panel admin</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="01-instalar-herramientas.html" class="lesson-nav-btn">← Lección 01: Instalar Herramientas</a>
+    <a href="03-estructura-proyecto.html" class="lesson-nav-btn">Lección 03: Estructura del Proyecto →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 02 de 58</span>
+    <span>Siguiente: Entender la Estructura del Proyecto</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

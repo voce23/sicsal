@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lección 57 — Vistas PDF e Inicio Público | Tutorial SICSAL</title>
+<link rel="stylesheet" href="css/leccion.css">
+<link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <a href="00-indice.html" class="topbar-brand">📚 Tutorial SICSAL</a>
+  <span class="topbar-sep">|</span>
+  <span class="topbar-page">Lección 57 de 58</span>
+</div>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="hero-badge">Fase 13 — Finalización</div>
+  <h1>Vistas PDF e Inicio Público</h1>
+  <p class="hero-subtitle">Tres vistas Blade optimizadas para DomPDF (informe CAI, comunidades, causas de consulta) y la landing page pública con mapa Leaflet y pirámides Chart.js.</p>
+  <div class="hero-meta">
+    <span>⏱️ 35 min</span>
+    <span>📦 resources/views/pdf/ + resources/views/public/</span>
+    <span>🔗 DomPDF · Leaflet.js · Chart.js 4</span>
+  </div>
+</section>
+
+<!-- ═══ NAV ═══ -->
+<nav class="lesson-nav">
+  <a href="56-commands-varios.html">← 56. Commands Varios</a>
+  <a href="58-rutas-config-cierre.html">58. Rutas y Cierre →</a>
+</nav>
+
+<!-- ═══ TOC ═══ -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">Panorama: 3 PDFs + 1 landing page</a></li>
+    <li><a href="#s2">Diseño para DomPDF: reglas de estilo</a></li>
+    <li><a href="#s3">pdf/informe-cai.blade.php — 333 líneas</a></li>
+    <li><a href="#s4">pdf/comunidades-poblacion.blade.php — 253 líneas</a></li>
+    <li><a href="#s5">pdf/causas-consulta-externa.blade.php — 165 líneas</a></li>
+    <li><a href="#s6">Cómo se generan los PDFs (Filament + Livewire)</a></li>
+    <li><a href="#s7">public/inicio.blade.php — Hero y estadísticas</a></li>
+    <li><a href="#s8">Mapa interactivo con Leaflet.js</a></li>
+    <li><a href="#s9">Pirámides poblacionales con Chart.js</a></li>
+    <li><a href="#s10">Módulos del sistema y CTA</a></li>
+  </ol>
+</nav>
+
+<!-- ═══ CONTENIDO ═══ -->
+
+<!-- ────── § 1 ────── -->
+<section class="section" id="s1">
+  <h2>1 · Panorama: 3 PDFs + 1 landing page</h2>
+
+  <table class="table-ui">
+    <thead>
+      <tr><th>Archivo</th><th>Líneas</th><th>Propósito</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>pdf/informe-cai.blade.php</code></td>
+        <td>333</td>
+        <td>Informe CAI completo: migración, censo, prestaciones, cobertura, ceros justificados, observaciones.</td>
+      </tr>
+      <tr>
+        <td><code>pdf/comunidades-poblacion.blade.php</code></td>
+        <td>253</td>
+        <td>3 tablas: resumen por comunidad, detalle por sexo/grupo, consolidado INE vs. Real.</td>
+      </tr>
+      <tr>
+        <td><code>pdf/causas-consulta-externa.blade.php</code></td>
+        <td>165</td>
+        <td>Top 10 causas de consulta con desglose por grupo etáreo y sexo.</td>
+      </tr>
+      <tr>
+        <td><code>public/inicio.blade.php</code></td>
+        <td>449</td>
+        <td>Landing page pública: hero, mapa Leaflet, pirámides Chart.js, módulos del sistema.</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ────── § 2 ────── -->
+<section class="section" id="s2">
+  <h2>2 · Diseño para DomPDF: reglas de estilo</h2>
+
+  <p>DomPDF no soporta Tailwind CSS ni CSS moderno. Las vistas PDF son HTML autónomo con estilos inline:</p>
+
+  <pre class="code-block"><span class="cmt">&lt;!-- Cada PDF es un documento HTML completo, no usa layouts --&gt;</span>
+<span class="kw">&lt;!DOCTYPE html&gt;</span>
+<span class="kw">&lt;html</span> <span class="attr">lang</span>=<span class="str">"es"</span><span class="kw">&gt;</span>
+<span class="kw">&lt;head&gt;</span>
+    <span class="kw">&lt;meta</span> <span class="attr">charset</span>=<span class="str">"UTF-8"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;style&gt;</span>
+        <span class="cmt">/* Fuente DejaVu Sans — la única que DomPDF renderiza bien */</span>
+        <span class="var">body</span> { <span class="attr">font-family</span>: <span class="str">'DejaVu Sans'</span>, sans-serif; }
+
+        <span class="cmt">/* Tamaño de fuente MUY pequeño (7-9px) — el PDF es denso */</span>
+        <span class="var">body</span> { <span class="attr">font-size</span>: <span class="num">9px</span>; }
+        <span class="var">th</span>, <span class="var">td</span> { <span class="attr">font-size</span>: <span class="num">8px</span>; }
+
+        <span class="cmt">/* Saltos de página controlados con CSS */</span>
+        <span class="var">.page-break</span> { <span class="attr">page-break-before</span>: always; }
+
+        <span class="cmt">/* Colores semáforo para indicadores */</span>
+        <span class="var">.green</span>  { <span class="attr">color</span>: <span class="str">#059669</span>; }
+        <span class="var">.yellow</span> { <span class="attr">color</span>: <span class="str">#d97706</span>; }
+        <span class="var">.red</span>    { <span class="attr">color</span>: <span class="str">#dc2626</span>; }
+    <span class="kw">&lt;/style&gt;</span>
+<span class="kw">&lt;/head&gt;</span></pre>
+
+  <div class="callout callout-warning">
+    <strong>Restricciones de DomPDF</strong>:
+    <ul>
+      <li>No soporta <code>flexbox</code>, <code>grid</code> ni <code>calc()</code>.</li>
+      <li>Solo <code>&lt;table&gt;</code> para layout columnar.</li>
+      <li>Sin JavaScript — los gráficos Chart.js no funcionan en PDF.</li>
+      <li>Fuente recomendada: <code>DejaVu Sans</code> (incluida con DomPDF, soporta UTF-8).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ────── § 3 ────── -->
+<section class="section" id="s3">
+  <h2>3 · pdf/informe-cai.blade.php — 333 líneas</h2>
+
+  <p>El PDF más completo del sistema — 6 secciones, múltiples tablas con semáforo de colores:</p>
+
+  <pre class="code-block"><span class="cmt">{{-- Los datos vienen pre-calculados por CaiHelper --}}</span>
+<span class="var">@php</span>
+    <span class="var">$enc</span>          = <span class="var">$datos</span>[<span class="str">'encabezado'</span>];
+    <span class="var">$mig</span>          = <span class="var">$datos</span>[<span class="str">'migracion'</span>];
+    <span class="var">$censo</span>        = <span class="var">$datos</span>[<span class="str">'censo'</span>];
+    <span class="var">$prest</span>        = <span class="var">$datos</span>[<span class="str">'prestaciones'</span>];
+    <span class="var">$cobertura</span>    = <span class="var">$datos</span>[<span class="str">'cobertura'</span>];
+    <span class="var">$desercion</span>    = <span class="var">$datos</span>[<span class="str">'desercion'</span>];
+    <span class="var">$ceros</span>        = <span class="var">$datos</span>[<span class="str">'ceros_justificados'</span>];
+    <span class="var">$observaciones</span> = <span class="var">$datos</span>[<span class="str">'observaciones'</span>];
+<span class="var">@endphp</span></pre>
+
+  <h3>Sección 1 — Contexto de Migración</h3>
+  <p>Cuadro <code>stats-grid</code> de 4 celdas: padrón total, residentes activos (verde), migrantes (amarillo), MEF activas:</p>
+
+  <pre class="code-block"><span class="kw">&lt;table</span> <span class="attr">class</span>=<span class="str">"stats-grid"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;tr&gt;</span>
+        <span class="kw">&lt;td&gt;</span>
+            <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"value"</span><span class="kw">&gt;</span>{{ <span class="fn">number_format</span>(<span class="var">$mig</span>[<span class="str">'total_padron'</span>]) }}<span class="kw">&lt;/div&gt;</span>
+            <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"desc"</span><span class="kw">&gt;</span>Padrón total<span class="kw">&lt;/div&gt;</span>
+        <span class="kw">&lt;/td&gt;</span>
+        <span class="cmt">&lt;!-- ... residentes, migrantes, MEF --&gt;</span>
+    <span class="kw">&lt;/tr&gt;</span>
+<span class="kw">&lt;/table&gt;</span></pre>
+
+  <h3>Sección 4 — Cobertura con semáforo</h3>
+  <pre class="code-block"><span class="cmt">&lt;!-- Colores dinámicos: verde ≥80%, amarillo ≥50%, rojo &lt;50% --&gt;</span>
+<span class="kw">&lt;td</span> <span class="attr">class</span>=<span class="str">"{{ <span class="var">$prog</span>[<span class="str">'cob_ine'</span>] >= 80
+    ? <span class="str">'green'</span>
+    : (<span class="var">$prog</span>[<span class="str">'cob_ine'</span>] >= 50 ? <span class="str">'yellow'</span> : <span class="str">'red'</span>) }}"</span><span class="kw">&gt;</span>
+    {{ <span class="var">$prog</span>[<span class="str">'cob_ine'</span>] }}%
+<span class="kw">&lt;/td&gt;</span></pre>
+
+  <h3>Sección 5 — Ceros Justificados</h3>
+  <pre class="code-block"><span class="var">@if</span> (<span class="fn">count</span>(<span class="var">$ceros</span>) > <span class="num">0</span>)
+    <span class="kw">&lt;table&gt;</span>
+        <span class="kw">&lt;thead&gt;&lt;tr&gt;&lt;th&gt;</span>Mes<span class="kw">&lt;/th&gt;&lt;th&gt;</span>Indicador<span class="kw">&lt;/th&gt;&lt;th&gt;</span>Motivo<span class="kw">&lt;/th&gt;&lt;th&gt;</span>Detalle<span class="kw">&lt;/th&gt;&lt;/tr&gt;&lt;/thead&gt;</span>
+        <span class="var">@foreach</span> (<span class="var">$ceros</span> <span class="kw">as</span> <span class="var">$j</span>)
+            <span class="kw">&lt;tr&gt;</span>
+                <span class="kw">&lt;td&gt;</span>{{ <span class="var">$j</span>[<span class="str">'mes'</span>] }}<span class="kw">&lt;/td&gt;</span>
+                <span class="kw">&lt;td&gt;</span>{{ <span class="fn">str_replace</span>(<span class="str">'_'</span>, <span class="str">' '</span>, <span class="var">$j</span>[<span class="str">'indicador'</span>]) }}<span class="kw">&lt;/td&gt;</span>
+                <span class="kw">&lt;td&gt;</span>{{ <span class="fn">ucfirst</span>(<span class="fn">str_replace</span>(<span class="str">'_'</span>, <span class="str">' '</span>, <span class="var">$j</span>[<span class="str">'motivo'</span>])) }}<span class="kw">&lt;/td&gt;</span>
+                <span class="kw">&lt;td&gt;</span>{{ <span class="var">$j</span>[<span class="str">'detalle'</span>] ?? <span class="str">'—'</span> }}<span class="kw">&lt;/td&gt;</span>
+            <span class="kw">&lt;/tr&gt;</span>
+        <span class="var">@endforeach</span>
+    <span class="kw">&lt;/table&gt;</span>
+<span class="var">@else</span>
+    <span class="kw">&lt;p&gt;</span>No hay ceros justificados en este período.<span class="kw">&lt;/p&gt;</span>
+<span class="var">@endif</span></pre>
+
+  <h3>Firma institucional</h3>
+  <pre class="code-block"><span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"firma"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"firma-linea"</span><span class="kw">&gt;&lt;/div&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"firma-nombre"</span><span class="kw">&gt;</span>{{ <span class="var">$enc</span>[<span class="str">'responsable'</span>] }}<span class="kw">&lt;/div&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"firma-cargo"</span><span class="kw">&gt;</span>Responsable Municipal de Salud<span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></pre>
+</section>
+
+<!-- ────── § 4 ────── -->
+<section class="section" id="s4">
+  <h2>4 · pdf/comunidades-poblacion.blade.php — 253 líneas</h2>
+
+  <p>PDF con 3 tablas comparativas que usa encabezados con <strong>colores por categoría</strong>:</p>
+
+  <pre class="code-block"><span class="cmt">&lt;!-- Colores por tipo de dato --&gt;</span>
+<span class="var">.th-blue</span>   { <span class="attr">background</span>: <span class="str">#dbeafe</span>; }  <span class="cmt">/* Demografía */</span>
+<span class="var">.th-green</span>  { <span class="attr">background</span>: <span class="str">#dcfce7</span>; }  <span class="cmt">/* Grupos etáreos */</span>
+<span class="var">.th-amber</span>  { <span class="attr">background</span>: <span class="str">#fef3c7</span>; }  <span class="cmt">/* Migración */</span>
+<span class="var">.th-purple</span> { <span class="attr">background</span>: <span class="str">#ede9fe</span>; }  <span class="cmt">/* Meta INE */</span>
+<span class="var">.th-orange</span> { <span class="attr">background</span>: <span class="str">#ffedd5</span>; }  <span class="cmt">/* Diferencias */</span>
+<span class="var">.th-emerald</span>{ <span class="attr">background</span>: <span class="str">#d1fae5</span>; }  <span class="cmt">/* Coberturas */</span></pre>
+
+  <h3>Tabla 1 — Resumen por comunidad</h3>
+  <p>Combina datos demográficos + todos los grupos etáreos + migrantes en una tabla:</p>
+  <pre class="code-block"><span class="kw">&lt;thead&gt;</span>
+    <span class="kw">&lt;tr&gt;</span>
+        <span class="kw">&lt;th</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Comunidad<span class="kw">&lt;/th&gt;</span>
+        <span class="kw">&lt;th</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Km<span class="kw">&lt;/th&gt;</span>
+        <span class="kw">&lt;th</span> <span class="attr">class</span>=<span class="str">"th-blue"</span> <span class="attr">colspan</span>=<span class="str">"3"</span><span class="kw">&gt;</span>Demografía<span class="kw">&lt;/th&gt;</span>
+        <span class="kw">&lt;th</span> <span class="attr">class</span>=<span class="str">"th-green"</span> <span class="attr">colspan</span>=<span class="str">"{{ count($grupos) }}"</span><span class="kw">&gt;</span>Grupos<span class="kw">&lt;/th&gt;</span>
+        <span class="kw">&lt;th</span> <span class="attr">class</span>=<span class="str">"th-amber"</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Migr.<span class="kw">&lt;/th&gt;</span>
+    <span class="kw">&lt;/tr&gt;</span>
+<span class="kw">&lt;/thead&gt;</span></pre>
+
+  <h3>Tabla 3 — Consolidado INE vs. Real</h3>
+  <pre class="code-block"><span class="cmt">&lt;!-- Cobertura con semáforo: verde ≥100%, ámbar ≥80%, rojo &lt;80% --&gt;</span>
+<span class="kw">&lt;td</span> <span class="attr">class</span>=<span class="str">"td-emerald bold
+    {{ <span class="var">$row</span>[<span class="str">'cobertura'</span>] >= 100 ? <span class="str">'green'</span>
+     : (<span class="var">$row</span>[<span class="str">'cobertura'</span>] >= 80 ? <span class="str">'amber'</span> : <span class="str">'red'</span>) }}"</span><span class="kw">&gt;</span>
+    {{ <span class="var">$row</span>[<span class="str">'cobertura'</span>] }}%
+<span class="kw">&lt;/td&gt;</span></pre>
+</section>
+
+<!-- ────── § 5 ────── -->
+<section class="section" id="s5">
+  <h2>5 · pdf/causas-consulta-externa.blade.php — 165 líneas</h2>
+
+  <p>Diseño profesional con paleta médica (teal/verde oscuro) y tabla de 24+ columnas:</p>
+
+  <pre class="code-block"><span class="cmt">&lt;!-- Cabecera verde institucional --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"header"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;h1&gt;</span>10 Principales Causas de Consulta Externa<span class="kw">&lt;/h1&gt;</span>
+    <span class="kw">&lt;p&gt;</span>{{ <span class="var">$datos</span>[<span class="str">'centro'</span>] }}  ·  {{ <span class="var">$datos</span>[<span class="str">'periodo_label'</span>] }}<span class="kw">&lt;/p&gt;</span>
+<span class="kw">&lt;/div&gt;</span>
+
+<span class="cmt">&lt;!-- 10 grupos etáreos × 2 sexos = 20 columnas + rank + diag + totales --&gt;</span>
+<span class="var">@php</span>
+<span class="var">$grupos</span> = [
+    <span class="str">'menor_6m'</span>   => <span class="str">'&lt;6m'</span>,
+    <span class="str">'6m_menor_1'</span> => <span class="str">'6m-1a'</span>,
+    <span class="str">'1_4'</span>        => <span class="str">'1-4a'</span>,
+    <span class="cmt">// ... hasta mayor_60</span>
+];
+<span class="var">@endphp</span></pre>
+
+  <p>Si hay menos de 10 causas, se rellenan filas vacías hasta completar 10:</p>
+
+  <pre class="code-block"><span class="cmt">&lt;!-- Filas placeholder hasta completar el Top 10 --&gt;</span>
+<span class="var">@for</span>(<span class="var">$i</span> = <span class="fn">count</span>(<span class="var">$datos</span>[<span class="str">'causas'</span>]); <span class="var">$i</span> &lt; <span class="num">10</span>; <span class="var">$i</span>++)
+    <span class="kw">&lt;tr&gt;</span>
+        <span class="kw">&lt;td</span> <span class="attr">class</span>=<span class="str">"num rank"</span> <span class="attr">style</span>=<span class="str">"color:#B0BEC5;"</span><span class="kw">&gt;</span>{{ <span class="var">$i</span> + <span class="num">1</span> }}<span class="kw">&lt;/td&gt;</span>
+        <span class="kw">&lt;td</span> <span class="attr">class</span>=<span class="str">"diag"</span><span class="kw">&gt;</span>—<span class="kw">&lt;/td&gt;</span>
+        <span class="cmt">&lt;!-- celdas vacías --&gt;</span>
+    <span class="kw">&lt;/tr&gt;</span>
+<span class="var">@endfor</span></pre>
+</section>
+
+<!-- ────── § 6 ────── -->
+<section class="section" id="s6">
+  <h2>6 · Cómo se generan los PDFs (Filament + Livewire)</h2>
+
+  <p>Los PDFs se generan desde dos puntos del sistema:</p>
+
+  <pre class="code-block"><span class="cmt">// 1. Desde Filament → Página Reportes (admin)</span>
+<span class="kw">use</span> <span class="cls">Barryvdh\DomPDF\Facade\Pdf</span>;
+
+<span class="var">$pdf</span> = <span class="cls">Pdf</span>::<span class="fn">loadView</span>(<span class="str">'pdf.informe-cai'</span>, [<span class="str">'datos'</span> <span class="op">=></span> <span class="var">$datos</span>])
+    <span class="op">-></span><span class="fn">setPaper</span>(<span class="str">'letter'</span>, <span class="str">'landscape'</span>);
+
+<span class="kw">return</span> <span class="fn">response</span>()
+    <span class="op">-></span><span class="fn">streamDownload</span>(
+        <span class="kw">fn</span>() <span class="op">=></span> <span class="kw">print</span>(<span class="var">$pdf</span><span class="op">-></span><span class="fn">output</span>()),
+        <span class="str">"informe-cai-{$centro}.pdf"</span>
+    );
+
+<span class="cmt">// 2. Desde Livewire → Componentes públicos</span>
+<span class="cmt">// InformeCAI.php, ComunidadesPoblacion.php</span>
+<span class="var">$pdf</span> = <span class="cls">Pdf</span>::<span class="fn">loadView</span>(<span class="str">'pdf.comunidades-poblacion'</span>, [<span class="str">'datos'</span> <span class="op">=></span> <span class="var">$datos</span>])
+    <span class="op">-></span><span class="fn">setPaper</span>(<span class="str">'letter'</span>, <span class="str">'landscape'</span>);
+
+<span class="kw">return</span> <span class="fn">response</span>()<span class="op">-></span><span class="fn">streamDownload</span>(...);</pre>
+
+  <div class="callout callout-info">
+    <strong>Orientación landscape</strong> — Los tres PDFs usan <code>setPaper('letter', 'landscape')</code> porque tienen muchas columnas (24+ en causas de consulta).
+  </div>
+</section>
+
+<!-- ────── § 7 ────── -->
+<section class="section" id="s7">
+  <h2>7 · public/inicio.blade.php — Hero y estadísticas</h2>
+
+  <p>La landing page pública usa el layout <code>x-layouts.public</code> con 5 secciones principales:</p>
+
+  <pre class="code-block"><span class="kw">&lt;x-layouts.public&gt;</span>
+    <span class="kw">&lt;x-slot:title&gt;</span>SIMUES — Red de Salud VII Capinota<span class="kw">&lt;/x-slot:title&gt;</span>
+
+    <span class="cmt">&lt;!-- 1. Hero con gradiente teal → cyan --&gt;</span>
+    <span class="kw">&lt;section</span> <span class="attr">class</span>=<span class="str">"bg-gradient-to-br from-teal-700 via-teal-600 to-cyan-600"</span><span class="kw">&gt;</span>
+        <span class="cmt">&lt;!-- Grid SVG de fondo --&gt;</span>
+        <span class="cmt">&lt;!-- Título: Sistema de Información Municipal de Establecimientos de Salud --&gt;</span>
+
+        <span class="cmt">&lt;!-- 4 stats: Población INE, Centros, Municipios, Biológicos PAI --&gt;</span>
+        <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"grid grid-cols-2 sm:grid-cols-4 gap-4"</span><span class="kw">&gt;</span>
+            <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"rounded-xl bg-white/10 p-4 backdrop-blur"</span><span class="kw">&gt;</span>
+                <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"text-3xl font-bold"</span><span class="kw">&gt;</span>
+                    {{ <span class="fn">number_format</span>(<span class="var">$poblacionTotal</span>) }}
+                <span class="kw">&lt;/div&gt;</span>
+                <span class="kw">&lt;div&gt;</span>Población INE<span class="kw">&lt;/div&gt;</span>
+            <span class="kw">&lt;/div&gt;</span>
+        <span class="kw">&lt;/div&gt;</span>
+
+        <span class="cmt">&lt;!-- CTA solo para invitados --&gt;</span>
+        <span class="var">@guest</span>
+            <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('register') }}"</span><span class="kw">&gt;</span>Crear cuenta<span class="kw">&lt;/a&gt;</span>
+            <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('login') }}"</span><span class="kw">&gt;</span>Iniciar sesión<span class="kw">&lt;/a&gt;</span>
+        <span class="var">@endguest</span>
+    <span class="kw">&lt;/section&gt;</span>
+<span class="kw">&lt;/x-layouts.public&gt;</span></pre>
+</section>
+
+<!-- ────── § 8 ────── -->
+<section class="section" id="s8">
+  <h2>8 · Mapa interactivo con Leaflet.js</h2>
+
+  <p>El mapa muestra los centros de salud con coordenadas GPS. Leaflet se integra con un selector para centrar la vista:</p>
+
+  <div class="callout callout-warning">
+    <strong>Tailwind v4 + Leaflet</strong> — El preflight de Tailwind v4 aplica <code>img { max-width: 100% }</code> que rompe los tiles del mapa. El layout <code>public.blade.php</code> incluye un <code>&lt;style&gt;</code> con <code>.leaflet-container img { max-width: none !important }</code> para corregirlo. El contenedor del mapa usa <code>lg:h-[460px]</code> (valor explícito) en lugar de <code>lg:h-115</code> para máxima compatibilidad.
+  </div>
+
+  <pre class="code-block"><span class="cmt">// Datos de centros pasados desde el controlador</span>
+<span class="kw">const</span> <span class="var">centrosMapas</span> = <span class="var">@json</span>(<span class="var">$centrosMapas</span>);
+
+<span class="kw">const</span> <span class="var">map</span> = <span class="cls">L</span>.<span class="fn">map</span>(<span class="str">'mapa'</span>).<span class="fn">setView</span>(<span class="var">centroInicial</span>, <span class="num">14</span>);
+
+<span class="cls">L</span>.<span class="fn">tileLayer</span>(<span class="str">'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'</span>, {
+    <span class="attr">attribution</span>: <span class="str">'&amp;copy; OpenStreetMap'</span>,
+    <span class="attr">maxZoom</span>: <span class="num">19</span>,
+}).<span class="fn">addTo</span>(<span class="var">map</span>);
+
+<span class="cmt">// Marcadores con ícono circular personalizado</span>
+<span class="var">centrosMapas</span>.<span class="fn">forEach</span>(<span class="kw">function</span>(<span class="var">c</span>) {
+    <span class="kw">const</span> <span class="var">marker</span> = <span class="cls">L</span>.<span class="fn">marker</span>([<span class="var">c</span>.<span class="var">lat</span>, <span class="var">c</span>.<span class="var">lng</span>], {
+        <span class="attr">icon</span>: <span class="cls">L</span>.<span class="fn">divIcon</span>({
+            <span class="attr">html</span>: <span class="str">'&lt;div style="background:#14b8a6;border-radius:50%..."&gt;&lt;/div&gt;'</span>,
+        }),
+    }).<span class="fn">addTo</span>(<span class="var">map</span>);
+
+    <span class="var">marker</span>.<span class="fn">bindPopup</span>(<span class="str">'&lt;strong&gt;'</span> + <span class="var">c</span>.<span class="var">nombre</span> + <span class="str">'&lt;/strong&gt;&lt;br&gt;SNIS: '</span> + <span class="var">c</span>.<span class="var">snis</span>);
+    <span class="var">marker</span>.<span class="fn">bindTooltip</span>(<span class="var">c</span>.<span class="var">nombre</span>);
+});
+
+<span class="cmt">// Ajustar zoom para mostrar todos los centros</span>
+<span class="kw">if</span> (<span class="var">centrosMapas</span>.<span class="var">length</span> > <span class="num">1</span>) {
+    <span class="kw">const</span> <span class="var">bounds</span> = <span class="cls">L</span>.<span class="fn">latLngBounds</span>(<span class="var">centrosMapas</span>.<span class="fn">map</span>(<span class="var">c</span> => [<span class="var">c</span>.<span class="var">lat</span>, <span class="var">c</span>.<span class="var">lng</span>]));
+    <span class="var">map</span>.<span class="fn">fitBounds</span>(<span class="var">bounds</span>, { <span class="attr">padding</span>: [<span class="num">40</span>, <span class="num">40</span>] });
+}</pre>
+
+  <div class="callout callout-info">
+    <strong>Selector de centro</strong> — Un <code>&lt;select&gt;</code> permite ver un centro específico. La función <code>centrarMapa(lat, lng, nombre)</code> anima el mapa al centro seleccionado y abre el popup correspondiente.
+  </div>
+</section>
+
+<!-- ────── § 9 ────── -->
+<section class="section" id="s9">
+  <h2>9 · Pirámides poblacionales con Chart.js</h2>
+
+  <p>Cada centro muestra 2 pirámides lado a lado: <strong>INE</strong> (azul/rosa) vs <strong>Real</strong> (teal/ámbar):</p>
+
+  <pre class="code-block"><span class="kw">function</span> <span class="fn">crearPiramide</span>(<span class="var">canvasId</span>, <span class="var">labels</span>, <span class="var">dataM</span>, <span class="var">dataF</span>, <span class="var">colorM</span>, <span class="var">colorF</span>) {
+    <span class="kw">new</span> <span class="cls">Chart</span>(<span class="var">ctx</span>, {
+        <span class="attr">type</span>: <span class="str">'bar'</span>,
+        <span class="attr">data</span>: {
+            <span class="attr">labels</span>: <span class="var">labels</span>,
+            <span class="attr">datasets</span>: [
+                {
+                    <span class="attr">label</span>: <span class="str">'Masculino'</span>,
+                    <span class="attr">data</span>: <span class="var">dataM</span>.<span class="fn">map</span>(<span class="var">v</span> => -<span class="var">v</span>),  <span class="cmt">// ← Negativo = izquierda</span>
+                    <span class="attr">backgroundColor</span>: <span class="var">colorM</span>,
+                },
+                {
+                    <span class="attr">label</span>: <span class="str">'Femenino'</span>,
+                    <span class="attr">data</span>: <span class="var">dataF</span>,               <span class="cmt">// ← Positivo = derecha</span>
+                    <span class="attr">backgroundColor</span>: <span class="var">colorF</span>,
+                },
+            ],
+        },
+        <span class="attr">options</span>: {
+            <span class="attr">indexAxis</span>: <span class="str">'y'</span>,        <span class="cmt">// Barras horizontales</span>
+            <span class="attr">scales</span>: {
+                <span class="attr">x</span>: {
+                    <span class="attr">stacked</span>: <span class="kw2">true</span>,
+                    <span class="attr">ticks</span>: {
+                        <span class="attr">callback</span>: <span class="var">v</span> => <span class="cls">Math</span>.<span class="fn">abs</span>(<span class="var">v</span>),  <span class="cmt">// Valor absoluto en eje</span>
+                    },
+                },
+                <span class="attr">y</span>: { <span class="attr">stacked</span>: <span class="kw2">true</span>, <span class="attr">reverse</span>: <span class="kw2">true</span> },
+            },
+        },
+    });
+}
+
+<span class="cmt">// INE: azul/rosa</span>
+<span class="fn">crearPiramide</span>(<span class="str">'pir-ine-'</span>+<span class="var">id</span>, <span class="var">labels</span>, <span class="var">ineM</span>, <span class="var">ineF</span>,
+    <span class="str">'rgba(59,130,246,0.7)'</span>, <span class="str">'rgba(236,72,153,0.7)'</span>);
+
+<span class="cmt">// Real: teal/ámbar (solo si tiene datos)</span>
+<span class="kw">if</span> (<span class="var">pir</span>.<span class="var">tieneReal</span>) {
+    <span class="fn">crearPiramide</span>(<span class="str">'pir-real-'</span>+<span class="var">id</span>, <span class="var">labels</span>, <span class="var">realM</span>, <span class="var">realF</span>,
+        <span class="str">'rgba(20,184,166,0.7)'</span>, <span class="str">'rgba(245,158,11,0.7)'</span>);
+}</pre>
+
+  <div class="callout callout-warning">
+    <strong>Truco de pirámide</strong> — Los datos masculinos se pasan como <em>negativos</em> (<code>dataM.map(v =&gt; -v)</code>) para que las barras crezcan a la izquierda. El tooltip muestra el valor absoluto con <code>Math.abs()</code>.
+  </div>
+</section>
+
+<!-- ────── § 10 ────── -->
+<section class="section" id="s10">
+  <h2>10 · Módulos del sistema y CTA</h2>
+
+  <p>La sección final renderiza 6 tarjetas de módulos desde un array PHP:</p>
+
+  <pre class="code-block"><span class="var">@php</span>
+<span class="var">$modulos</span> = [
+    [
+        <span class="str">'icon'</span>    => <span class="str">'M9 12h3.75M9 15h3.75...'</span>,          <span class="cmt">// SVG path</span>
+        <span class="str">'titulo'</span>  => <span class="str">'FORM 301A — SNIS'</span>,
+        <span class="str">'desc'</span>    => <span class="str">'Registro mensual de producción...'</span>,
+        <span class="str">'href'</span>    => <span class="str">'/admin'</span>,
+        <span class="str">'auth'</span>    => <span class="kw2">true</span>,  <span class="cmt">// Requiere login</span>
+    ],
+    <span class="cmt">// ... PAI, Informe CAI, Padrón, Coberturas, Blog (auth=false)</span>
+];
+<span class="var">@endphp</span>
+
+<span class="var">@foreach</span> (<span class="var">$modulos</span> <span class="kw">as</span> <span class="var">$mod</span>)
+    <span class="var">@php</span> <span class="var">$esProtegido</span> = <span class="var">$mod</span>[<span class="str">'auth'</span>] && !<span class="fn">auth</span>()<span class="op">-></span><span class="fn">check</span>(); <span class="var">@endphp</span>
+    <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ <span class="var">$esProtegido</span> ? route('login') : <span class="var">$mod</span>['href'] }}"</span><span class="kw">&gt;</span>
+        <span class="cmt">&lt;!-- Tarjeta con icono, título, descripción --&gt;</span>
+        <span class="var">@if</span> (<span class="var">$esProtegido</span>)
+            <span class="kw">&lt;span&gt;</span>🔒 Requiere acceso<span class="kw">&lt;/span&gt;</span>
+        <span class="var">@endif</span>
+    <span class="kw">&lt;/a&gt;</span>
+<span class="var">@endforeach</span></pre>
+
+  <div class="callout callout-info">
+    <strong>Acceso controlado</strong> — Los módulos con <code>auth: true</code> redirigen a login si el usuario no está autenticado. Solo el Blog es accesible sin login.
+  </div>
+</section>
+
+<!-- ═══ RESUMEN ═══ -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li><strong>3 vistas PDF</strong> diseñadas específicamente para DomPDF: fuente DejaVu Sans, tamaños 7-9px, saltos de página con CSS, sin flexbox/grid.</li>
+    <li><strong>informe-cai.blade.php</strong> (333 líneas) — 6 secciones: migración, censo, prestaciones (vacunas, micronutrientes, crecimiento, RN, puerperio), cobertura con semáforo, ceros justificados, observaciones y firma.</li>
+    <li><strong>comunidades-poblacion.blade.php</strong> (253 líneas) — 3 tablas color-coded: resumen, detalle por sexo y consolidado INE vs. Real con porcentaje de cobertura.</li>
+    <li><strong>causas-consulta-externa.blade.php</strong> (165 líneas) — Top 10 causas con desglose de 10 grupos etáreos × 2 sexos (24+ columnas). Filas placeholder hasta completar 10.</li>
+    <li><strong>inicio.blade.php</strong> (449 líneas) — Landing page pública con hero gradiente teal, 4 stats, mapa Leaflet.js interactivo, pirámides Chart.js (INE vs. Real) por centro, 6 tarjetas de módulos y CTA final.</li>
+    <li><strong>Técnica de pirámide</strong> — Valores masculinos negativos + <code>indexAxis: 'y'</code> + <code>Math.abs()</code> en tooltips/eje X.</li>
+  </ul>
+</section>
+
+<!-- ═══ NAV ═══ -->
+<nav class="lesson-nav">
+  <a href="56-commands-varios.html">← 56. Commands Varios</a>
+  <a href="58-rutas-config-cierre.html">58. Rutas y Cierre →</a>
+</nav>
+
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 57 de 58</p>
+</footer>
+
+</body>
+</html>

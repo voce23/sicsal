@@ -1,0 +1,553 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 01 — Instalar Herramientas | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 1 — Fundamentos</div>
+    <div class="lesson-number">Lección 01 de 58</div>
+    <h1 class="lesson-title">Instalar Herramientas</h1>
+    <p class="lesson-subtitle">Preparar el entorno de desarrollo completo en Windows: Laragon, PHP 8.3, MySQL, Node.js, Composer y VS Code.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 0 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~30 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Principiante</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="00-indice.html" class="lesson-nav-btn">← Índice</a>
+    <a href="02-crear-proyecto.html" class="lesson-nav-btn">Lección 02 →</a>
+  </div>
+
+  <!-- ═══ Tabla de Contenidos ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#que-vamos-a-construir">Qué vamos a construir</a></li>
+      <li><a href="#requisitos-previos">Requisitos previos</a></li>
+      <li><a href="#instalar-laragon">Instalar Laragon</a></li>
+      <li><a href="#verificar-php">Verificar PHP 8.3</a></li>
+      <li><a href="#verificar-mysql">Verificar MySQL</a></li>
+      <li><a href="#instalar-composer">Instalar Composer</a></li>
+      <li><a href="#instalar-nodejs">Instalar Node.js</a></li>
+      <li><a href="#instalar-vscode">Instalar VS Code</a></li>
+      <li><a href="#extensiones-vscode">Extensiones recomendadas</a></li>
+      <li><a href="#verificacion-final">Verificación final</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: QUÉ VAMOS A CONSTRUIR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="que-vamos-a-construir">
+    <h2 class="section-title"><span class="number">1</span> Qué vamos a construir</h2>
+
+    <p><strong>SICSAL</strong> (Sistema de Información de Centros de Salud) es una aplicación web real usada en centros de salud de 1er nivel en Bolivia. Maneja:</p>
+
+    <ul class="styled">
+      <li><strong>Registro de personas</strong> — padrón de la población asignada</li>
+      <li><strong>Prestaciones mensuales</strong> — captura de datos tipo formularios SNIS</li>
+      <li><strong>Informe CAI</strong> — coberturas de vacunación, maternidad, etc.</li>
+      <li><strong>Reportes</strong> — exportación a Excel, PDF y PowerPoint</li>
+      <li><strong>Importación</strong> — lectura de archivos .ves del SNIS</li>
+      <li><strong>Panel admin</strong> — CRUD completo con Filament 5</li>
+      <li><strong>Roles y permisos</strong> — superadmin, admin, registrador</li>
+    </ul>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Sobre este tutorial</div>
+        Son 58 lecciones paso a paso. Al terminar, tendrás el proyecto completo con <strong>278+ archivos</strong> y <strong>~23,000 líneas</strong> de código. Cada lección incluye el código completo a escribir — no fragmentos sueltos.
+      </div>
+    </div>
+
+    <h3 class="subsection-title">Stack tecnológico</h3>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-icon">🐘</div>
+        <div class="card-title">Laravel 13</div>
+        <div class="card-desc">Framework PHP para aplicaciones web. El motor del backend.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🛡️</div>
+        <div class="card-title">Filament 5</div>
+        <div class="card-desc">Panel de administración con CRUD, formularios y dashboard.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">⚡</div>
+        <div class="card-title">Livewire 4</div>
+        <div class="card-desc">Componentes reactivos sin escribir JavaScript.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🎨</div>
+        <div class="card-title">Tailwind CSS 4</div>
+        <div class="card-desc">Framework CSS utility-first para estilos rápidos.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">📦</div>
+        <div class="card-title">Vite 8</div>
+        <div class="card-desc">Bundler ultrarrápido para compilar CSS y JS.</div>
+      </div>
+      <div class="card">
+        <div class="card-icon">🗄️</div>
+        <div class="card-title">MySQL</div>
+        <div class="card-desc">Base de datos relacional. 50 tablas en el proyecto.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: REQUISITOS PREVIOS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="requisitos-previos">
+    <h2 class="section-title"><span class="number">2</span> Requisitos previos</h2>
+
+    <p>Solo necesitas:</p>
+
+    <ul class="styled">
+      <li>Un computador con <strong>Windows 10/11</strong> (64 bits)</li>
+      <li>Mínimo <strong>4 GB de RAM</strong> (recomendado 8 GB)</li>
+      <li>Conexión a internet para descargar herramientas</li>
+      <li>Ganas de aprender — no se necesita experiencia previa en Laravel</li>
+    </ul>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Consejo</div>
+        Si ya tienes XAMPP o WAMP instalado, te recomiendo usar Laragon en su lugar. Es más ligero, tiene Apache + MySQL + PHP preconfigurado, y gestiona virtual hosts automáticamente.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: INSTALAR LARAGON
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="instalar-laragon">
+    <h2 class="section-title"><span class="number">3</span> Instalar Laragon</h2>
+
+    <p>Laragon es un entorno de desarrollo local para Windows que incluye Apache, MySQL, PHP y más.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>Descargar Laragon</strong><br>
+          Ve a <code class="inline">https://laragon.org/download/</code> y descarga la versión <strong>Full</strong> (incluye PHP 8.x, MySQL 8, Apache, Node.js, etc.).
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>Instalar</strong><br>
+          Ejecuta el instalador. La ruta por defecto es <code class="inline">C:\laragon</code>. Déjala así — todo el tutorial usa esa ruta.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>Iniciar servicios</strong><br>
+          Abre Laragon y haz clic en <strong>"Start All"</strong>. Verás que Apache y MySQL se encienden (indicadores verdes).
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <strong>Verificar</strong><br>
+          Abre tu navegador y visita <code class="inline">http://localhost</code>. Deberías ver la página de bienvenida de Laragon.
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">Importante</div>
+        Si el puerto 80 está ocupado (por Skype, IIS, etc.), Laragon te avisará. Ve a <strong>Menú → Preferencias → Apache</strong> y cambia el puerto, o cierra el programa que lo usa.
+      </div>
+    </div>
+
+    <h3 class="subsection-title">Estructura de Laragon</h3>
+
+    <div class="file-tree">
+      <div class="file-tree-title">C:\laragon\</div>
+      <ul>
+        <li><span class="ft-dir">bin/</span> — ejecutables (PHP, MySQL, Apache, Node, etc.)</li>
+        <li><span class="ft-dir">data/</span> — datos de MySQL</li>
+        <li><span class="ft-dir">etc/</span> — archivos de configuración</li>
+        <li><span class="ft-dir">www/</span> — <strong>aquí van tus proyectos</strong> ← importante</li>
+      </ul>
+    </div>
+
+    <p>Todo proyecto que crees dentro de <code class="inline">C:\laragon\www\</code> automáticamente tendrá un virtual host. Por ejemplo, <code class="inline">C:\laragon\www\sicsal</code> será accesible como <code class="inline">http://sicsal.test</code>.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: VERIFICAR PHP 8.3
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="verificar-php">
+    <h2 class="section-title"><span class="number">4</span> Verificar PHP 8.3</h2>
+
+    <p>Laravel 13 requiere <strong>PHP 8.2 o superior</strong>. Laragon Full ya trae PHP 8.x. Verifiquemos la versión.</p>
+
+    <p>Abre una terminal (clic derecho en Laragon → <strong>Terminal</strong>, o usa la terminal de VS Code después):</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> <span class="flag">-v</span>
+<span class="output">PHP 8.3.26 (cli) (built: ...)</span></pre>
+    </div>
+
+    <p>Si la versión es <strong>8.2+</strong>, estás bien. Si necesitas actualizar PHP en Laragon:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          Descarga PHP 8.3 desde <code class="inline">https://windows.php.net/download/</code> (Thread Safe, x64).
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          Extrae en <code class="inline">C:\laragon\bin\php\php-8.3.26-Win32-vs16-x64\</code>.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          En Laragon, ve a <strong>Menú → PHP → Versión</strong> y selecciona php-8.3.x.
+        </div>
+      </div>
+    </div>
+
+    <p>Verifica también las extensiones necesarias para Laravel:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> <span class="flag">-m</span> <span class="cmd">| findstr /i</span> <span class="str">"pdo_mysql mbstring openssl tokenizer xml curl gd zip"</span>
+<span class="output">curl
+gd
+mbstring
+openssl
+PDO
+pdo_mysql
+tokenizer
+xml
+zip</span></pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Extensiones faltantes</div>
+        Si falta alguna extensión, edita <code class="inline">C:\laragon\bin\php\php-8.3.x\php.ini</code> y descomenta la línea correspondiente (quita el <code class="inline">;</code> del inicio). Luego reinicia Laragon.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: VERIFICAR MYSQL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="verificar-mysql">
+    <h2 class="section-title"><span class="number">5</span> Verificar MySQL</h2>
+
+    <p>Laragon incluye MySQL. Verifica que está corriendo:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">mysql</span> <span class="flag">-u root</span> <span class="flag">-p</span>
+<span class="output">Enter password: (presiona Enter, la contraseña por defecto está vacía)</span>
+<span class="output">Welcome to the MySQL monitor...</span>
+<span class="output">mysql></span> <span class="cmd">SELECT VERSION();</span>
+<span class="output">+-----------+</span>
+<span class="output">| VERSION() |</span>
+<span class="output">+-----------+</span>
+<span class="output">| 8.0.30    |</span>
+<span class="output">+-----------+</span>
+<span class="output">mysql></span> <span class="cmd">exit</span></pre>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Credenciales por defecto de Laragon</div>
+        <strong>Host:</strong> 127.0.0.1<br>
+        <strong>Usuario:</strong> root<br>
+        <strong>Contraseña:</strong> (vacía)<br>
+        <strong>Puerto:</strong> 3306<br>
+        Estas las usaremos en el archivo <code class="inline">.env</code> en la siguiente lección.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: INSTALAR COMPOSER
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="instalar-composer">
+    <h2 class="section-title"><span class="number">6</span> Instalar Composer</h2>
+
+    <p><strong>Composer</strong> es el gestor de dependencias de PHP. Es como npm pero para PHP. Lo usaremos para instalar Laravel y todos los paquetes.</p>
+
+    <p>Laragon Full ya incluye Composer. Verifica:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">composer</span> <span class="flag">--version</span>
+<span class="output">Composer version 2.8.x 2026-xx-xx</span></pre>
+    </div>
+
+    <p>Si no está instalado, descárgalo de <code class="inline">https://getcomposer.org/download/</code> y sigue el instalador para Windows. Asegúrate de que usa el PHP de Laragon.</p>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">PATH del sistema</div>
+        Si al escribir <code class="inline">composer</code> o <code class="inline">php</code> en una terminal externa (CMD/PowerShell) no los reconoce, necesitas agregar Laragon al PATH. En Laragon: <strong>Menú → Herramientas → PATH → añadir Laragon al PATH del sistema</strong>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: INSTALAR NODE.JS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="instalar-nodejs">
+    <h2 class="section-title"><span class="number">7</span> Instalar Node.js</h2>
+
+    <p><strong>Node.js</strong> se necesita para Vite (el bundler que compila Tailwind CSS y JavaScript). <strong>npm</strong> viene incluido con Node.</p>
+
+    <p>Laragon Full trae Node.js pero puede ser una versión vieja. Verifica:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">node</span> <span class="flag">-v</span>
+<span class="output">v20.x.x</span>
+
+<span class="prompt">$</span> <span class="cmd">npm</span> <span class="flag">-v</span>
+<span class="output">10.x.x</span></pre>
+    </div>
+
+    <p>Necesitas <strong>Node.js 18+</strong>. Si la versión es menor, descarga la LTS desde <code class="inline">https://nodejs.org/</code> e instálala. El instalador actualiza el PATH automáticamente.</p>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Alternativa: nvm-windows</div>
+        Si quieres manejar varias versiones de Node, instala <strong>nvm-windows</strong> desde GitHub. Luego: <code class="inline">nvm install 20</code> y <code class="inline">nvm use 20</code>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 8: INSTALAR VS CODE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="instalar-vscode">
+    <h2 class="section-title"><span class="number">8</span> Instalar VS Code</h2>
+
+    <p><strong>Visual Studio Code</strong> es el editor que usaremos durante todo el tutorial. Es gratuito, ligero y tiene excelente soporte para PHP, Laravel y Blade.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>Descargar</strong><br>
+          Ve a <code class="inline">https://code.visualstudio.com/</code> y descarga el instalador para Windows.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>Instalar</strong><br>
+          Ejecuta el instalador. Marca las opciones:<br>
+          ✅ Agregar a PATH<br>
+          ✅ Registrar como editor predeterminado
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>Verificar</strong><br>
+          Abre una terminal y escribe <code class="inline">code .</code> — debería abrir VS Code en la carpeta actual.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 9: EXTENSIONES RECOMENDADAS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="extensiones-vscode">
+    <h2 class="section-title"><span class="number">9</span> Extensiones recomendadas para VS Code</h2>
+
+    <p>Instala estas extensiones para mejor productividad con Laravel:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Extensión</th>
+          <th>Autor</th>
+          <th>Para qué sirve</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>PHP Intelephense</td>
+          <td>Ben Mewburn</td>
+          <td>Autocompletado, navegación y errores PHP</td>
+        </tr>
+        <tr>
+          <td>Laravel Blade Snippets</td>
+          <td>Winnie Lin</td>
+          <td>Snippets y highlighting para archivos .blade.php</td>
+        </tr>
+        <tr>
+          <td>Tailwind CSS IntelliSense</td>
+          <td>Tailwind Labs</td>
+          <td>Autocompletado de clases Tailwind</td>
+        </tr>
+        <tr>
+          <td>GitHub Copilot</td>
+          <td>GitHub</td>
+          <td>Asistente IA para escribir código más rápido</td>
+        </tr>
+        <tr>
+          <td>DotENV</td>
+          <td>mikestead</td>
+          <td>Resaltado de sintaxis para archivos .env</td>
+        </tr>
+        <tr>
+          <td>MySQL (Database Client)</td>
+          <td>Weijan Chen</td>
+          <td>Conectar y consultar MySQL desde VS Code</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>Para instalar, abre VS Code → <strong>Ctrl+Shift+X</strong> → busca el nombre → <strong>Install</strong>.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 10: VERIFICACIÓN FINAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="verificacion-final">
+    <h2 class="section-title"><span class="number">10</span> Verificación final</h2>
+
+    <p>Ejecuta todos los comandos de una vez para confirmar que todo está correctamente instalado:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> <span class="flag">-v</span>
+<span class="prompt">$</span> <span class="cmd">composer</span> <span class="flag">--version</span>
+<span class="prompt">$</span> <span class="cmd">node</span> <span class="flag">-v</span>
+<span class="prompt">$</span> <span class="cmd">npm</span> <span class="flag">-v</span>
+<span class="prompt">$</span> <span class="cmd">mysql</span> <span class="flag">--version</span>
+<span class="prompt">$</span> <span class="cmd">git</span> <span class="flag">--version</span></pre>
+    </div>
+
+    <p>Deberías ver algo así:</p>
+
+    <div class="result-box">
+<span class="info">PHP 8.3.26</span> (cli)
+Composer version <span class="info">2.8.x</span>
+v<span class="info">20.x.x</span>
+<span class="info">10.x.x</span>
+mysql  Ver <span class="info">8.0.30</span>
+git version <span class="info">2.4x.x</span>.windows.1</div>
+
+    <div class="callout callout-danger">
+      <span class="callout-icon">🚨</span>
+      <div>
+        <div class="callout-title">¿Algún comando no funciona?</div>
+        <strong>php no reconocido:</strong> Agrega Laragon al PATH del sistema.<br>
+        <strong>composer no reconocido:</strong> Reinstala Composer o verifica el PATH.<br>
+        <strong>node no reconocido:</strong> Reinstala Node.js desde nodejs.org.<br>
+        <strong>git no reconocido:</strong> Instala Git desde <code class="inline">https://git-scm.com/download/win</code>.<br>
+        <strong>mysql no reconocido:</strong> Verifica que Laragon esté iniciado (Start All).
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Git</div>
+        Si no tienes Git instalado, descárgalo de <code class="inline">https://git-scm.com/download/win</code>. Lo necesitarás en la Lección 05 para control de versiones. Laragon Full también incluye Git.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 01</h3>
+    <ul>
+      <li>Instalaste <strong>Laragon</strong> con Apache + MySQL + PHP preconfigurado</li>
+      <li>Verificaste <strong>PHP 8.3+</strong> con las extensiones necesarias</li>
+      <li>Verificaste <strong>MySQL 8.0+</strong> corriendo en localhost</li>
+      <li>Instalaste/verificaste <strong>Composer</strong> (gestor de dependencias PHP)</li>
+      <li>Instalaste/verificaste <strong>Node.js 18+</strong> y npm (para Vite y Tailwind)</li>
+      <li>Instalaste <strong>VS Code</strong> con extensiones para Laravel</li>
+      <li>La carpeta de proyectos es <code class="inline">C:\laragon\www\</code></li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="00-indice.html" class="lesson-nav-btn">← Índice</a>
+    <a href="02-crear-proyecto.html" class="lesson-nav-btn">Lección 02: Crear el Proyecto Laravel →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 01 de 58</span>
+    <span>Siguiente: Crear el Proyecto Laravel</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

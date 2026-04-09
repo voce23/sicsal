@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 08 — Migraciones: Personas y Defunciones | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 2 — Base de Datos</div>
+    <div class="lesson-number">Lección 08 de 58</div>
+    <h1 class="lesson-title">Migraciones: Personas y Defunciones</h1>
+    <p class="lesson-subtitle">Crear las tablas que registran a la población atendida y las defunciones del centro de salud.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 2 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~25 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Principiante</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="07-migraciones-comunidades.html" class="lesson-nav-btn">← Lección 07</a>
+    <a href="09-migraciones-clinicos.html" class="lesson-nav-btn">Lección 09 →</a>
+  </div>
+
+  <!-- ═══ Tabla de Contenidos ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#contexto">Contexto: ¿qué es una persona en SICSAL?</a></li>
+      <li><a href="#tabla-personas">Tabla personas</a></li>
+      <li><a href="#enums">Columnas tipo enum</a></li>
+      <li><a href="#tabla-defunciones">Tabla defunciones</a></li>
+      <li><a href="#relaciones">Relaciones entre tablas</a></li>
+      <li><a href="#ejecutar">Ejecutar y verificar</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: CONTEXTO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="contexto">
+    <h2 class="section-title"><span class="number">1</span> Contexto: ¿qué es una persona en SICSAL?</h2>
+
+    <p>La tabla <code class="inline">personas</code> es la columna vertebral de SICSAL. Cada persona registrada pertenece a una comunidad y a un centro de salud. Todos los registros clínicos (vacunas, embarazos, controles prenatales, etc.) se vinculan a una persona.</p>
+
+    <p>La tabla <code class="inline">defunciones</code> registra fallecimientos. Puede o no estar vinculada a una persona registrada — es posible registrar la defunción de alguien que no estaba en el padrón.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Patrón de auditoría: created_by y registrado_por</div>
+        Ambas tablas registran <strong>quién</strong> creó el dato. Esto es fundamental en sistemas de salud para trazabilidad. Usamos un foreignId referenciando <code class="inline">users</code>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: TABLA PERSONAS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="tabla-personas">
+    <h2 class="section-title"><span class="number">2</span> Tabla personas</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan make:migration create_personas_table</pre>
+    </div>
+
+    <h3 class="subsection-title">Diseño de la tabla</h3>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Columna</th>
+          <th>Tipo</th>
+          <th>Descripción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pk-badge">PK</span> id</td>
+          <td><span class="type-badge">bigint</span></td>
+          <td>Identificador</td>
+        </tr>
+        <tr>
+          <td><span class="fk-badge">FK</span> centro_salud_id</td>
+          <td><span class="type-badge">bigint</span></td>
+          <td>Centro de salud que la atiende</td>
+        </tr>
+        <tr>
+          <td><span class="fk-badge">FK</span> comunidad_id</td>
+          <td><span class="type-badge">bigint</span></td>
+          <td>Comunidad de residencia</td>
+        </tr>
+        <tr>
+          <td>nombres</td>
+          <td><span class="type-badge">varchar(100)</span></td>
+          <td>Nombres de la persona</td>
+        </tr>
+        <tr>
+          <td>apellidos</td>
+          <td><span class="type-badge">varchar(100)</span></td>
+          <td>Apellidos de la persona</td>
+        </tr>
+        <tr>
+          <td>fecha_nacimiento</td>
+          <td><span class="type-badge">date</span></td>
+          <td>Fecha de nacimiento</td>
+        </tr>
+        <tr>
+          <td>sexo</td>
+          <td><span class="type-badge">enum('M','F')</span></td>
+          <td>Masculino o Femenino</td>
+        </tr>
+        <tr>
+          <td>ci</td>
+          <td><span class="type-badge">varchar(20) nullable</span></td>
+          <td>Cédula de identidad</td>
+        </tr>
+        <tr>
+          <td>tipo_seguro</td>
+          <td><span class="type-badge">enum</span></td>
+          <td>SUS, privado o ninguno</td>
+        </tr>
+        <tr>
+          <td>estado</td>
+          <td><span class="type-badge">enum</span></td>
+          <td>residente, temporal, migrado</td>
+        </tr>
+        <tr>
+          <td>destino_migracion</td>
+          <td><span class="type-badge">varchar(150) nullable</span></td>
+          <td>A dónde migró (si aplica)</td>
+        </tr>
+        <tr>
+          <td>fecha_migracion</td>
+          <td><span class="type-badge">date nullable</span></td>
+          <td>Cuándo migró</td>
+        </tr>
+        <tr>
+          <td>grupo_etareo</td>
+          <td><span class="type-badge">varchar(30) nullable</span></td>
+          <td>Grupo etáreo calculado</td>
+        </tr>
+        <tr>
+          <td>fecha_registro</td>
+          <td><span class="type-badge">date</span></td>
+          <td>Cuándo fue registrada</td>
+        </tr>
+        <tr>
+          <td>observaciones</td>
+          <td><span class="type-badge">text nullable</span></td>
+          <td>Notas adicionales</td>
+        </tr>
+        <tr>
+          <td>activo</td>
+          <td><span class="type-badge">boolean</span></td>
+          <td>Borrado lógico</td>
+        </tr>
+        <tr>
+          <td><span class="fk-badge">FK</span> created_by</td>
+          <td><span class="type-badge">bigint nullable</span></td>
+          <td>Usuario que la registró</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="subsection-title">Código completo</h3>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_create_personas_table.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">&lt;?php</span>
+
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Migrations\Migration</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Schema\Blueprint</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Support\Facades\Schema</span>;
+
+<span class="kw">return new class</span> <span class="kw">extends</span> <span class="cls">Migration</span>
+{
+    <span class="kw">public function</span> <span class="fn">up</span>(): <span class="type">void</span>
+    {
+        <span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'personas'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+            <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+            <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)
+                  <span class="op">-></span><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'comunidad_id'</span>)
+                  <span class="op">-></span><span class="fn">constrained</span>(<span class="str">'comunidades'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'nombres'</span>, <span class="num">100</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'apellidos'</span>, <span class="num">100</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">date</span>(<span class="str">'fecha_nacimiento'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'sexo'</span>, [<span class="str">'M'</span>, <span class="str">'F'</span>]);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'ci'</span>, <span class="num">20</span>)<span class="op">-></span><span class="fn">nullable</span>();
+            <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'tipo_seguro'</span>, [<span class="str">'SUS'</span>, <span class="str">'privado'</span>, <span class="str">'ninguno'</span>])
+                  <span class="op">-></span><span class="fn">default</span>(<span class="str">'ninguno'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'estado'</span>, [<span class="str">'residente'</span>, <span class="str">'temporal'</span>, <span class="str">'migrado'</span>])
+                  <span class="op">-></span><span class="fn">default</span>(<span class="str">'residente'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'destino_migracion'</span>, <span class="num">150</span>)
+                  <span class="op">-></span><span class="fn">nullable</span>();
+            <span class="var">$table</span><span class="op">-></span><span class="fn">date</span>(<span class="str">'fecha_migracion'</span>)<span class="op">-></span><span class="fn">nullable</span>();
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'grupo_etareo'</span>, <span class="num">30</span>)<span class="op">-></span><span class="fn">nullable</span>();
+            <span class="var">$table</span><span class="op">-></span><span class="fn">date</span>(<span class="str">'fecha_registro'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">text</span>(<span class="str">'observaciones'</span>)<span class="op">-></span><span class="fn">nullable</span>();
+            <span class="var">$table</span><span class="op">-></span><span class="fn">boolean</span>(<span class="str">'activo'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="kw">true</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'created_by'</span>)
+                  <span class="op">-></span><span class="fn">nullable</span>()
+                  <span class="op">-></span><span class="fn">constrained</span>(<span class="str">'users'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+        });
+    }
+
+    <span class="kw">public function</span> <span class="fn">down</span>(): <span class="type">void</span>
+    {
+        <span class="cls">Schema</span><span class="op">::</span><span class="fn">dropIfExists</span>(<span class="str">'personas'</span>);
+    }
+};</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: ENUMS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="enums">
+    <h2 class="section-title"><span class="number">3</span> Columnas tipo enum</h2>
+
+    <p>En esta migración aparecen por primera vez columnas <code class="inline">enum</code>. Un enum restringe los valores posibles a una lista fija.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Sintaxis</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// Solo acepta 'M' o 'F'</span>
+<span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'sexo'</span>, [<span class="str">'M'</span>, <span class="str">'F'</span>]);
+
+<span class="cmt">// Solo acepta estos 3 valores, con 'ninguno' por defecto</span>
+<span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'tipo_seguro'</span>, [<span class="str">'SUS'</span>, <span class="str">'privado'</span>, <span class="str">'ninguno'</span>])
+      <span class="op">-></span><span class="fn">default</span>(<span class="str">'ninguno'</span>);</pre>
+    </div>
+
+    <h3 class="subsection-title">Enums de personas</h3>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Columna</th>
+          <th>Valores permitidos</th>
+          <th>Default</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>sexo</td>
+          <td><code>M</code>, <code>F</code></td>
+          <td>—</td>
+        </tr>
+        <tr>
+          <td>tipo_seguro</td>
+          <td><code>SUS</code>, <code>privado</code>, <code>ninguno</code></td>
+          <td><code>ninguno</code></td>
+        </tr>
+        <tr>
+          <td>estado</td>
+          <td><code>residente</code>, <code>temporal</code>, <code>migrado</code></td>
+          <td><code>residente</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">¿Cuándo usar enum vs tabla separada?</div>
+        Usa <strong>enum</strong> cuando los valores son pocos, fijos y rara vez cambian (como sexo, tipo de seguro). Usa una <strong>tabla separada</strong> cuando los valores pueden crecer o los administradores necesitan gestionarlos (como comunidades o municipios).
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: TABLA DEFUNCIONES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="tabla-defunciones">
+    <h2 class="section-title"><span class="number">4</span> Tabla defunciones</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan make:migration create_defunciones_table</pre>
+    </div>
+
+    <h3 class="subsection-title">Diseño de la tabla</h3>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Columna</th>
+          <th>Tipo</th>
+          <th>Descripción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pk-badge">PK</span> id</td>
+          <td><span class="type-badge">bigint</span></td>
+          <td>Identificador</td>
+        </tr>
+        <tr>
+          <td><span class="fk-badge">FK</span> persona_id</td>
+          <td><span class="type-badge">bigint nullable</span></td>
+          <td>Persona registrada (puede no existir)</td>
+        </tr>
+        <tr>
+          <td><span class="fk-badge">FK</span> centro_salud_id</td>
+          <td><span class="type-badge">bigint</span></td>
+          <td>Centro que registra la defunción</td>
+        </tr>
+        <tr>
+          <td>nombres</td>
+          <td><span class="type-badge">varchar(100)</span></td>
+          <td>Nombres del fallecido</td>
+        </tr>
+        <tr>
+          <td>apellidos</td>
+          <td><span class="type-badge">varchar(100)</span></td>
+          <td>Apellidos del fallecido</td>
+        </tr>
+        <tr>
+          <td>fecha_nacimiento</td>
+          <td><span class="type-badge">date nullable</span></td>
+          <td>Fecha de nacimiento</td>
+        </tr>
+        <tr>
+          <td>sexo</td>
+          <td><span class="type-badge">enum('M','F')</span></td>
+          <td>Sexo</td>
+        </tr>
+        <tr>
+          <td><span class="fk-badge">FK</span> comunidad_id</td>
+          <td><span class="type-badge">bigint nullable</span></td>
+          <td>Comunidad del fallecido</td>
+        </tr>
+        <tr>
+          <td>fecha_defuncion</td>
+          <td><span class="type-badge">date</span></td>
+          <td>Fecha del deceso</td>
+        </tr>
+        <tr>
+          <td>causa_defuncion</td>
+          <td><span class="type-badge">text nullable</span></td>
+          <td>Causa de muerte</td>
+        </tr>
+        <tr>
+          <td>lugar</td>
+          <td><span class="type-badge">enum</span></td>
+          <td>Dónde ocurrió</td>
+        </tr>
+        <tr>
+          <td>grupo_etareo_defuncion</td>
+          <td><span class="type-badge">enum</span></td>
+          <td>Grupo etáreo al fallecer</td>
+        </tr>
+        <tr>
+          <td><span class="fk-badge">FK</span> registrado_por</td>
+          <td><span class="type-badge">bigint nullable</span></td>
+          <td>Usuario que registró</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="subsection-title">Enums de defunciones</h3>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Columna</th>
+          <th>Valores permitidos</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>lugar</td>
+          <td><code>establecimiento</code>, <code>domicilio</code>, <code>referido</code>, <code>en_transito</code></td>
+        </tr>
+        <tr>
+          <td>grupo_etareo_defuncion</td>
+          <td><code>neonatal</code>, <code>infantil_menor_1</code>, <code>menor_5</code>, <code>5_a_59</code>, <code>adulto_mayor</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="subsection-title">Código completo</h3>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_create_defunciones_table.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">&lt;?php</span>
+
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Migrations\Migration</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Schema\Blueprint</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Support\Facades\Schema</span>;
+
+<span class="kw">return new class</span> <span class="kw">extends</span> <span class="cls">Migration</span>
+{
+    <span class="kw">public function</span> <span class="fn">up</span>(): <span class="type">void</span>
+    {
+        <span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'defunciones'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+            <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+            <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'persona_id'</span>)
+                  <span class="op">-></span><span class="fn">nullable</span>()
+                  <span class="op">-></span><span class="fn">constrained</span>(<span class="str">'personas'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)
+                  <span class="op">-></span><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'nombres'</span>, <span class="num">100</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'apellidos'</span>, <span class="num">100</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">date</span>(<span class="str">'fecha_nacimiento'</span>)<span class="op">-></span><span class="fn">nullable</span>();
+            <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'sexo'</span>, [<span class="str">'M'</span>, <span class="str">'F'</span>]);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'comunidad_id'</span>)
+                  <span class="op">-></span><span class="fn">nullable</span>()
+                  <span class="op">-></span><span class="fn">constrained</span>(<span class="str">'comunidades'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">date</span>(<span class="str">'fecha_defuncion'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">text</span>(<span class="str">'causa_defuncion'</span>)<span class="op">-></span><span class="fn">nullable</span>();
+            <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'lugar'</span>, [
+                <span class="str">'establecimiento'</span>, <span class="str">'domicilio'</span>,
+                <span class="str">'referido'</span>, <span class="str">'en_transito'</span>
+            ]);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'grupo_etareo_defuncion'</span>, [
+                <span class="str">'neonatal'</span>, <span class="str">'infantil_menor_1'</span>,
+                <span class="str">'menor_5'</span>, <span class="str">'5_a_59'</span>, <span class="str">'adulto_mayor'</span>
+            ]);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'registrado_por'</span>)
+                  <span class="op">-></span><span class="fn">nullable</span>()
+                  <span class="op">-></span><span class="fn">constrained</span>(<span class="str">'users'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+        });
+    }
+
+    <span class="kw">public function</span> <span class="fn">down</span>(): <span class="type">void</span>
+    {
+        <span class="cls">Schema</span><span class="op">::</span><span class="fn">dropIfExists</span>(<span class="str">'defunciones'</span>);
+    }
+};</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">¿Por qué persona_id es nullable?</div>
+        No todas las defunciones corresponden a personas previamente registradas en el sistema. Puede llegar alguien de otra comunidad y fallecer. Los datos de nombres/apellidos se guardan directamente en la tabla para tener siempre la información completa.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: RELACIONES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="relaciones">
+    <h2 class="section-title"><span class="number">5</span> Relaciones entre tablas</h2>
+
+    <p>Veamos cómo crecen las relaciones con estas dos nuevas tablas:</p>
+
+    <div class="arch-diagram">
+      <div class="arch-box">municipios</div>
+      <div class="arch-arrow">1 ── N</div>
+      <div class="arch-box">centros_salud</div>
+      <div class="arch-arrow">1 ── N</div>
+      <div class="arch-box">comunidades</div>
+      <div class="arch-arrow">1 ── N</div>
+      <div class="arch-box" style="background: #fef3c7; border-color: #f59e0b;">personas</div>
+    </div>
+
+    <div class="arch-diagram" style="margin-top: 1rem;">
+      <div class="arch-box">centros_salud</div>
+      <div class="arch-arrow">1 ── N</div>
+      <div class="arch-box" style="background: #fef3c7; border-color: #f59e0b;">personas</div>
+    </div>
+
+    <div class="arch-diagram" style="margin-top: 1rem;">
+      <div class="arch-box" style="background: #fef3c7; border-color: #f59e0b;">personas</div>
+      <div class="arch-arrow">1 ── 0..1</div>
+      <div class="arch-box" style="background: #fee2e2; border-color: #ef4444;">defunciones</div>
+    </div>
+
+    <div class="arch-diagram" style="margin-top: 1rem;">
+      <div class="arch-box">users</div>
+      <div class="arch-arrow">1 ── N</div>
+      <div class="arch-box" style="background: #fef3c7; border-color: #f59e0b;">personas (created_by)</div>
+    </div>
+
+    <p>Nota: <code class="inline">personas</code> tiene <strong>dos</strong> foreign keys hacia tablas diferentes:</p>
+    <ul class="styled">
+      <li><code class="inline">centro_salud_id</code> → centros_salud (obligatorio)</li>
+      <li><code class="inline">comunidad_id</code> → comunidades (obligatorio)</li>
+      <li><code class="inline">created_by</code> → users (nullable, auditoría)</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: EJECUTAR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="ejecutar">
+    <h2 class="section-title"><span class="number">6</span> Ejecutar y verificar</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan migrate
+<span class="output">INFO  Running migrations.</span>
+<span class="output"></span>
+<span class="output">  2026_XX_XX_create_personas_table .............. 32ms DONE</span>
+<span class="output">  2026_XX_XX_create_defunciones_table ........... 28ms DONE</span></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal — verificar columnas</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan db:table personas
+<span class="output">  id .................... bigint unsigned</span>
+<span class="output">  centro_salud_id ....... bigint unsigned (FK)</span>
+<span class="output">  comunidad_id .......... bigint unsigned (FK)</span>
+<span class="output">  nombres ............... varchar(100)</span>
+<span class="output">  apellidos ............. varchar(100)</span>
+<span class="output">  fecha_nacimiento ...... date</span>
+<span class="output">  sexo .................. enum('M','F')</span>
+<span class="output">  ci .................... varchar(20)</span>
+<span class="output">  tipo_seguro ........... enum('SUS','privado','ninguno')</span>
+<span class="output">  estado ................ enum('residente','temporal','migrado')</span>
+<span class="output">  ...</span></pre>
+    </div>
+
+    <div class="file-tree">
+      <div class="file-tree-title">Archivos creados en esta lección</div>
+      <ul>
+        <li><span class="ft-dir">database/migrations/</span>
+          <ul>
+            <li><span class="ft-file ft-new">XXXX_create_personas_table.php</span></li>
+            <li><span class="ft-file ft-new">XXXX_create_defunciones_table.php</span></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Git commit</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">git</span> add .
+<span class="prompt">$</span> <span class="cmd">git</span> commit <span class="flag">-m</span> <span class="str">"Crear migraciones: personas y defunciones"</span></pre>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 08</h3>
+    <ul>
+      <li>Tabla <strong>personas</strong>: la tabla central de SICSAL con 17 columnas incluyendo datos personales, tipo de seguro, estado migratorio y auditoría</li>
+      <li>Las columnas <strong>enum</strong> restringen valores a una lista fija — ideales para sexo, tipo_seguro, estado</li>
+      <li>Tabla <strong>defunciones</strong>: registra fallecimientos con persona_id nullable (no todos están en el padrón)</li>
+      <li><code class="inline">created_by</code> y <code class="inline">registrado_por</code> → auditoriá: siempre saber quién registró el dato</li>
+      <li>Total de tablas: <strong>municipios, centros_salud, comunidades, users, personas, defunciones</strong></li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="07-migraciones-comunidades.html" class="lesson-nav-btn">← Lección 07: Comunidades y Usuarios</a>
+    <a href="09-migraciones-clinicos.html" class="lesson-nav-btn">Lección 09: Datos Clínicos Individuales →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 08 de 58</span>
+    <span>Siguiente: Migraciones: Datos Clínicos Individuales</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

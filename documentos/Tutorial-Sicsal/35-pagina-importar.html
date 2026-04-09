@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 35 — Página ImportarDesdeVes | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 6 — Panel Admin (Filament)</div>
+    <div class="lesson-number">Lección 35 de 58</div>
+    <h1 class="lesson-title">Página ImportarDesdeVes — Interfaz de Importación SNIS</h1>
+    <p class="lesson-subtitle">Subida de archivos .ves, ejecución de Artisan command desde la UI, resultado visual con estadísticas por tabla, y tabla de centros con código SNIS.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 2 archivos (164 + 117 líneas)</span>
+      <span class="lesson-meta-item">⏱️ ~25 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Avanzado</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="34-pagina-reportes.html" class="lesson-nav-btn">← Lección 34</a>
+    <a href="36-formulario-servicios.html" class="lesson-nav-btn">Lección 36 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#flujo">El flujo de importación .ves</a></li>
+      <li><a href="#form">Formulario con FileUpload, Select y Toggle</a></li>
+      <li><a href="#importar">ejecutarImportacion() — Artisan::call desde la UI</a></li>
+      <li><a href="#blade-form">Vista Blade — formulario y loading states</a></li>
+      <li><a href="#blade-result">Vista Blade — resultado y tabla de centros</a></li>
+      <li><a href="#resumen">Resumen y cierre de Fase 6</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: FLUJO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="flujo">
+    <h2><span class="section-number">1</span> El flujo de importación .ves</h2>
+
+    <div class="flow-diagram flow-vertical">
+      <div class="flow-step">Centro de Salud genera archivo .ves<br><small>M30701FORM_26_01al01.ves — desde SNIS del ministerio</small></div>
+      <div class="flow-arrow">↓ USB / correo / WhatsApp</div>
+      <div class="flow-step">Técnico sube el .ves en esta página<br><small>FileUpload → storage/app/ves_uploads/</small></div>
+      <div class="flow-arrow">↓ click "Importar"</div>
+      <div class="flow-step">Artisan::call('snis:importar-ves', args)<br><small>Extrae, lee .mdb, mapea códigos, inserta en 12 tablas</small></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">Grid de resultados<br><small>Conteos por tabla + total + eliminación del archivo</small></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: FORM
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="form">
+    <h2><span class="section-number">2</span> Formulario con FileUpload, Select y Toggle</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Pages/ImportarDesdeVes.php — form()</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">ImportarDesdeVes</span> <span class="kw">extends</span> <span class="cls">Page</span>
+{
+    <span class="kw">protected static</span> <span class="type">string</span>|<span class="cls">\UnitEnum</span>|<span class="kw">null</span> <span class="var">$navigationGroup</span>
+        <span class="op">=</span> <span class="str">'Transferencias'</span>;
+    <span class="kw">protected static</span> ?<span class="type">int</span> <span class="var">$navigationSort</span> <span class="op">=</span> <span class="num">10</span>;
+
+    <span class="kw">public</span> ?<span class="type">array</span> <span class="var">$data</span> <span class="op">=</span> [];
+    <span class="kw">public</span> ?<span class="type">array</span> <span class="var">$resultado</span> <span class="op">=</span> <span class="kw">null</span>;
+    <span class="kw">public</span> <span class="type">bool</span> <span class="var">$importando</span> <span class="op">=</span> <span class="kw">false</span>;
+
+    <span class="kw">public function</span> <span class="fn">form</span>(<span class="cls">Schema</span> <span class="var">$schema</span>): <span class="cls">Schema</span>
+    {
+        <span class="kw">return</span> <span class="var">$schema</span>-&gt;<span class="fn">schema</span>([
+            <span class="hl"><span class="cls">FileUpload</span>::<span class="fn">make</span>(<span class="str">'archivo_ves'</span>)
+                -&gt;<span class="fn">label</span>(<span class="str">'Archivo .ves del SNIS'</span>)
+                -&gt;<span class="fn">maxSize</span>(<span class="num">50</span> <span class="op">*</span> <span class="num">1024</span>)  <span class="cmt">// 50 MB</span>
+                -&gt;<span class="fn">disk</span>(<span class="str">'local'</span>)
+                -&gt;<span class="fn">directory</span>(<span class="str">'ves_uploads'</span>)
+                -&gt;<span class="fn">visibility</span>(<span class="str">'private'</span>)</span>
+                -&gt;<span class="fn">required</span>()
+                -&gt;<span class="fn">columnSpanFull</span>(),
+
+            <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'solo_centro'</span>)
+                -&gt;<span class="fn">label</span>(<span class="str">'Importar solo este centro (opcional)'</span>)
+                -&gt;<span class="fn">options</span>(
+                    <span class="cls">CentroSalud</span>::<span class="fn">whereNotNull</span>(<span class="str">'codigo_snis'</span>)
+                        -&gt;<span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>)
+                        -&gt;<span class="fn">pluck</span>(<span class="str">'nombre'</span>, <span class="str">'codigo_snis'</span>))
+                -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">nullable</span>(),
+
+            <span class="cls">Toggle</span>::<span class="fn">make</span>(<span class="str">'limpiar_antes'</span>)
+                -&gt;<span class="fn">label</span>(<span class="str">'Limpiar datos existentes del mes'</span>)
+                -&gt;<span class="fn">default</span>(<span class="kw">false</span>),
+        ])-&gt;<span class="fn">statePath</span>(<span class="str">'data'</span>);
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">FileUpload con disco privado</div>
+      <p><code>disk('local')</code> y <code>visibility('private')</code> almacenan el .ves en <code>storage/app/ves_uploads/</code>, NO accesible desde la web. Después de importar exitosamente, el archivo se elimina con <code>Storage::disk('local')->delete()</code>. Seguridad: los archivos .ves contienen datos sensibles de pacientes.</p>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">statePath('data')</div>
+      <p>Cuando el form de una Page tiene <code>statePath('data')</code>, todos los campos se almacenan dentro de <code>$this->data['archivo_ves']</code>, <code>$this->data['solo_centro']</code>, etc. Sin <code>statePath</code>, cada campo sería una propiedad pública directa.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: IMPORTAR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="importar">
+    <h2><span class="section-number">3</span> ejecutarImportacion() — Artisan::call desde la UI</h2>
+
+    <div class="code-block">
+      <div class="code-header">ImportarDesdeVes.php — lógica principal</div>
+      <div class="code-body">
+<pre><span class="kw">public function</span> <span class="fn">ejecutarImportacion</span>(): <span class="type">void</span>
+{
+    <span class="var">$formData</span> <span class="op">=</span> <span class="var">$this</span>-&gt;<span class="var">form</span>-&gt;<span class="fn">getState</span>();
+    <span class="var">$archivoRelativo</span> <span class="op">=</span> <span class="var">$formData</span>[<span class="str">'archivo_ves'</span>];
+
+    <span class="cmt">// Ruta absoluta en disco local</span>
+    <span class="var">$archivoAbsoluto</span> <span class="op">=</span> <span class="cls">Storage</span>::<span class="fn">disk</span>(<span class="str">'local'</span>)
+        -&gt;<span class="fn">path</span>(<span class="var">$archivoRelativo</span>);
+
+    <span class="var">$this</span>-&gt;<span class="var">importando</span> <span class="op">=</span> <span class="kw">true</span>;
+
+    <span class="kw">try</span> {
+        <span class="var">$args</span> <span class="op">=</span> [<span class="str">'--archivo'</span> <span class="op">=&gt;</span> <span class="var">$archivoAbsoluto</span>];
+        <span class="kw">if</span> (<span class="var">$formData</span>[<span class="str">'limpiar_antes'</span>])
+            <span class="var">$args</span>[<span class="str">'--limpiar'</span>] <span class="op">=</span> <span class="kw">true</span>;
+        <span class="kw">if</span> (<span class="var">$formData</span>[<span class="str">'solo_centro'</span>])
+            <span class="var">$args</span>[<span class="str">'--solo-centro'</span>] <span class="op">=</span> <span class="var">$formData</span>[<span class="str">'solo_centro'</span>];
+
+        <span class="hl"><span class="var">$exitCode</span> <span class="op">=</span> \<span class="cls">Artisan</span>::<span class="fn">call</span>(<span class="str">'snis:importar-ves'</span>, <span class="var">$args</span>);
+        <span class="var">$output</span> <span class="op">=</span> \<span class="cls">Artisan</span>::<span class="fn">output</span>();</span>
+
+        <span class="var">$stats</span> <span class="op">=</span> <span class="var">$this</span>-&gt;<span class="fn">leerStatsImportados</span>();
+
+        <span class="kw">if</span> (<span class="var">$exitCode</span> <span class="op">===</span> <span class="num">0</span>) {
+            <span class="var">$this</span>-&gt;<span class="var">resultado</span> <span class="op">=</span> [
+                <span class="str">'exito'</span> <span class="op">=&gt;</span> <span class="kw">true</span>,
+                <span class="str">'stats'</span> <span class="op">=&gt;</span> <span class="var">$stats</span>,
+                <span class="str">'total'</span> <span class="op">=&gt;</span> <span class="fn">array_sum</span>(<span class="var">$stats</span>),
+            ];
+            <span class="cmt">// Limpiar archivo subido</span>
+            <span class="hl"><span class="cls">Storage</span>::<span class="fn">disk</span>(<span class="str">'local'</span>)-&gt;<span class="fn">delete</span>(<span class="var">$archivoRelativo</span>);</span>
+            <span class="var">$this</span>-&gt;<span class="var">form</span>-&gt;<span class="fn">fill</span>();
+        } <span class="kw">else</span> {
+            <span class="var">$this</span>-&gt;<span class="var">resultado</span> <span class="op">=</span> [
+                <span class="str">'exito'</span> <span class="op">=&gt;</span> <span class="kw">false</span>,
+                <span class="str">'output'</span> <span class="op">=&gt;</span> <span class="var">$output</span>,
+            ];
+        }
+    } <span class="kw">catch</span> (\<span class="cls">Throwable</span> <span class="var">$e</span>) {
+        <span class="var">$this</span>-&gt;<span class="var">resultado</span> <span class="op">=</span> [
+            <span class="str">'exito'</span> <span class="op">=&gt;</span> <span class="kw">false</span>,
+            <span class="str">'output'</span> <span class="op">=&gt;</span> <span class="var">$e</span>-&gt;<span class="fn">getMessage</span>(),
+        ];
+    } <span class="kw">finally</span> {
+        <span class="var">$this</span>-&gt;<span class="var">importando</span> <span class="op">=</span> <span class="kw">false</span>;
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Artisan::call() — ejecutar comando desde la web</div>
+      <p><code>\Artisan::call('snis:importar-ves', $args)</code> ejecuta el mismo comando de consola (lección 55) pero <strong>de forma sincrónica</strong> dentro del request HTTP. Es un patrón útil para ofrecer la misma funcionalidad desde la terminal y desde la UI. El <code>exitCode</code> indica 0 = éxito.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">ImportarDesdeVes.php — leerStatsImportados()</div>
+      <div class="code-body">
+<pre><span class="kw">private function</span> <span class="fn">leerStatsImportados</span>(): <span class="type">array</span>
+{
+    <span class="kw">return</span> [
+        <span class="str">'consulta_externa'</span> <span class="op">=&gt;</span> \<span class="cls">DB</span>::<span class="fn">table</span>(<span class="str">'prest_consulta_externa'</span>)-&gt;<span class="fn">count</span>(),
+        <span class="str">'referencias'</span>      <span class="op">=&gt;</span> \<span class="cls">DB</span>::<span class="fn">table</span>(<span class="str">'prest_referencias'</span>)-&gt;<span class="fn">count</span>(),
+        <span class="str">'odontologia'</span>      <span class="op">=&gt;</span> \<span class="cls">DB</span>::<span class="fn">table</span>(<span class="str">'prest_odontologia'</span>)-&gt;<span class="fn">count</span>(),
+        <span class="cmt">// ... 9 tablas más ...</span>
+    ];
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: BLADE FORM
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="blade-form">
+    <h2><span class="section-number">4</span> Vista Blade — formulario y loading states</h2>
+
+    <div class="code-block">
+      <div class="code-header">importar-desde-ves.blade.php — info + form + botón</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;x-filament-panels::page&gt;</span>
+  <span class="cmt">&lt;!-- Info box --&gt;</span>
+  <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"... border-blue-200 bg-blue-50 ..."</span><span class="dec">&gt;</span>
+    <span class="dec">&lt;ol&gt;</span>
+      <span class="dec">&lt;li&gt;</span>Centro genera archivo <span class="dec">&lt;strong&gt;</span>.ves<span class="dec">&lt;/strong&gt;</span><span class="dec">&lt;/li&gt;</span>
+      <span class="dec">&lt;li&gt;</span>Envía por USB/correo/WhatsApp<span class="dec">&lt;/li&gt;</span>
+      <span class="dec">&lt;li&gt;</span>Suba el archivo y haga clic Importar<span class="dec">&lt;/li&gt;</span>
+      <span class="dec">&lt;li&gt;</span>Los datos se consolidan automáticamente<span class="dec">&lt;/li&gt;</span>
+    <span class="dec">&lt;/ol&gt;</span>
+  <span class="dec">&lt;/div&gt;</span>
+
+  <span class="cmt">&lt;!-- Formulario Filament --&gt;</span>
+  {{ <span class="var">$this</span>-&gt;<span class="var">form</span> }}
+
+  <span class="cmt">&lt;!-- Botón con loading state --&gt;</span>
+  <span class="hl"><span class="dec">&lt;x-filament::button</span>
+      <span class="attr">wire:click</span><span class="op">=</span><span class="str">"ejecutarImportacion"</span>
+      <span class="attr">color</span><span class="op">=</span><span class="str">"success"</span>
+      <span class="attr">wire:loading.attr</span><span class="op">=</span><span class="str">"disabled"</span>
+      <span class="attr">wire:loading.class</span><span class="op">=</span><span class="str">"opacity-50 cursor-not-allowed"</span>
+      <span class="attr">wire:target</span><span class="op">=</span><span class="str">"ejecutarImportacion"</span><span class="dec">&gt;</span></span>
+    <span class="dec">&lt;span</span> <span class="attr">wire:loading.remove</span> <span class="attr">wire:target</span><span class="op">=</span><span class="str">"ejecutarImportacion"</span><span class="dec">&gt;</span>
+      Importar desde .ves
+    <span class="dec">&lt;/span&gt;</span>
+    <span class="dec">&lt;span</span> <span class="attr">wire:loading</span> <span class="attr">wire:target</span><span class="op">=</span><span class="str">"ejecutarImportacion"</span><span class="dec">&gt;</span>
+      Importando, espere...
+    <span class="dec">&lt;/span&gt;</span>
+  <span class="dec">&lt;/x-filament::button&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">wire:loading — UX durante la importación</div>
+      <ul>
+        <li><code>wire:loading.attr="disabled"</code> — desactiva el botón mientras se procesa</li>
+        <li><code>wire:loading.class="opacity-50"</code> — lo hace semi-transparente</li>
+        <li><code>wire:loading.remove</code> / <code>wire:loading</code> — alterna entre "Importar" y "Importando, espere..."</li>
+        <li><code>wire:target="ejecutarImportacion"</code> — solo reacciona a esa acción específica</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: BLADE RESULT
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="blade-result">
+    <h2><span class="section-number">5</span> Vista Blade — resultado y tabla de centros</h2>
+
+    <div class="code-block">
+      <div class="code-header">importar-desde-ves.blade.php — resultado + tabla</div>
+      <div class="code-body">
+<pre><span class="kw">@if</span> (<span class="var">$resultado</span> <span class="op">!==</span> <span class="kw">null</span>)
+  <span class="kw">@if</span> (<span class="var">$resultado</span>[<span class="str">'exito'</span>])
+    <span class="cmt">&lt;!-- Grid de stats por tabla --&gt;</span>
+    <span class="hl"><span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5"</span><span class="dec">&gt;</span></span>
+      <span class="kw">@foreach</span> (<span class="var">$resultado</span>[<span class="str">'stats'</span>] <span class="kw">as</span> <span class="var">$tipo</span> <span class="op">=&gt;</span> <span class="var">$cantidad</span>)
+        <span class="kw">@if</span> (<span class="var">$cantidad</span> <span class="op">&gt;</span> <span class="num">0</span>)
+          <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"rounded-lg border p-3 text-center"</span><span class="dec">&gt;</span>
+            <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"text-2xl font-bold"</span><span class="dec">&gt;</span>
+              {{ <span class="fn">number_format</span>(<span class="var">$cantidad</span>) }}
+            <span class="dec">&lt;/div&gt;</span>
+            <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"text-xs"</span><span class="dec">&gt;</span>
+              {{ <span class="fn">str_replace</span>(<span class="str">'_'</span>, <span class="str">' '</span>, <span class="fn">ucfirst</span>(<span class="var">$tipo</span>)) }}
+            <span class="dec">&lt;/div&gt;</span>
+          <span class="dec">&lt;/div&gt;</span>
+        <span class="kw">@endif</span>
+      <span class="kw">@endforeach</span>
+    <span class="dec">&lt;/div&gt;</span>
+  <span class="kw">@else</span>
+    <span class="cmt">&lt;!-- Caja de error con &lt;pre&gt; para output --&gt;</span>
+    <span class="dec">&lt;pre&gt;</span>{{ <span class="var">$resultado</span>[<span class="str">'output'</span>] }}<span class="dec">&lt;/pre&gt;</span>
+  <span class="kw">@endif</span>
+<span class="kw">@endif</span>
+
+<span class="cmt">&lt;!-- Tabla de centros con código SNIS --&gt;</span>
+<span class="kw">@forelse</span> (<span class="cls">App\Models\CentroSalud</span>::<span class="fn">whereNotNull</span>(<span class="str">'codigo_snis'</span>)...
+    <span class="kw">as</span> <span class="var">$centro</span>)
+  <span class="dec">&lt;tr&gt;</span>
+    <span class="dec">&lt;td&gt;</span>{{ <span class="var">$centro</span>-&gt;<span class="var">nombre</span> }}<span class="dec">&lt;/td&gt;</span>
+    <span class="dec">&lt;td</span> <span class="attr">class</span><span class="op">=</span><span class="str">"font-mono"</span><span class="dec">&gt;</span>{{ <span class="var">$centro</span>-&gt;<span class="var">codigo_snis</span> }}<span class="dec">&lt;/td&gt;</span>
+    <span class="dec">&lt;td&gt;</span><span class="dec">&lt;span</span> <span class="attr">class</span><span class="op">=</span><span class="str">"... bg-green-100 ..."</span><span class="dec">&gt;</span>Listo<span class="dec">&lt;/span&gt;&lt;/td&gt;</span>
+  <span class="dec">&lt;/tr&gt;</span>
+<span class="kw">@empty</span>
+  Ningún centro tiene código SNIS configurado.
+<span class="kw">@endforelse</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">@forelse / @empty — lista con fallback</div>
+      <p><code>@forelse</code> funciona como <code>@foreach</code> pero con un bloque <code>@empty</code> que se muestra cuando la colección está vacía. Aquí muestra los centros con código SNIS, y si no hay ninguno, muestra un mensaje con link a la sección de configuración.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RESUMEN + CIERRE FASE 6
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen">
+    <h2><span class="section-number">6</span> Resumen y cierre de Fase 6</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos en esta lección</h3>
+      <ul>
+        <li><strong>FileUpload con disk('local') y visibility('private')</strong> — archivos sensibles fuera de la web</li>
+        <li><strong>statePath('data')</strong> — agrupar campos del form en un array</li>
+        <li><strong>Artisan::call()</strong> — ejecutar comandos de consola desde la UI web</li>
+        <li><strong>Storage::disk('local')->delete()</strong> — limpiar archivos temporales</li>
+        <li><strong>wire:loading + wire:target</strong> — UX durante operaciones largas</li>
+        <li><strong>$this->form->fill()</strong> — resetear formulario después de éxito</li>
+        <li><strong>Grid responsivo</strong> de estadísticas por tabla (grid-cols-5)</li>
+        <li><strong>@forelse / @empty</strong> — lista con mensaje de fallback</li>
+      </ul>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Fase 6 completada — 12 lecciones del Panel Admin</div>
+      <p>Con esta lección termina la <strong>Fase 6: Panel Admin (Filament)</strong>. Cubrimos: instalación de Filament (24), 8 Resources con Form/Table/Pages (25-31), 4 Widgets del dashboard (32), Prestaciones + FormularioMensualTrait (33), Reportes con descarga en 3 formatos (34), e ImportarDesdeVes (35). En las siguientes fases veremos los formularios mensuales, observers, helpers, Livewire público, exports y commands.</p>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="34-pagina-reportes.html" class="lesson-nav-btn">← Lección 34</a>
+    <a href="36-formulario-servicios.html" class="lesson-nav-btn">Lección 36 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 35 de 58</p>
+</footer>
+
+</body>
+</html>

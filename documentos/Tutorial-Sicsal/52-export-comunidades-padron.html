@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 52 · Export Comunidades y Padrón — Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL · Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+  <span class="badge">Fase 11 — Exportaciones</span>
+  <h1>Lección 52 · Export Comunidades y Padrón</h1>
+  <p class="subtitle">Dos exports multi-sheet: ComunidadesPoblacionExport (3 hojas fijas) y PadronComunidadesExport (1 hoja dinámica por comunidad), con WithStyles, colLetter() y colores por sexo.</p>
+  <p class="meta">Lección 52 de 58 · Tiempo estimado: 25 min</p>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="51-export-excel-cai.html">← Lección 51 · EstiloExcel e InformeCAIExport</a>
+  <a href="53-export-causas-consulta.html">Lección 53 · Export Causas de Consulta →</a>
+</nav>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">ComunidadesPoblacionExport — orquestador de 3 hojas</a></li>
+    <li><a href="#s2">ComunidadesResumenSheet — blue-800 con 9 grupos</a></li>
+    <li><a href="#s3">ComunidadesDetalleSheet — H/F fusionado y colLetter()</a></li>
+    <li><a href="#s4">ComunidadesConsolidadoSheet — INE vs Real con semáforo</a></li>
+    <li><a href="#s5">PadronComunidadesExport — hojas dinámicas por comunidad</a></li>
+    <li><a href="#s6">PadronComunidadSheet — lista nominal con colores por sexo</a></li>
+    <li><a href="#s7">Diferencias con EstiloExcel: WithStyles vs WithEvents</a></li>
+  </ol>
+</nav>
+
+<!-- ───── Secciones ───── -->
+
+<!-- ───── S1 ───── -->
+<section id="s1">
+  <h2>1 · ComunidadesPoblacionExport — orquestador de 3 hojas</h2>
+
+  <pre><code><span class="cmt">// app/Exports/ComunidadesPoblacionExport.php — 22 líneas</span>
+<span class="kw">class</span> <span class="cls">ComunidadesPoblacionExport</span> <span class="kw">implements</span> <span class="cls">WithMultipleSheets</span>
+{
+    <span class="kw">use</span> <span class="cls">Exportable</span>;
+
+    <span class="kw">public function</span> <span class="fn">__construct</span>(<span class="kw">private</span> <span class="type">array</span> <span class="var">$datos</span>) {}
+
+    <span class="kw">public function</span> <span class="fn">sheets</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'Resumen'</span>      => <span class="kw">new</span> <span class="cls">Sheets\ComunidadesResumenSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>),
+            <span class="str">'Detalle Sexo'</span> => <span class="kw">new</span> <span class="cls">Sheets\ComunidadesDetalleSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>),
+            <span class="str">'INE vs Real'</span>  => <span class="kw">new</span> <span class="cls">Sheets\ComunidadesConsolidadoSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>),
+        ];
+    }
+}</code></pre>
+
+  <p>A diferencia de <code>InformeCAIExport</code> (Lección 51) que recibe sub-arrays por hoja, aquí <strong>todos los sheets reciben el mismo <code>$datos</code></strong> y cada uno extrae lo que necesita.</p>
+
+  <table>
+    <thead>
+      <tr><th>Hoja</th><th>Contenido</th><th>Color Header</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Resumen</td><td>Comunidad × 9 grupos + migrantes + totales/INE/diferencia</td><td>Blue-800 (#1E40AF)</td></tr>
+      <tr><td>Detalle Sexo</td><td>H/F por grupo etáreo por comunidad</td><td>Green-600 (#166534)</td></tr>
+      <tr><td>INE vs Real</td><td>Consolidado con cobertura% coloreada</td><td>Violet-600 (#7C3AED)</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───── S2 ───── -->
+<section id="s2">
+  <h2>2 · ComunidadesResumenSheet — blue-800 con 9 grupos</h2>
+
+  <p>La hoja Resumen (105 líneas) genera una tabla con <strong>columna dinámica</strong> basada en los grupos etáreos:</p>
+
+  <pre><code><span class="kw">public function</span> <span class="fn">array</span>(): <span class="type">array</span>
+{
+    <span class="var">$grupos</span> = <span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'grupos'</span>]; <span class="cmt">// 9 grupos etáreos</span>
+
+    <span class="cmt">// Header dinámico</span>
+    <span class="var">$header</span> = [<span class="str">'Comunidad'</span>, <span class="str">'Km'</span>, <span class="str">'Total'</span>, <span class="str">'H'</span>, <span class="str">'M'</span>];
+    <span class="kw">foreach</span> (<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$label</span>) {
+        <span class="var">$header</span>[] = <span class="var">$label</span>;          <span class="cmt">// "< 1 año", "1-4", "5-9", etc.</span>
+    }
+    <span class="var">$header</span>[] = <span class="str">'Migr.'</span>;
+
+    <span class="cmt">// Filas de datos</span>
+    <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'filas'</span>] <span class="kw">as</span> <span class="var">$fila</span>) {
+        <span class="var">$row</span> = [<span class="var">$fila</span>[<span class="str">'comunidad'</span>], <span class="var">$fila</span>[<span class="str">'km'</span>], <span class="var">$fila</span>[<span class="str">'total'</span>], <span class="var">$fila</span>[<span class="str">'hombres'</span>], <span class="var">$fila</span>[<span class="str">'mujeres'</span>]];
+        <span class="kw">foreach</span> (<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$key</span> => <span class="var">$label</span>) { <span class="var">$row</span>[] = <span class="var">$fila</span>[<span class="var">$key</span>]; }
+        <span class="var">$row</span>[] = <span class="var">$fila</span>[<span class="str">'migrantes'</span>];
+        <span class="var">$rows</span>[] = <span class="var">$row</span>;
+    }
+
+    <span class="cmt">// 3 filas de pie: TOTAL REAL, META INE, DIFERENCIA</span>
+    <span class="var">$t</span> = <span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'totales'</span>];
+    <span class="var">$rows</span>[] = [<span class="str">'TOTAL REAL'</span>, <span class="str">''</span>, <span class="var">$t</span>[<span class="str">'total'</span>], ...];
+    <span class="var">$rows</span>[] = [<span class="str">'META INE'</span>, <span class="str">''</span>, <span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'metaIne'</span>]];
+
+    <span class="var">$dif</span> = <span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'diferencia'</span>];
+    <span class="var">$pct</span> = <span class="fn">round</span>(<span class="var">$t</span>[<span class="str">'total'</span>] / <span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'metaIne'</span>] * <span class="num">100</span>, <span class="num">1</span>);
+    <span class="var">$rows</span>[] = [<span class="str">'DIFERENCIA'</span>, <span class="str">''</span>, (<span class="var">$dif</span> >= <span class="num">0</span> ? <span class="str">'+'</span> : <span class="str">''</span>) . <span class="var">$dif</span> . <span class="str">' ('</span> . <span class="var">$pct</span> . <span class="str">'%)'</span>];
+}</code></pre>
+
+  <h3>WithStyles vs WithEvents</h3>
+  <p>A diferencia de los Sheets del InformeCAI (que usan <code>WithEvents</code> + <code>EstiloExcel</code> trait), los sheets de Comunidades usan <code>WithStyles</code> directamente:</p>
+
+  <pre><code><span class="kw">public function</span> <span class="fn">styles</span>(<span class="cls">Worksheet</span> <span class="var">$sheet</span>): <span class="type">array</span>
+{
+    <span class="var">$headerRow</span> = <span class="num">3</span>;
+    <span class="var">$totalRow</span>  = <span class="var">$headerRow</span> + <span class="fn">count</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'filas'</span>]) + <span class="num">1</span>;
+
+    <span class="cmt">// Blue-800 header</span>
+    <span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"A{$headerRow}:O{$headerRow}"</span>)-><span class="fn">applyFromArray</span>([
+        <span class="str">'font'</span> => [<span class="str">'bold'</span> => <span class="kw">true</span>, <span class="str">'color'</span> => [<span class="str">'rgb'</span> => <span class="str">'FFFFFF'</span>]],
+        <span class="str">'fill'</span> => [<span class="str">'startColor'</span> => [<span class="str">'rgb'</span> => <span class="str">'1E40AF'</span>]],
+    ]);
+
+    <span class="cmt">// Bordes + centrado en datos</span>
+    <span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"A{$headerRow}:O{$totalRow}"</span>)
+        -><span class="fn">getBorders</span>()-><span class="fn">getAllBorders</span>()
+        -><span class="fn">setBorderStyle</span>(<span class="cls">Border</span>::<span class="var">BORDER_THIN</span>);
+}</code></pre>
+</section>
+
+<!-- ───── S3 ───── -->
+<section id="s3">
+  <h2>3 · ComunidadesDetalleSheet — H/F fusionado y colLetter()</h2>
+
+  <p>El sheet más técnico (127 líneas) genera un header de <strong>dos filas con celdas fusionadas</strong>:</p>
+
+  <pre><code><span class="cmt">// Fila 3: grupo etáreo (cada grupo ocupa 2 columnas: H + M)</span>
+<span class="cmt">// Fila 4: "H" | "M" alternando bajo cada grupo</span>
+
+<span class="cmt">// Comunidad | < 1 año    | 1-4 años   | 5-9 años   | ...</span>
+<span class="cmt">//           | H    | M   | H    | M   | H    | M   | ...</span></code></pre>
+
+  <h3>colLetter() — conversión índice → columna Excel</h3>
+  <pre><code><span class="kw">private function</span> <span class="fn">colLetter</span>(<span class="type">int</span> <span class="var">$index</span>): <span class="type">string</span>
+{
+    <span class="var">$letter</span> = <span class="str">''</span>;
+    <span class="kw">while</span> (<span class="var">$index</span> >= <span class="num">0</span>) {
+        <span class="var">$letter</span> = <span class="fn">chr</span>(<span class="num">65</span> + (<span class="var">$index</span> % <span class="num">26</span>)) . <span class="var">$letter</span>;
+        <span class="var">$index</span>  = <span class="fn">intdiv</span>(<span class="var">$index</span>, <span class="num">26</span>) - <span class="num">1</span>;
+    }
+    <span class="kw">return</span> <span class="var">$letter</span>;
+}</code></pre>
+
+  <p>Con 9 grupos × 2 (H/M) + Migrantes × 2 + Total × 2 = <strong>24 columnas de datos</strong> + 1 comunidad = 25 columnas (hasta <code>Y</code>). El helper maneja correctamente indices > 26 (AA, AB, etc.) con el algoritmo de división entera.</p>
+
+  <h3>Fusión programática de headers</h3>
+  <pre><code><span class="var">$col</span> = <span class="num">1</span>; <span class="cmt">// Después de columna A (Comunidad)</span>
+<span class="kw">foreach</span> (<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$label</span>) {
+    <span class="var">$l1</span> = <span class="var">$this</span>-><span class="fn">colLetter</span>(<span class="var">$col</span>);
+    <span class="var">$l2</span> = <span class="var">$this</span>-><span class="fn">colLetter</span>(<span class="var">$col</span> + <span class="num">1</span>);
+    <span class="var">$sheet</span>-><span class="fn">mergeCells</span>(<span class="str">"{$l1}3:{$l2}3"</span>);  <span class="cmt">// "< 1 año" ocupa 2 cols</span>
+    <span class="var">$col</span> += <span class="num">2</span>;
+}
+<span class="cmt">// + merge para Migrantes (2 cols) y Total (2 cols)</span></code></pre>
+
+  <p>Green-600 (#166534) da identidad visual distinta al sheet de Detalle:</p>
+  <pre><code><span class="var">$headerStyle</span> = [
+    <span class="str">'font'</span> => [<span class="str">'bold'</span> => <span class="kw">true</span>, <span class="str">'size'</span> => <span class="num">8</span>, <span class="str">'color'</span> => [<span class="str">'rgb'</span> => <span class="str">'FFFFFF'</span>]],
+    <span class="str">'fill'</span> => [<span class="str">'startColor'</span> => [<span class="str">'rgb'</span> => <span class="str">'166534'</span>]],
+    <span class="str">'alignment'</span> => [<span class="str">'horizontal'</span> => <span class="cls">Alignment</span>::<span class="var">HORIZONTAL_CENTER</span>],
+];</code></pre>
+</section>
+
+<!-- ───── S4 ───── -->
+<section id="s4">
+  <h2>4 · ComunidadesConsolidadoSheet — INE vs Real con semáforo</h2>
+
+  <p>La hoja Consolidado (100 líneas) compara los 9 grupos etáreos con un semáforo de cobertura:</p>
+
+  <pre><code><span class="kw">public function</span> <span class="fn">array</span>(): <span class="type">array</span>
+{
+    <span class="var">$rows</span>[] = [<span class="str">'Grupo'</span>, <span class="str">'INE H'</span>, <span class="str">'INE M'</span>, <span class="str">'INE Total'</span>,
+              <span class="str">'Real H'</span>, <span class="str">'Real M'</span>, <span class="str">'Real Total'</span>,
+              <span class="str">'Diferencia'</span>, <span class="str">'Cobertura'</span>];
+
+    <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'consolidado'</span>] <span class="kw">as</span> <span class="var">$row</span>) {
+        <span class="var">$rows</span>[] = [
+            <span class="var">$row</span>[<span class="str">'label'</span>],
+            <span class="var">$row</span>[<span class="str">'ine_m'</span>], <span class="var">$row</span>[<span class="str">'ine_f'</span>], <span class="var">$row</span>[<span class="str">'ine_total'</span>],
+            <span class="var">$row</span>[<span class="str">'real_m'</span>], <span class="var">$row</span>[<span class="str">'real_f'</span>], <span class="var">$row</span>[<span class="str">'real_total'</span>],
+            (<span class="var">$row</span>[<span class="str">'diferencia'</span>] >= <span class="num">0</span> ? <span class="str">'+'</span> : <span class="str">''</span>) . <span class="var">$row</span>[<span class="str">'diferencia'</span>],
+            <span class="var">$row</span>[<span class="str">'cobertura'</span>] . <span class="str">'%'</span>,
+        ];
+    }
+}</code></pre>
+
+  <h3>Colores de cobertura — 3 niveles</h3>
+  <pre><code><span class="cmt">// A diferencia del 4-nivel del InformeCAI, aquí son solo 3</span>
+<span class="kw">for</span> (<span class="var">$r</span> = <span class="var">$headerRow</span> + <span class="num">1</span>; <span class="var">$r</span> &lt;= <span class="var">$lastDataRow</span>; <span class="var">$r</span>++) {
+    <span class="var">$val</span>   = <span class="var">$sheet</span>-><span class="fn">getCell</span>(<span class="str">"I{$r}"</span>)-><span class="fn">getValue</span>();
+    <span class="var">$num</span>   = (<span class="type">float</span>) <span class="fn">str_replace</span>(<span class="str">'%'</span>, <span class="str">''</span>, <span class="var">$val</span>);
+    <span class="var">$color</span> = <span class="var">$num</span> >= <span class="num">100</span> ? <span class="str">'059669'</span>     <span class="cmt">// Verde ≥ 100%</span>
+           : (<span class="var">$num</span> >= <span class="num">80</span> ? <span class="str">'D97706'</span>     <span class="cmt">// Ámbar ≥ 80%</span>
+                          : <span class="str">'DC2626'</span>);  <span class="cmt">// Rojo < 80%</span>
+    <span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"I{$r}"</span>)-><span class="fn">getFont</span>()-><span class="fn">getColor</span>()-><span class="fn">setRGB</span>(<span class="var">$color</span>);
+}</code></pre>
+
+  <div class="callout warning">
+    <strong>Diseño de umbrales</strong>: El InformeCAI usa 4 niveles (≥95/≥80/≥50/&lt;50) porque evalúa metas anuales. El Consolidado usa 3 niveles (≥100/≥80/&lt;80) porque compara censo total con INE, donde ≥100% = cubierto, y ≥80% = aceptable.
+  </div>
+</section>
+
+<!-- ───── S5 ───── -->
+<section id="s5">
+  <h2>5 · PadronComunidadesExport — hojas dinámicas por comunidad</h2>
+
+  <p>A diferencia de los otros exports que tienen hojas fijas, <code>PadronComunidadesExport</code> genera <strong>una hoja por comunidad</strong>:</p>
+
+  <pre><code><span class="cmt">// app/Exports/PadronComunidadesExport.php — 27 líneas</span>
+<span class="kw">class</span> <span class="cls">PadronComunidadesExport</span> <span class="kw">implements</span> <span class="cls">WithMultipleSheets</span>
+{
+    <span class="kw">public function</span> <span class="fn">__construct</span>(<span class="kw">private</span> <span class="type">int</span> <span class="var">$centroSaludId</span>) {}
+
+    <span class="kw">public function</span> <span class="fn">sheets</span>(): <span class="type">array</span>
+    {
+        <span class="var">$centro</span>      = <span class="cls">CentroSalud</span>::<span class="fn">find</span>(<span class="var">$this</span>-><span class="var">centroSaludId</span>);
+        <span class="var">$comunidades</span> = <span class="cls">Comunidad</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$this</span>-><span class="var">centroSaludId</span>)
+            -><span class="fn">orderBy</span>(<span class="str">'nombre'</span>)
+            -><span class="fn">get</span>();
+
+        <span class="var">$sheets</span> = [];
+        <span class="kw">foreach</span> (<span class="var">$comunidades</span> <span class="kw">as</span> <span class="var">$comunidad</span>) {
+            <span class="var">$sheets</span>[] = <span class="kw">new</span> <span class="cls">PadronComunidadSheet</span>(<span class="var">$comunidad</span>, <span class="var">$centro</span>);
+        }
+
+        <span class="kw">return</span> <span class="var">$sheets</span>;
+    }
+}</code></pre>
+
+  <p>Si un centro tiene 20 comunidades, el Excel resultante tendrá <strong>20 pestañas</strong>, cada una con el listado nominal de personas activas.</p>
+
+  <div class="callout info">
+    <strong>Constructor recibe ID, no array</strong>: A diferencia de <code>ComunidadesPoblacionExport</code> (que recibe datos pre-calculados), este export recibe solo el <code>centroSaludId</code> y hace sus propios queries. Cada <code>PadronComunidadSheet</code> carga personas on-demand.
+  </div>
+</section>
+
+<!-- ───── S6 ───── -->
+<section id="s6">
+  <h2>6 · PadronComunidadSheet — lista nominal con colores por sexo</h2>
+
+  <p>Cada hoja (133 líneas) representa una comunidad con su lista de personas:</p>
+
+  <h3>Nombre de pestaña con límite de 31 caracteres</h3>
+  <pre><code><span class="kw">public function</span> <span class="fn">title</span>(): <span class="type">string</span>
+{
+    <span class="kw">return</span> <span class="fn">mb_substr</span>(<span class="var">$this</span>-><span class="var">comunidad</span>-><span class="var">nombre</span>, <span class="num">0</span>, <span class="num">31</span>);
+}</code></pre>
+
+  <div class="callout warning">
+    <strong>Límite de Excel</strong>: Los nombres de pestañas en Excel no pueden exceder 31 caracteres. <code>mb_substr()</code> trunca correctamente nombres largos con caracteres UTF-8.
+  </div>
+
+  <h3>Lazy-loading de personas</h3>
+  <pre><code><span class="kw">private</span> ?<span class="cls">Collection</span> <span class="var">$personas</span> = <span class="kw">null</span>;
+
+<span class="kw">private function</span> <span class="fn">getPersonas</span>(): <span class="cls">Collection</span>
+{
+    <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">personas</span> === <span class="kw">null</span>) {
+        <span class="var">$this</span>-><span class="var">personas</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'comunidad_id'</span>, <span class="var">$this</span>-><span class="var">comunidad</span>-><span class="var">id</span>)
+            -><span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>)
+            -><span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'!='</span>, <span class="str">'migrado'</span>)
+            -><span class="fn">orderBy</span>(<span class="str">'apellidos'</span>)
+            -><span class="fn">orderBy</span>(<span class="str">'nombres'</span>)
+            -><span class="fn">get</span>();
+    }
+    <span class="kw">return</span> <span class="var">$this</span>-><span class="var">personas</span>;
+}</code></pre>
+
+  <p>El query se lanza una sola vez — <code>array()</code> y <code>styles()</code> comparten el resultado cacheado.</p>
+
+  <h3>Color diferenciado por sexo</h3>
+  <pre><code><span class="cmt">// Columna D (Sexo): azul para masculino, rosa para femenino</span>
+<span class="kw">for</span> (<span class="var">$r</span> = <span class="var">$headerRow</span> + <span class="num">1</span>; <span class="var">$r</span> &lt;= <span class="var">$lastDataRow</span>; <span class="var">$r</span>++) {
+    <span class="var">$val</span> = <span class="var">$sheet</span>-><span class="fn">getCell</span>(<span class="str">"D{$r}"</span>)-><span class="fn">getValue</span>();
+    <span class="kw">if</span> (<span class="var">$val</span> === <span class="str">'Masculino'</span>) {
+        <span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"D{$r}"</span>)-><span class="fn">getFont</span>()-><span class="fn">getColor</span>()-><span class="fn">setRGB</span>(<span class="str">'1D4ED8'</span>); <span class="cmt">// Blue</span>
+    } <span class="kw">elseif</span> (<span class="var">$val</span> === <span class="str">'Femenino'</span>) {
+        <span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"D{$r}"</span>)-><span class="fn">getFont</span>()-><span class="fn">getColor</span>()-><span class="fn">setRGB</span>(<span class="str">'BE185D'</span>); <span class="cmt">// Pink</span>
+    }
+}</code></pre>
+
+  <p>Otros detalles de estilización:</p>
+  <ul>
+    <li><strong>Header ámbar</strong> (#B45309) — identidad visual distinta al resto de exports</li>
+    <li><strong>Filas alternas</strong> — <code>FEF3C7</code> (amber-50) en filas pares</li>
+    <li><strong>freezePane</strong> — fija la cabecera al hacer scroll</li>
+    <li><strong>Fila Total</strong> al final con conteo de personas</li>
+  </ul>
+</section>
+
+<!-- ───── S7 ───── -->
+<section id="s7">
+  <h2>7 · Diferencias con EstiloExcel: WithStyles vs WithEvents</h2>
+
+  <p>Los exports de Comunidades/Padrón <strong>no usan el trait <code>EstiloExcel</code></strong>. Hay dos enfoques de estilización:</p>
+
+  <table>
+    <thead>
+      <tr><th>Aspecto</th><th>InformeCAI (L51)</th><th>Comunidades/Padrón (L52)</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Interface</td><td><code>WithEvents</code></td><td><code>WithStyles</code></td></tr>
+      <tr><td>Trait</td><td><code>EstiloExcel</code> (182 líneas)</td><td>Ninguno</td></tr>
+      <tr><td>Estilos</td><td>Métodos reutilizables del trait</td><td>Inline en cada sheet</td></tr>
+      <tr><td>Acceso</td><td><code>AfterSheet</code> event → <code>$event->sheet</code></td><td>Método <code>styles(Worksheet $sheet)</code></td></tr>
+      <tr><td>Ventaja</td><td>DRY y consistente entre 7 hojas</td><td>Más simple, sin dependencia</td></tr>
+      <tr><td>Colores</td><td>Paleta teal centralizada (18 constantes)</td><td>Colores hardcoded por sheet</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout tip">
+    <strong>¿Cuándo usar cada enfoque?</strong> Si múltiples sheets comparten la misma identidad visual (como las 7 hojas del InformeCAI), un trait centraliza los estilos. Si los sheets son independientes con colores distintos, <code>WithStyles</code> inline es más directo.
+  </div>
+</section>
+
+<!-- ───── Resumen ───── -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li><strong>ComunidadesPoblacionExport</strong> (22 líneas) genera 3 hojas fijas: Resumen (blue-800), Detalle (green-600) y Consolidado (violet-600).</li>
+    <li><strong>PadronComunidadesExport</strong> (27 líneas) genera <strong>N hojas dinámicas</strong> — una por comunidad — con lazy-loading de personas.</li>
+    <li><strong>colLetter()</strong> convierte índices numéricos a letras de columna Excel, necesario cuando hay más de 26 columnas.</li>
+    <li><strong>mb_substr($nombre, 0, 31)</strong> respeta el límite de 31 caracteres de pestañas Excel con soporte UTF-8.</li>
+    <li>El Consolidado usa <strong>3 niveles de color</strong> (≥100/≥80/&lt;80) vs los 4 del InformeCAI (≥95/≥80/≥50/&lt;50).</li>
+    <li>Los sheets de Comunidades/Padrón usan <code>WithStyles</code> inline en lugar del trait <code>EstiloExcel</code>.</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Próxima lección</strong>: En la Lección 53 veremos <strong>CausasConsultaExternaExport</strong>, un export de hoja única con estilos profesionales.
+  </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="51-export-excel-cai.html">← Lección 51 · EstiloExcel e InformeCAIExport</a>
+  <a href="53-export-causas-consulta.html">Lección 53 · Export Causas de Consulta →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+  Tutorial SICSAL · <span id="year"></span>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</footer>
+
+</body>
+</html>

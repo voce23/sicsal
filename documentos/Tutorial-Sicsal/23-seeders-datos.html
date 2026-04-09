@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 23 — Seeder de datos de prueba | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 5 — Seeders</div>
+    <div class="lesson-number">Lección 23 de 58</div>
+    <h1 class="lesson-title">Seeder de datos de prueba</h1>
+    <p class="lesson-subtitle">DatosPruebaSeeder: 441 líneas que crean 6 centros adicionales con 4 meses de prestaciones realistas para 15 tablas prest_*.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 1 archivo</span>
+      <span class="lesson-meta-item">⏱️ ~30 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio-Avanzado</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="22-seeders-estructura.html" class="lesson-nav-btn">← Lección 22</a>
+    <a href="24-filament-instalacion.html" class="lesson-nav-btn">Lección 24 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#proposito">Propósito y diferencia con los seeders base</a></li>
+      <li><a href="#arquitectura">Arquitectura del seeder</a></li>
+      <li><a href="#centros">Los 6 centros adicionales</a></li>
+      <li><a href="#meta-porcentajes">Metas INE por porcentaje</a></li>
+      <li><a href="#cobertura">Factor de cobertura por centro</a></li>
+      <li><a href="#prestaciones">Lógica de prestaciones (15 tablas)</a></li>
+      <li><a href="#variacion">Variación aleatoria realista</a></li>
+      <li><a href="#limpiar">Método limpiar()</a></li>
+      <li><a href="#ejecutar">Ejecutar y verificar</a></li>
+      <li><a href="#resumen-fase5">Resumen de Fase 5 completa</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: PROPÓSITO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="proposito">
+    <h2><span class="section-number">1</span> Propósito y diferencia con los seeders base</h2>
+
+    <p>En la lección 22 vimos los 7 seeders que configuran la base del sistema. <code>DatosPruebaSeeder</code> es diferente:</p>
+
+    <div class="db-table">
+      <div class="db-table-title">Seeders base vs. datos de prueba</div>
+      <table>
+        <thead><tr><th>Característica</th><th>Seeders base (lección 22)</th><th>DatosPruebaSeeder</th></tr></thead>
+        <tbody>
+          <tr><td>Incluido en DatabaseSeeder</td><td>✅ Sí</td><td>❌ No</td></tr>
+          <tr><td>Se ejecuta con <code>db:seed</code></td><td>✅ Automático</td><td>Manual con <code>--class</code></td></tr>
+          <tr><td>Datos que crea</td><td>Roles, 1 municipio, 1 centro, 8 comunidades, 3 usuarios</td><td>6 centros extra + miles de registros de prestaciones</td></tr>
+          <tr><td>Idempotente</td><td>✅ firstOrCreate</td><td>⚠️ Parcial (borra y recrea metas)</td></tr>
+          <tr><td>Necesario para producción</td><td>✅ Sí</td><td>❌ Solo desarrollo</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Solo para desarrollo</div>
+      <p><code>DatosPruebaSeeder</code> crea datos ficticios para poder probar reportes, gráficas y exportaciones sin esperar datos reales. <strong>Nunca</strong> lo ejecutes en producción.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: ARQUITECTURA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="arquitectura">
+    <h2><span class="section-number">2</span> Arquitectura del seeder</h2>
+
+    <p>El seeder tiene una estructura clara con 3 arrays estáticos de configuración y 16 métodos privados:</p>
+
+    <div class="code-block">
+      <div class="code-header">Estructura de DatosPruebaSeeder</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">DatosPruebaSeeder</span> <span class="kw">extends</span> <span class="cls">Seeder</span>
+{
+    <span class="cmt">// ─── Configuración estática ───</span>
+    <span class="kw">private static array</span> <span class="var">$centros</span>;          <span class="cmt">// 6 centros adicionales</span>
+    <span class="kw">private static array</span> <span class="var">$metaPct</span>;          <span class="cmt">// Porcentajes por grupo etario</span>
+    <span class="kw">private static array</span> <span class="var">$coberturaFactor</span>;  <span class="cmt">// Factor de cobertura por centro</span>
+    <span class="kw">private int</span> <span class="var">$anio</span> <span class="op">=</span> <span class="num">2026</span>;
+    <span class="kw">private array</span> <span class="var">$meses</span> <span class="op">=</span> [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>];
+
+    <span class="cmt">// ─── Método principal ───</span>
+    <span class="kw">public function</span> <span class="fn">run</span>(): <span class="type">void</span>;
+
+    <span class="cmt">// ─── Generadores de datos ───</span>
+    <span class="kw">private function</span> <span class="fn">seedMetaIne</span>(<span class="cls">CentroSalud</span> <span class="var">$cs</span>);
+    <span class="kw">private function</span> <span class="fn">seedPrestaciones</span>(<span class="cls">CentroSalud</span> <span class="var">$cs</span>);
+    <span class="kw">private function</span> <span class="fn">seedVacunas</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedConsultas</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedMicronutrientes</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedPrenatales</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedPartos</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedPuerperio</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedRecienNacidos</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedCrecimiento</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedAnticoncepcion</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedActividades</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedReferencias</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedOdontologia</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedEnfermeria</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedInternaciones</span>(...);
+    <span class="kw">private function</span> <span class="fn">seedCancer</span>(...);
+
+    <span class="cmt">// ─── Utilidades ───</span>
+    <span class="kw">private function</span> <span class="fn">r</span>(<span class="type">float</span> <span class="var">$base</span>): <span class="type">int</span>;     <span class="cmt">// variación ±20%</span>
+    <span class="kw">public static function</span> <span class="fn">limpiar</span>(): <span class="type">void</span>;  <span class="cmt">// revierte todo</span>
+}</pre>
+      </div>
+    </div>
+
+    <div class="flow-diagram">
+      <div class="flow-step"><strong>run()</strong></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">1. Crear 6 centros faltantes</div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">2. Para cada centro del municipio:</div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">seedMetaIne() → calcula metas por % de población</div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">seedPrestaciones() → 15 sub-seeders × 4 meses</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: CENTROS ADICIONALES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="centros">
+    <h2><span class="section-number">3</span> Los 6 centros adicionales</h2>
+
+    <p>Mientras los seeders base crean solo HORNOMA, este seeder añade los demás centros del municipio de Capinota:</p>
+
+    <div class="code-block">
+      <div class="code-header">database/seeders/DatosPruebaSeeder.php — $centros</div>
+      <div class="code-body">
+<pre><span class="kw">private static array</span> <span class="var">$centros</span> <span class="op">=</span> [
+    [<span class="str">'nombre'</span> <span class="op">=&gt;</span> <span class="str">'Hospital Capinota'</span>,   <span class="str">'codigo_snis'</span> <span class="op">=&gt;</span> <span class="str">'300180'</span>,
+     <span class="str">'subsector'</span> <span class="op">=&gt;</span> <span class="str">'Público'</span>, <span class="str">'poblacion_ine'</span> <span class="op">=&gt;</span> <span class="num">12811</span>],
+    [<span class="str">'nombre'</span> <span class="op">=&gt;</span> <span class="str">'C.S. Irpa Irpa'</span>,     <span class="str">'codigo_snis'</span> <span class="op">=&gt;</span> <span class="str">'300181'</span>,
+     <span class="str">'subsector'</span> <span class="op">=&gt;</span> <span class="str">'Público'</span>, <span class="str">'poblacion_ine'</span> <span class="op">=&gt;</span> <span class="num">4484</span>],
+    [<span class="str">'nombre'</span> <span class="op">=&gt;</span> <span class="str">'C.S. Charamoco'</span>,     <span class="str">'codigo_snis'</span> <span class="op">=&gt;</span> <span class="str">'300182'</span>,
+     <span class="str">'subsector'</span> <span class="op">=&gt;</span> <span class="str">'Público'</span>, <span class="str">'poblacion_ine'</span> <span class="op">=&gt;</span> <span class="num">1068</span>],
+    [<span class="str">'nombre'</span> <span class="op">=&gt;</span> <span class="str">'C.S. Apillapampa'</span>,   <span class="str">'codigo_snis'</span> <span class="op">=&gt;</span> <span class="str">'300184'</span>,
+     <span class="str">'subsector'</span> <span class="op">=&gt;</span> <span class="str">'Público'</span>, <span class="str">'poblacion_ine'</span> <span class="op">=&gt;</span> <span class="num">854</span>],
+    [<span class="str">'nombre'</span> <span class="op">=&gt;</span> <span class="str">'C.S. Mollini'</span>,       <span class="str">'codigo_snis'</span> <span class="op">=&gt;</span> <span class="str">'300185'</span>,
+     <span class="str">'subsector'</span> <span class="op">=&gt;</span> <span class="str">'Público'</span>, <span class="str">'poblacion_ine'</span> <span class="op">=&gt;</span> <span class="num">641</span>],
+    [<span class="str">'nombre'</span> <span class="op">=&gt;</span> <span class="str">'C.I.S. Coboce'</span>,      <span class="str">'codigo_snis'</span> <span class="op">=&gt;</span> <span class="str">'300186'</span>,
+     <span class="str">'subsector'</span> <span class="op">=&gt;</span> <span class="str">'Seguridad Social'</span>, <span class="str">'poblacion_ine'</span> <span class="op">=&gt;</span> <span class="num">854</span>],
+];</pre>
+      </div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-title">Red de salud completa de Capinota</div>
+      <table>
+        <thead><tr><th>Centro</th><th>SNIS</th><th>Población</th><th>Subsector</th></tr></thead>
+        <tbody>
+          <tr><td>Hospital Capinota</td><td>300180</td><td>12,811</td><td>Público</td></tr>
+          <tr><td>C.S. Irpa Irpa</td><td>300181</td><td>4,484</td><td>Público</td></tr>
+          <tr><td>C.S. Charamoco</td><td>300182</td><td>1,068</td><td>Público</td></tr>
+          <tr class="hl"><td>C.S.A. HORNOMA</td><td>300183</td><td>641</td><td>Público (seeder base)</td></tr>
+          <tr><td>C.S. Apillapampa</td><td>300184</td><td>854</td><td>Público</td></tr>
+          <tr><td>C.S. Mollini</td><td>300185</td><td>641</td><td>Público</td></tr>
+          <tr><td>C.I.S. Coboce</td><td>300186</td><td>854</td><td>Seguridad Social</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Se usa <code>firstOrCreate</code> con <code>codigo_snis</code> como clave. C.I.S. Coboce es de <em>Seguridad Social</em> — un subsector diferente al resto.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: META PORCENTAJES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="meta-porcentajes">
+    <h2><span class="section-number">4</span> Metas INE por porcentaje</h2>
+
+    <p>El MetaIneSeeder de la lección 22 usa cantidades fijas (porque son datos oficiales de Hornoma). Pero para los 6 centros adicionales, <code>DatosPruebaSeeder</code> <strong>calcula las metas como porcentaje de la población</strong>:</p>
+
+    <div class="code-block">
+      <div class="code-header">database/seeders/DatosPruebaSeeder.php — $metaPct</div>
+      <div class="code-body">
+<pre><span class="kw">private static array</span> <span class="var">$metaPct</span> <span class="op">=</span> [
+    <span class="str">'menor_1'</span>  <span class="op">=&gt;</span> <span class="num">0.0187</span>,   <span class="str">'1_anio'</span>   <span class="op">=&gt;</span> <span class="num">0.0187</span>,
+    <span class="str">'2_anios'</span>  <span class="op">=&gt;</span> <span class="num">0.0203</span>,   <span class="str">'3_anios'</span>  <span class="op">=&gt;</span> <span class="num">0.0203</span>,
+    <span class="str">'4_anios'</span>  <span class="op">=&gt;</span> <span class="num">0.0203</span>,   <span class="str">'1_4'</span>     <span class="op">=&gt;</span> <span class="num">0.0780</span>,
+    <span class="str">'menor_5'</span>  <span class="op">=&gt;</span> <span class="num">0.0967</span>,   <span class="str">'mayor_5'</span>  <span class="op">=&gt;</span> <span class="num">0.9020</span>,
+    <span class="str">'5_9'</span>     <span class="op">=&gt;</span> <span class="num">0.1045</span>,   <span class="str">'10_14'</span>   <span class="op">=&gt;</span> <span class="num">0.1030</span>,
+    <span class="str">'15_19'</span>   <span class="op">=&gt;</span> <span class="num">0.1030</span>,   <span class="str">'20_39'</span>   <span class="op">=&gt;</span> <span class="num">0.2793</span>,
+    <span class="str">'40_49'</span>   <span class="op">=&gt;</span> <span class="num">0.0983</span>,   <span class="str">'50_59'</span>   <span class="op">=&gt;</span> <span class="num">0.0765</span>,
+    <span class="str">'mayor_60'</span> <span class="op">=&gt;</span> <span class="num">0.1373</span>,
+];</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Fórmula del cálculo</div>
+      <p>Para cada grupo: <code>cantidad = max(1, round(poblacion_ine × porcentaje))</code>. Ejemplo: Hospital Capinota (pop. 12,811) → menor_1 = round(12811 × 0.0187) = <strong>240</strong>. Para HORNOMA (pop. 641) → round(641 × 0.0187) = <strong>12</strong> (coincide con el seeder base).</p>
+    </div>
+
+    <p>Además de los 15 grupos simples, seedMetaIne() calcula 10 grupos especiales con sus propios porcentajes:</p>
+
+    <div class="code-block">
+      <div class="code-header">Grupos especiales en seedMetaIne()</div>
+      <div class="code-body">
+<pre><span class="cmt">// Grupos especiales calculados por separado</span>
+<span class="var">$rows</span>[] <span class="op">=</span> [<span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="str">'embarazos_esperados'</span>,  <span class="str">'sexo'</span> <span class="op">=&gt;</span> <span class="str">'F'</span>,  <span class="str">'cantidad'</span> <span class="op">=&gt;</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.0234</span>))];
+<span class="var">$rows</span>[] <span class="op">=</span> [<span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="str">'partos_esperados'</span>,    <span class="str">'sexo'</span> <span class="op">=&gt;</span> <span class="str">'F'</span>,  <span class="str">'cantidad'</span> <span class="op">=&gt;</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.0187</span>))];
+<span class="var">$rows</span>[] <span class="op">=</span> [<span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="str">'nacimientos_esperados'</span>,<span class="str">'sexo'</span> <span class="op">=&gt;</span> <span class="str">'ambos'</span>,<span class="str">'cantidad'</span> <span class="op">=&gt;</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.0187</span>))];
+<span class="var">$rows</span>[] <span class="op">=</span> [<span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="str">'adolescentes_10_19'</span>,  <span class="str">'sexo'</span> <span class="op">=&gt;</span> <span class="str">'ambos'</span>,<span class="str">'cantidad'</span> <span class="op">=&gt;</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.2060</span>))];
+<span class="var">$rows</span>[] <span class="op">=</span> [<span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="str">'mujeres_menor_20'</span>,   <span class="str">'sexo'</span> <span class="op">=&gt;</span> <span class="str">'F'</span>,  <span class="str">'cantidad'</span> <span class="op">=&gt;</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.1997</span>))];
+<span class="var">$rows</span>[] <span class="op">=</span> [<span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="str">'7_49'</span>,  <span class="str">'sexo'</span> <span class="op">=&gt;</span> <span class="str">'M'</span>,  <span class="str">'cantidad'</span> <span class="op">=&gt;</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.326</span>))];
+<span class="var">$rows</span>[] <span class="op">=</span> [<span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="str">'7_49'</span>,  <span class="str">'sexo'</span> <span class="op">=&gt;</span> <span class="str">'F'</span>,  <span class="str">'cantidad'</span> <span class="op">=&gt;</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.321</span>))];
+<span class="var">$rows</span>[] <span class="op">=</span> [<span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="str">'mef_15_40'</span>,  <span class="str">'sexo'</span> <span class="op">=&gt;</span> <span class="str">'F'</span>,  <span class="str">'cantidad'</span> <span class="op">=&gt;</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.2387</span>))];
+<span class="var">$rows</span>[] <span class="op">=</span> [<span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="str">'dt_7_49'</span>,  <span class="str">'sexo'</span> <span class="op">=&gt;</span> <span class="str">'M'</span>,  <span class="str">'cantidad'</span> <span class="op">=&gt;</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.0156</span>))];
+<span class="var">$rows</span>[] <span class="op">=</span> [<span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="str">'dt_7_49'</span>,  <span class="str">'sexo'</span> <span class="op">=&gt;</span> <span class="str">'F'</span>,  <span class="str">'cantidad'</span> <span class="op">=&gt;</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.0156</span>))];</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Borra y recrea</div>
+      <p>A diferencia de los seeders base que usan <code>firstOrCreate</code>, <code>seedMetaIne()</code> primero <strong>borra</strong> todas las metas del centro para el año, y luego las recrea con <code>MetaIne::create()</code>. Esto permite re-ejecutar el seeder con datos actualizados.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: FACTOR DE COBERTURA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="cobertura">
+    <h2><span class="section-number">5</span> Factor de cobertura por centro</h2>
+
+    <p>No todos los centros atienden la misma proporción de su población. El <strong>factor de cobertura</strong> simula esto:</p>
+
+    <div class="code-block">
+      <div class="code-header">database/seeders/DatosPruebaSeeder.php — $coberturaFactor</div>
+      <div class="code-body">
+<pre><span class="kw">private static array</span> <span class="var">$coberturaFactor</span> <span class="op">=</span> [
+    <span class="str">'Hospital Capinota'</span>  <span class="op">=&gt;</span> <span class="num">0.55</span>,
+    <span class="str">'C.S. Irpa Irpa'</span>    <span class="op">=&gt;</span> <span class="num">0.50</span>,
+    <span class="str">'C.S. Charamoco'</span>    <span class="op">=&gt;</span> <span class="num">0.85</span>,
+    <span class="str">'C.S. Apillapampa'</span>  <span class="op">=&gt;</span> <span class="num">0.15</span>,
+    <span class="str">'C.S.A. HORNOMA'</span>    <span class="op">=&gt;</span> <span class="num">0.25</span>,
+    <span class="str">'C.S. Mollini'</span>      <span class="op">=&gt;</span> <span class="num">0.15</span>,
+    <span class="str">'C.I.S. Coboce'</span>     <span class="op">=&gt;</span> <span class="num">0.40</span>,
+];</pre>
+      </div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-title">Interpretación del factor de cobertura</div>
+      <table>
+        <thead><tr><th>Centro</th><th>Factor</th><th>Significado</th></tr></thead>
+        <tbody>
+          <tr><td>Hospital Capinota</td><td>0.55</td><td>55% de la meta se cumple — es hospital de referencia</td></tr>
+          <tr><td>C.S. Charamoco</td><td>0.85</td><td>85% — centro rural pequeño, alta cobertura relativa</td></tr>
+          <tr><td>C.S.A. HORNOMA</td><td>0.25</td><td>25% — centro rural con comunidades lejanas</td></tr>
+          <tr><td>C.S. Apillapampa</td><td>0.15</td><td>15% — cobertura baja, zona dispersa</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <p>Si un centro no está en el array, se usa <code>0.30</code> como valor por defecto.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: LÓGICA DE PRESTACIONES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="prestaciones">
+    <h2><span class="section-number">6</span> Lógica de prestaciones (15 tablas)</h2>
+
+    <p>El método <code>seedPrestaciones()</code> calcula metas derivadas y luego invoca 15 sub-seeders para cada mes:</p>
+
+    <div class="code-block">
+      <div class="code-header">seedPrestaciones() — estructura</div>
+      <div class="code-body">
+<pre><span class="kw">private function</span> <span class="fn">seedPrestaciones</span>(<span class="cls">CentroSalud</span> <span class="var">$cs</span>): <span class="type">void</span>
+{
+    <span class="var">$cob</span>        <span class="op">=</span> <span class="kw">self</span>::<span class="var">$coberturaFactor</span>[<span class="var">$cs</span>-&gt;<span class="var">nombre</span>] <span class="op">??</span> <span class="num">0.30</span>;
+    <span class="var">$pop</span>        <span class="op">=</span> <span class="var">$cs</span>-&gt;<span class="var">poblacion_ine</span>;
+    <span class="var">$metaMenor1</span> <span class="op">=</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.0187</span>));  <span class="cmt">// ≈ meta &lt; 1 año</span>
+    <span class="var">$metaMef</span>    <span class="op">=</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.2387</span>));  <span class="cmt">// mujeres edad fértil</span>
+    <span class="var">$metaEmb</span>    <span class="op">=</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.0234</span>));  <span class="cmt">// embarazos esperados</span>
+    <span class="var">$metaPartos</span> <span class="op">=</span> <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$pop</span> <span class="op">*</span> <span class="num">0.0187</span>));  <span class="cmt">// partos esperados</span>
+
+    <span class="kw">foreach</span> (<span class="var">$this</span>-&gt;<span class="var">meses</span> <span class="kw">as</span> <span class="var">$mes</span>) {
+        <span class="var">$base</span> <span class="op">=</span> [<span class="str">'centro_salud_id'</span> <span class="op">=&gt;</span> <span class="var">$cs</span>-&gt;<span class="var">id</span>, <span class="str">'anio'</span> <span class="op">=&gt;</span> <span class="num">2026</span>, <span class="str">'mes'</span> <span class="op">=&gt;</span> <span class="var">$mes</span>];
+
+        <span class="var">$this</span>-&gt;<span class="fn">seedVacunas</span>(<span class="var">$base</span>, <span class="var">$metaMenor1</span>, <span class="var">$meta1anio</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedConsultas</span>(<span class="var">$base</span>, <span class="var">$pop</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedMicronutrientes</span>(<span class="var">$base</span>, <span class="var">$metaMenor1</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedPrenatales</span>(<span class="var">$base</span>, <span class="var">$metaEmb</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedPartos</span>(<span class="var">$base</span>, <span class="var">$metaPartos</span>, <span class="var">$cob</span>, <span class="var">$cs</span>-&gt;<span class="var">nombre</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedPuerperio</span>(<span class="var">$base</span>, <span class="var">$metaPartos</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedRecienNacidos</span>(<span class="var">$base</span>, <span class="var">$metaPartos</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedCrecimiento</span>(<span class="var">$base</span>, <span class="var">$metaMenor1</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedAnticoncepcion</span>(<span class="var">$base</span>, <span class="var">$metaMef</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedActividades</span>(<span class="var">$base</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedReferencias</span>(<span class="var">$base</span>, <span class="var">$pop</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedOdontologia</span>(<span class="var">$base</span>, <span class="var">$pop</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedEnfermeria</span>(<span class="var">$base</span>, <span class="var">$pop</span>, <span class="var">$cob</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedInternaciones</span>(<span class="var">$base</span>, <span class="var">$pop</span>, <span class="var">$cob</span>, <span class="var">$cs</span>-&gt;<span class="var">nombre</span>);
+        <span class="var">$this</span>-&gt;<span class="fn">seedCancer</span>(<span class="var">$base</span>, <span class="var">$metaMef</span>, <span class="var">$cob</span>);
+    }
+}</pre>
+      </div>
+    </div>
+
+    <p>Veamos los 3 sub-seeders más representativos:</p>
+
+    <h3>seedVacunas — 24 tipos de vacuna</h3>
+
+    <div class="code-block">
+      <div class="code-header">seedVacunas() — extracto</div>
+      <div class="code-body">
+<pre><span class="kw">private function</span> <span class="fn">seedVacunas</span>(<span class="kw">array</span> <span class="var">$b</span>, <span class="kw">int</span> <span class="var">$metaM1</span>, <span class="kw">int</span> <span class="var">$meta1</span>, <span class="kw">float</span> <span class="var">$cob</span>): <span class="type">void</span>
+{
+    <span class="var">$vacunas</span> <span class="op">=</span> [
+        <span class="cmt">// [tipo_vacuna, grupo_etareo, factor sobre meta]</span>
+        [<span class="str">'BCG'</span>,               <span class="str">'menor_1'</span>,  <span class="num">0.8</span>],
+        [<span class="str">'Pentavalente_1'</span>,    <span class="str">'menor_1'</span>,  <span class="num">1.0</span>],
+        [<span class="str">'Pentavalente_2'</span>,    <span class="str">'menor_1'</span>,  <span class="num">0.95</span>],
+        [<span class="str">'Pentavalente_3'</span>,    <span class="str">'menor_1'</span>,  <span class="num">0.90</span>],
+        <span class="cmt">// ... 20 tipos más (IPV, bOPV, Rotavirica, SRP, VPH, dT, SR...)</span>
+    ];
+
+    <span class="kw">foreach</span> (<span class="var">$vacunas</span> <span class="kw">as</span> [<span class="var">$tipo</span>, <span class="var">$grupo</span>, <span class="var">$factor</span>]) {
+        <span class="var">$total</span> <span class="op">=</span> <span class="fn">max</span>(<span class="num">0</span>, <span class="fn">round</span>(<span class="var">$meta</span> <span class="op">*</span> <span class="var">$cob</span> <span class="op">*</span> <span class="var">$factor</span> <span class="op">/</span> <span class="fn">count</span>(<span class="var">$this</span>-&gt;<span class="var">meses</span>)));
+        <span class="var">$dm</span> <span class="op">=</span> (<span class="kw">int</span>) <span class="fn">ceil</span>(<span class="var">$total</span> <span class="op">*</span> <span class="num">0.55</span>);  <span class="cmt">// 55% masculino</span>
+        <span class="var">$df</span> <span class="op">=</span> <span class="var">$total</span> <span class="op">-</span> <span class="var">$dm</span>;                <span class="cmt">// 45% femenino</span>
+
+        <span class="cls">DB</span>::<span class="fn">table</span>(<span class="str">'prest_vacunas'</span>)-&gt;<span class="fn">insert</span>(<span class="fn">array_merge</span>(<span class="var">$b</span>, [
+            <span class="str">'tipo_vacuna'</span>  <span class="op">=&gt;</span> <span class="var">$tipo</span>,
+            <span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="var">$grupo</span>,
+            <span class="str">'dentro_m'</span> <span class="op">=&gt;</span> <span class="var">$dm</span>, <span class="str">'dentro_f'</span> <span class="op">=&gt;</span> <span class="var">$df</span>,
+            <span class="str">'fuera_m'</span>  <span class="op">=&gt;</span> <span class="var">$fm</span>, <span class="str">'fuera_f'</span>  <span class="op">=&gt;</span> <span class="var">$ff</span>,
+        ]));
+    }
+}</pre>
+      </div>
+    </div>
+
+    <h3>seedPartos — lógica condicional por tipo de centro</h3>
+
+    <div class="code-block">
+      <div class="code-header">seedPartos() — hospital vs. centro rural</div>
+      <div class="code-body">
+<pre><span class="kw">private function</span> <span class="fn">seedPartos</span>(<span class="kw">array</span> <span class="var">$b</span>, <span class="kw">int</span> <span class="var">$metaPartos</span>, <span class="kw">float</span> <span class="var">$cob</span>, <span class="kw">string</span> <span class="var">$centro</span>): <span class="type">void</span>
+{
+    <span class="var">$esHospital</span> <span class="op">=</span> <span class="fn">str_contains</span>(<span class="var">$centro</span>, <span class="str">'Hospital'</span>);
+
+    <span class="cmt">// Hospitales: partos institucionales (vaginal + cesárea, personal calificado)</span>
+    <span class="cmt">// Centros rurales: solo partos domiciliarios con partera capacitada</span>
+    <span class="var">$tipos</span> <span class="op">=</span> <span class="var">$esHospital</span>
+        ? [[<span class="str">'vaginal'</span>, <span class="str">'servicio'</span>, <span class="str">'personal_calificado'</span>],
+           [<span class="str">'cesarea'</span>, <span class="str">'servicio'</span>, <span class="str">'personal_calificado'</span>]]
+        : [[<span class="str">'vaginal'</span>, <span class="str">'domicilio'</span>, <span class="str">'partera_capacitada'</span>]];
+}</pre>
+      </div>
+    </div>
+
+    <h3>seedMicronutrientes — 20 tipos</h3>
+
+    <div class="code-block">
+      <div class="code-header">seedMicronutrientes() — tipos y factores</div>
+      <div class="code-body">
+<pre><span class="var">$tipos</span> <span class="op">=</span> [
+    <span class="str">'hierro_menor_6m'</span>             <span class="op">=&gt;</span> <span class="num">0.5</span>,
+    <span class="str">'hierro_menor_1'</span>              <span class="op">=&gt;</span> <span class="num">1.0</span>,
+    <span class="str">'hierro_1anio'</span>                <span class="op">=&gt;</span> <span class="num">0.9</span>,
+    <span class="str">'hierro_embarazadas_completo'</span> <span class="op">=&gt;</span> <span class="num">0.7</span>,
+    <span class="str">'vitA_puerpera_unica'</span>         <span class="op">=&gt;</span> <span class="num">0.5</span>,
+    <span class="str">'vitA_menor_1_unica'</span>          <span class="op">=&gt;</span> <span class="num">0.8</span>,
+    <span class="str">'zinc_menor_1'</span>                <span class="op">=&gt;</span> <span class="num">0.5</span>,
+    <span class="str">'nutribebe_menor_1'</span>           <span class="op">=&gt;</span> <span class="num">0.5</span>,
+    <span class="str">'chispitas_6_23m'</span>             <span class="op">=&gt;</span> <span class="num">0.4</span>,
+    <span class="cmt">// ... y 11 tipos más</span>
+];</pre>
+      </div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-title">Las 15 tablas prest_* que se llenan</div>
+      <table>
+        <thead><tr><th>Tabla</th><th>Registros/mes/centro</th><th>Parámetro base</th></tr></thead>
+        <tbody>
+          <tr><td><code>prest_vacunas</code></td><td>24</td><td>metaMenor1</td></tr>
+          <tr><td><code>prest_consulta_externa</code></td><td>10</td><td>población</td></tr>
+          <tr><td><code>prest_micronutrientes</code></td><td>20</td><td>metaMenor1</td></tr>
+          <tr><td><code>prest_prenatales</code></td><td>15</td><td>metaEmb</td></tr>
+          <tr><td><code>prest_partos</code></td><td>1-2</td><td>metaPartos</td></tr>
+          <tr><td><code>prest_puerperio</code></td><td>4</td><td>metaPartos</td></tr>
+          <tr><td><code>prest_recien_nacidos</code></td><td>10</td><td>metaPartos</td></tr>
+          <tr><td><code>prest_crecimiento</code></td><td>6</td><td>metaMenor1</td></tr>
+          <tr><td><code>prest_anticoncepcion</code></td><td>12</td><td>metaMef</td></tr>
+          <tr><td><code>prest_actividades_comunidad</code></td><td>13</td><td>cobertura</td></tr>
+          <tr><td><code>prest_referencias</code></td><td>7</td><td>población</td></tr>
+          <tr><td><code>prest_odontologia</code></td><td>39</td><td>población</td></tr>
+          <tr><td><code>prest_enfermeria</code></td><td>7</td><td>población</td></tr>
+          <tr><td><code>prest_internaciones</code></td><td>6</td><td>población</td></tr>
+          <tr><td><code>prest_cancer_prevencion</code></td><td>9</td><td>metaMef</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Uso de DB::table() en vez de Eloquent</div>
+      <p>Nota que el seeder usa <code>DB::table()->insert()</code> en vez de modelos Eloquent. Es más rápido para inserciones masivas — evita instanciar modelos y disparar observers/events para miles de registros de prueba.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: VARIACIÓN ALEATORIA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="variacion">
+    <h2><span class="section-number">7</span> Variación aleatoria realista</h2>
+
+    <p>Para que los datos no sean idénticos cada mes, se usa la función <code>r()</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">Función r() — variación ±20%</div>
+      <div class="code-body">
+<pre><span class="kw">private function</span> <span class="fn">r</span>(<span class="type">float</span> <span class="var">$base</span>): <span class="type">int</span>
+{
+    <span class="kw">return</span> <span class="fn">max</span>(<span class="num">0</span>, (<span class="kw">int</span>) <span class="fn">round</span>(<span class="var">$base</span> <span class="op">*</span> (<span class="num">0.8</span> <span class="op">+</span> <span class="fn">mt_rand</span>(<span class="num">0</span>, <span class="num">40</span>) <span class="op">/</span> <span class="num">100</span>)));
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Cómo funciona</div>
+      <p><code>mt_rand(0, 40) / 100</code> genera un decimal entre 0.00 y 0.40. Sumado a 0.8, da un multiplicador entre <strong>0.80 y 1.20</strong>. Así, un valor base de 10 puede variar entre 8 y 12. El <code>max(0, ...)</code> garantiza que nunca sea negativo.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 8: LIMPIAR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="limpiar">
+    <h2><span class="section-number">8</span> Método limpiar()</h2>
+
+    <p>Para revertir todo lo que creó el seeder, hay un método estático <code>limpiar()</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">DatosPruebaSeeder::limpiar()</div>
+      <div class="code-body">
+<pre><span class="kw">public static function</span> <span class="fn">limpiar</span>(): <span class="type">void</span>
+{
+    <span class="var">$anio</span> <span class="op">=</span> <span class="num">2026</span>;
+    <span class="var">$meses</span> <span class="op">=</span> [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>];
+
+    <span class="var">$tablas</span> <span class="op">=</span> [
+        <span class="str">'prest_vacunas'</span>, <span class="str">'prest_consulta_externa'</span>, <span class="str">'prest_micronutrientes'</span>,
+        <span class="str">'prest_prenatales'</span>, <span class="str">'prest_partos'</span>, <span class="str">'prest_puerperio'</span>,
+        <span class="str">'prest_recien_nacidos'</span>, <span class="str">'prest_crecimiento'</span>, <span class="str">'prest_anticoncepcion'</span>,
+        <span class="str">'prest_actividades_comunidad'</span>, <span class="str">'prest_referencias'</span>,
+        <span class="str">'prest_odontologia'</span>, <span class="str">'prest_enfermeria'</span>,
+        <span class="str">'prest_internaciones'</span>, <span class="str">'prest_cancer_prevencion'</span>,
+    ];
+
+    <span class="kw">foreach</span> (<span class="var">$tablas</span> <span class="kw">as</span> <span class="var">$t</span>) {
+        <span class="var">$del</span> <span class="op">=</span> <span class="cls">DB</span>::<span class="fn">table</span>(<span class="var">$t</span>)-&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)
+            -&gt;<span class="fn">whereIn</span>(<span class="str">'mes'</span>, <span class="var">$meses</span>)-&gt;<span class="fn">delete</span>();
+    }
+
+    <span class="cmt">// Eliminar metas INE del 2026</span>
+    <span class="cls">MetaIne</span>::<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">delete</span>();
+
+    <span class="cmt">// Eliminar centros creados (todos menos Hornoma)</span>
+    <span class="var">$codigos</span> <span class="op">=</span> [<span class="str">'300180'</span>, <span class="str">'300181'</span>, <span class="str">'300182'</span>, <span class="str">'300184'</span>, <span class="str">'300185'</span>, <span class="str">'300186'</span>];
+    <span class="cls">CentroSalud</span>::<span class="fn">whereIn</span>(<span class="str">'codigo_snis'</span>, <span class="var">$codigos</span>)-&gt;<span class="fn">get</span>()-&gt;<span class="fn">each</span>-&gt;<span class="fn">delete</span>();
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">No borra Hornoma</div>
+      <p><code>limpiar()</code> elimina los 6 centros que creó el seeder (300180-300186 excepto 300183), sus prestaciones y metas. El centro HORNOMA (300183) y sus datos base se mantienen intactos porque fueron creados por los seeders base.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 9: EJECUTAR Y VERIFICAR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="ejecutar">
+    <h2><span class="section-number">9</span> Ejecutar y verificar</h2>
+
+    <div class="code-block">
+      <div class="code-header">Terminal — comandos de ejecución</div>
+      <div class="code-body">
+<pre><span class="cmt"># 1. Primero ejecutar seeders base (si no lo hiciste ya)</span>
+<span class="fn">php artisan</span> db:seed
+
+<span class="cmt"># 2. Ejecutar datos de prueba</span>
+<span class="fn">php artisan</span> db:seed <span class="op">--</span>class<span class="op">=</span>DatosPruebaSeeder
+
+<span class="cmt"># 3. Verificar resultado</span>
+<span class="fn">php artisan</span> tinker
+<span class="op">&gt;&gt;&gt;</span> <span class="cls">DB</span>::<span class="fn">table</span>(<span class="str">'prest_vacunas'</span>)-&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="num">2026</span>)-&gt;<span class="fn">count</span>();
+<span class="cmt">// ≈ 672 registros (24 vacunas × 7 centros × 4 meses)</span>
+
+<span class="cmt"># 4. Limpiar si necesitas</span>
+<span class="fn">php artisan</span> tinker
+<span class="op">&gt;&gt;&gt;</span> <span class="cls">Database\Seeders\DatosPruebaSeeder</span>::<span class="fn">limpiar</span>();</pre>
+      </div>
+    </div>
+
+    <div class="result-box">
+      <strong>Volumen aproximado:</strong> 7 centros × 4 meses × ~183 registros/mes = <strong>~5,100+ registros</strong> de prestaciones, suficientes para probar reportes, gráficas de cobertura y exportaciones PDF/Excel.
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 10: RESUMEN FASE 5
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen-fase5">
+    <h2><span class="section-number">10</span> Resumen de Fase 5 completa</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos en esta lección</h3>
+      <ul>
+        <li>DatosPruebaSeeder es un seeder <strong>separado, manual</strong> — no se ejecuta con <code>db:seed</code></li>
+        <li>Crea 6 centros adicionales con sus metas calculadas por <strong>porcentaje de población</strong></li>
+        <li>Usa un <strong>factor de cobertura</strong> diferente por centro (0.15 a 0.85)</li>
+        <li>Genera datos para <strong>15 tablas prest_*</strong> × 4 meses × 7 centros</li>
+        <li>La función <code>r()</code> aplica variación aleatoria ±20% para datos realistas</li>
+        <li>Usa <code>DB::table()->insert()</code> por rendimiento (no Eloquent)</li>
+        <li>Incluye <code>limpiar()</code> para revertir todos los datos de prueba</li>
+        <li>Lógica condicional: partos institucionales vs. domiciliarios según tipo de centro</li>
+      </ul>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Fase 5 completa — Seeders ✓</div>
+      <p>Con estas 2 lecciones tienes todos los seeders del proyecto: 7 seeders base que configuran el sistema, y 1 seeder de prueba que genera miles de registros realistas. En la siguiente fase instalaremos <strong>Filament</strong> y crearemos el panel de administración.</p>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="22-seeders-estructura.html" class="lesson-nav-btn">← Lección 22</a>
+    <a href="24-filament-instalacion.html" class="lesson-nav-btn">Lección 24 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 23 de 58</p>
+</footer>
+
+</body>
+</html>

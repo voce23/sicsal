@@ -1,0 +1,422 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lección 41 · Observers — Sincronización Automática de Prestaciones | Tutorial SICSAL</title>
+    <link rel="stylesheet" href="css/leccion.css">
+    <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════ TOPBAR ═══════════════════════════ -->
+<div class="topbar">
+    <a href="00-indice.html" class="topbar-brand">📘 Tutorial SICSAL</a>
+    <span class="topbar-sep">·</span>
+    <span class="topbar-context">Fase 8 — Observers y Sincronización</span>
+</div>
+
+<!-- ════════════════════════════════════════════ HERO ═════════════════════════════ -->
+<div class="hero">
+    <span class="badge">Fase 8 · Observers y Sincronización</span>
+    <h1 class="hero-title">Lección 41 — Observers<br>
+        <small>Sincronización Automática de Prestaciones</small></h1>
+    <p class="hero-subtitle">5 observers que traducen registros individuales en contadores
+        mensuales usando firstOrCreate + increment/decrement (+1/−1).</p>
+    <div class="hero-meta">
+        📄 app/Observers/*.php &nbsp;|&nbsp;
+        🕐 Lectura ~18 min &nbsp;|&nbsp; Lección 41 de 58
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════ NAV ══════════════════════════════ -->
+<div class="lesson-nav">
+    <a href="40-sincroniza-prestacion.html">← 40 · SincronizaPrestacion</a>
+    <a href="42-cai-helper.html">42 · CaiHelper →</a>
+</div>
+
+<!-- ════════════════════════════════════════════ TOC ══════════════════════════════ -->
+<nav class="toc">
+    <h2 class="toc-title">Índice de la lección</h2>
+    <ol class="toc-list">
+        <li><a href="#s1">Panorama — la familia de observers</a></li>
+        <li><a href="#s2">Patrón compartido: created(+1) / deleted(−1)</a></li>
+        <li><a href="#s3">VacunaNinoObserver — vacunas infantiles</a></li>
+        <li><a href="#s4">PartoObserver — partos, recién nacidos y BCG automática</a></li>
+        <li><a href="#s5">ControlPrenatalObserver — prenatales por trimestre</a></li>
+        <li><a href="#s6">CrecimientoInfantilObserver — crecimiento infantil</a></li>
+        <li><a href="#s7">AnticoncepcionObserver — métodos anticonceptivos</a></li>
+        <li><a href="#s8">MicronutrienteNinoObserver — el más simple</a></li>
+        <li><a href="#s9">firstOrCreate + increment/decrement</a></li>
+        <li><a href="#s10">Cierre de Fase 8</a></li>
+    </ol>
+</nav>
+
+<!-- ════════════════════════════════════════════ CONTENIDO ═════════════════════════ -->
+
+<!-- ───────────────── S1 ───────────────── -->
+<div class="section" id="s1">
+    <h2><span class="number">1</span> Panorama — la familia de observers</h2>
+
+    <table class="info-table">
+        <thead><tr><th>Observer</th><th>Modelo observado</th><th>Tabla Prest* destino</th><th>Usa trait</th></tr></thead>
+        <tbody>
+            <tr><td>VacunaNinoObserver</td><td>VacunaNino</td><td>prest_vacunas</td><td>Sí</td></tr>
+            <tr><td>PartoObserver</td><td>Parto</td><td>prest_partos + prest_recien_nacidos + prest_vacunas (BCG)</td><td>Sí</td></tr>
+            <tr><td>ControlPrenatalObserver</td><td>ControlPrenatal</td><td>prest_prenatales</td><td>Sí</td></tr>
+            <tr><td>CrecimientoInfantilObserver</td><td>CrecimientoInfantil</td><td>prest_crecimiento</td><td>Sí</td></tr>
+            <tr><td>AnticoncepcionObserver</td><td>Anticoncepcion</td><td>prest_anticoncepcion</td><td>Sí</td></tr>
+            <tr><td>MicronutrienteNinoObserver</td><td>MicronutrienteNino</td><td>prest_micronutrientes</td><td>No</td></tr>
+        </tbody>
+    </table>
+
+    <div class="callout info">
+        <strong>¿Dónde se registran?</strong> Los observers se registran en
+        <code>app/Providers/AppServiceProvider.php</code> dentro de <code>boot()</code> usando
+        <code>VacunaNino::observe(VacunaNinoObserver::class)</code>, o con el atributo
+        <code>#[ObservedBy]</code> en el modelo.
+    </div>
+</div>
+
+<!-- ───────────────── S2 ───────────────── -->
+<div class="section" id="s2">
+    <h2><span class="number">2</span> Patrón compartido: created(+1) / deleted(−1)</h2>
+
+    <p>Todos los observers siguen exactamente la misma estructura:</p>
+
+<pre><code><span class="kw">class</span> <span class="cls">XxxObserver</span>
+{
+    <span class="kw">use</span> <span class="cls">SincronizaPrestacion</span>;
+
+    <span class="kw">public function</span> <span class="fn">created</span>(<span class="cls">Modelo</span> <span class="var">$registro</span>): <span class="type">void</span>
+    {
+        <span class="var">$this</span>-><span class="fn">sincronizar</span>(<span class="var">$registro</span>, <span class="hl">+<span class="num">1</span></span>);
+    }
+
+    <span class="kw">public function</span> <span class="fn">deleted</span>(<span class="cls">Modelo</span> <span class="var">$registro</span>): <span class="type">void</span>
+    {
+        <span class="var">$this</span>-><span class="fn">sincronizar</span>(<span class="var">$registro</span>, <span class="hl">-<span class="num">1</span></span>);
+    }
+
+    <span class="kw">private function</span> <span class="fn">sincronizar</span>(<span class="cls">Modelo</span> <span class="var">$registro</span>, <span class="type">int</span> <span class="var">$delta</span>): <span class="type">void</span>
+    {
+        <span class="cmt">// 1. Obtener persona/paciente</span>
+        <span class="cmt">// 2. Calcular grupo_etareo y campo usando el trait</span>
+        <span class="cmt">// 3. firstOrCreate la fila Prest*</span>
+        <span class="cmt">// 4. increment o decrement según $delta</span>
+    }
+}</code></pre>
+
+    <div class="callout tip">
+        <strong>Delta pattern:</strong> Un solo método <code>sincronizar()</code> maneja ambos
+        casos (creación y eliminación) usando un <code>$delta</code> de +1 o −1.
+        No hay <code>updated()</code> — si cambian datos del registro, se debe borrar y recrear.
+    </div>
+</div>
+
+<!-- ───────────────── S3 ───────────────── -->
+<div class="section" id="s3">
+    <h2><span class="number">3</span> VacunaNinoObserver — vacunas infantiles</h2>
+
+    <p>El observer más representativo — traduce un registro de vacuna individual al consolidado:</p>
+
+<pre><code><span class="kw">private function</span> <span class="fn">sincronizar</span>(<span class="cls">VacunaNino</span> <span class="var">$vacuna</span>, <span class="type">int</span> <span class="var">$delta</span>): <span class="type">void</span>
+{
+    <span class="var">$persona</span> = <span class="var">$vacuna</span>-><span class="var">persona</span>;
+    <span class="kw">if</span> (!<span class="var">$persona</span>) <span class="kw">return</span>;
+
+    <span class="cmt">// Parsear fecha y calcular edad</span>
+    <span class="var">$fechaRef</span>  = <span class="cls">Carbon</span>::<span class="fn">parse</span>(<span class="var">$vacuna</span>-><span class="var">fecha_aplicacion</span>);
+    <span class="var">$edadMeses</span> = <span class="cls">Carbon</span>::<span class="fn">parse</span>(<span class="var">$persona</span>-><span class="var">fecha_nacimiento</span>)
+                    -><span class="fn">diffInMonths</span>(<span class="var">$fechaRef</span>);
+
+    <span class="cmt">// Usar el trait para clasificar</span>
+    <span class="var">$grupoEtareo</span> = <span class="var">$this</span>-><span class="fn">grupoEtareoVacuna</span>((<span class="type">int</span>) <span class="var">$edadMeses</span>);
+    <span class="var">$campo</span>       = <span class="var">$this</span>-><span class="fn">campoDentroFueraSexo</span>(
+                       <span class="var">$vacuna</span>-><span class="var">dentro_fuera</span>, <span class="var">$persona</span>-><span class="var">sexo</span>);
+
+    <span class="cmt">// Buscar o crear la fila consolidada</span>
+    <span class="var">$row</span> = <span class="cls">PrestVacuna</span>::<span class="fn">firstOrCreate</span>(
+        [<span class="str">'centro_salud_id'</span> => <span class="var">$persona</span>-><span class="var">centro_salud_id</span>,
+         <span class="str">'mes'</span> => <span class="var">$vacuna</span>-><span class="var">mes</span>, <span class="str">'anio'</span> => <span class="var">$vacuna</span>-><span class="var">anio</span>,
+         <span class="str">'tipo_vacuna'</span> => <span class="var">$vacuna</span>-><span class="var">tipo_vacuna</span>,
+         <span class="str">'grupo_etareo'</span> => <span class="var">$grupoEtareo</span>],
+        [<span class="str">'dentro_m'</span> => <span class="num">0</span>, <span class="str">'dentro_f'</span> => <span class="num">0</span>,
+         <span class="str">'fuera_m'</span>  => <span class="num">0</span>, <span class="str">'fuera_f'</span>  => <span class="num">0</span>]
+    );
+
+    <span class="cmt">// Incrementar o decrementar el campo correcto</span>
+    <span class="kw">if</span> (<span class="var">$delta</span> > <span class="num">0</span>) {
+        <span class="var">$row</span>-><span class="fn">increment</span>(<span class="var">$campo</span>);
+    } <span class="kw">elseif</span> (<span class="var">$row</span>-><span class="var">$campo</span> > <span class="num">0</span>) {
+        <span class="var">$row</span>-><span class="fn">decrement</span>(<span class="var">$campo</span>);
+    }
+}</code></pre>
+
+    <div class="callout warning">
+        <strong>Guard clause:</strong> <code>elseif ($row->$campo > 0)</code> previene que el
+        contador baje a negativo. Si ya es 0, no decrementa — protección contra inconsistencias.
+    </div>
+</div>
+
+<!-- ───────────────── S4 ───────────────── -->
+<div class="section" id="s4">
+    <h2><span class="number">4</span> PartoObserver — partos, recién nacidos y BCG automática</h2>
+
+    <p>El observer más complejo — un solo evento de parto actualiza <strong>3 tablas Prest*</strong>:</p>
+
+<pre><code><span class="kw">private function</span> <span class="fn">sincronizar</span>(<span class="cls">Parto</span> <span class="var">$parto</span>, <span class="type">int</span> <span class="var">$delta</span>): <span class="type">void</span>
+{
+    <span class="cmt">// Navegar: Parto → Embarazo → Persona (madre)</span>
+    <span class="var">$embarazo</span> = <span class="var">$parto</span>-><span class="fn">embarazo</span>()-><span class="fn">with</span>(<span class="str">'persona'</span>)-><span class="fn">first</span>();
+    <span class="kw">if</span> (!<span class="var">$embarazo</span>?-><span class="var">persona</span>) <span class="kw">return</span>;
+
+    <span class="var">$grupoEtareo</span> = <span class="var">$parto</span>-><span class="var">grupo_etareo</span>
+        ?: <span class="var">$this</span>-><span class="fn">grupoEtareoMaterno</span>(...);
+
+    <span class="cmt">// ─── 1. PrestParto (tipo × lugar × atendido_por × grupo) ───</span>
+    <span class="var">$rowParto</span> = <span class="cls">PrestParto</span>::<span class="fn">firstOrCreate</span>(
+        [<span class="str">'centro_salud_id'</span> => <span class="var">$centroId</span>, ...,
+         <span class="str">'tipo'</span> => <span class="var">$parto</span>-><span class="var">tipo</span>,
+         <span class="str">'lugar'</span> => <span class="var">$parto</span>-><span class="var">lugar</span>,
+         <span class="str">'atendido_por'</span> => <span class="var">$parto</span>-><span class="var">atendido_por</span>,
+         <span class="str">'grupo_etareo'</span> => <span class="var">$grupoEtareo</span>],
+        [<span class="str">'cantidad'</span> => <span class="num">0</span>]
+    );
+    <span class="cmt">// increment/decrement cantidad</span>
+
+    <span class="cmt">// ─── 2. Si nacido_vivo → PrestRecienNacido ───</span>
+    <span class="kw">if</span> (<span class="var">$parto</span>-><span class="var">resultado</span> === <span class="str">'nacido_vivo'</span>) {
+        <span class="var">$indicadorRN</span> = (<span class="var">$parto</span>-><span class="var">lugar</span> === <span class="str">'servicio'</span>)
+            ? <span class="str">'nacidos_vivos_servicio'</span>
+            : <span class="str">'nacidos_vivos_domicilio'</span>;
+        <span class="cmt">// firstOrCreate + increment/decrement</span>
+
+        <span class="cmt">// ─── 3. BCG automático en PrestVacuna ───</span>
+        <span class="hl"><span class="var">$rowBcg</span> = <span class="cls">PrestVacuna</span>::<span class="fn">firstOrCreate</span>(
+            [... <span class="str">'tipo_vacuna'</span> => <span class="str">'BCG'</span>,
+                 <span class="str">'grupo_etareo'</span> => <span class="str">'menor_1'</span>],
+            [<span class="str">'dentro_m'</span> => <span class="num">0</span>, ...]
+        );</span>
+        <span class="cmt">// increment dentro_m (convención al no conocer sexo RN)</span>
+    }
+}</code></pre>
+
+    <div class="callout tip">
+        <strong>BCG automática:</strong> Todo nacido vivo recibe vacuna BCG. El observer lo registra
+        automáticamente en el consolidado de vacunas usando <code>dentro_m</code> por convención
+        (al momento del parto no siempre se conoce el sexo del recién nacido).
+    </div>
+
+    <div class="callout info">
+        <strong>Navegación de relaciones:</strong> <code>Parto → embarazo() → persona</code> es
+        una cadena de 2 relaciones. El observer usa <code>with('persona')</code> para evitar N+1.
+        El nullsafe <code>$embarazo?->persona</code> protege si el embarazo no tiene persona.
+    </div>
+</div>
+
+<!-- ───────────────── S5 ───────────────── -->
+<div class="section" id="s5">
+    <h2><span class="number">5</span> ControlPrenatalObserver — prenatales por trimestre</h2>
+
+<pre><code><span class="kw">private function</span> <span class="fn">sincronizar</span>(<span class="cls">ControlPrenatal</span> <span class="var">$control</span>, <span class="type">int</span> <span class="var">$delta</span>): <span class="type">void</span>
+{
+    <span class="var">$embarazo</span> = <span class="var">$control</span>-><span class="fn">embarazo</span>()-><span class="fn">with</span>(<span class="str">'persona'</span>)-><span class="fn">first</span>();
+
+    <span class="cmt">// tipoPrenatal() del trait clasifica según número de control y semanas</span>
+    <span class="var">$tipoControl</span> = <span class="var">$this</span>-><span class="fn">tipoPrenatal</span>(
+        (<span class="type">int</span>) <span class="var">$control</span>-><span class="var">numero_control</span>,
+        (<span class="type">int</span>) (<span class="var">$control</span>-><span class="var">semanas_gestacion</span> ?? <span class="num">0</span>)
+    );
+
+    <span class="cmt">// Campo: 'dentro' o 'fuera'</span>
+    <span class="var">$campo</span> = <span class="var">$control</span>-><span class="var">dentro_fuera</span> === <span class="str">'dentro'</span> ? <span class="str">'dentro'</span> : <span class="str">'fuera'</span>;
+
+    <span class="var">$row</span> = <span class="cls">PrestPrenatal</span>::<span class="fn">firstOrCreate</span>(
+        [<span class="str">'centro_salud_id'</span> => ..., <span class="str">'mes'</span> => ..., <span class="str">'anio'</span> => ...,
+         <span class="str">'tipo_control'</span> => <span class="var">$tipoControl</span>,
+         <span class="str">'grupo_etareo'</span> => <span class="var">$grupoEtareo</span>],
+        [<span class="str">'dentro'</span> => <span class="num">0</span>, <span class="str">'fuera'</span> => <span class="num">0</span>]
+    );
+    <span class="cmt">// increment/decrement $campo</span>
+}</code></pre>
+
+    <p>Prenatales usa <strong>2 campos</strong> (dentro/fuera) en lugar de 4. El grupo etáreo
+    puede venir del registro o calcularse con <code>grupoEtareoMaterno()</code> del trait.</p>
+</div>
+
+<!-- ───────────────── S6 ───────────────── -->
+<div class="section" id="s6">
+    <h2><span class="number">6</span> CrecimientoInfantilObserver — crecimiento infantil</h2>
+
+<pre><code><span class="kw">private function</span> <span class="fn">sincronizar</span>(<span class="cls">CrecimientoInfantil</span> <span class="var">$registro</span>, <span class="type">int</span> <span class="var">$delta</span>): <span class="type">void</span>
+{
+    <span class="var">$edadMeses</span>   = <span class="cls">Carbon</span>::<span class="fn">parse</span>(<span class="var">$persona</span>-><span class="var">fecha_nacimiento</span>)
+                      -><span class="fn">diffInMonths</span>(<span class="var">$fechaRef</span>);
+    <span class="var">$grupoEtareo</span> = <span class="var">$this</span>-><span class="fn">grupoCrecimiento</span>(
+                      <span class="var">$edadMeses</span>, <span class="var">$registro</span>-><span class="var">dentro_fuera</span>);
+
+    <span class="cmt">// Campo: nuevos_m, nuevos_f, repetidos_m, repetidos_f</span>
+    <span class="var">$prefijo</span> = <span class="var">$registro</span>-><span class="var">tipo_control</span> === <span class="str">'nuevo'</span>
+        ? <span class="str">'nuevos'</span> : <span class="str">'repetidos'</span>;
+    <span class="var">$campo</span> = <span class="var">$prefijo</span> . <span class="str">'_'</span> . <span class="fn">strtolower</span>(<span class="var">$persona</span>-><span class="var">sexo</span>);
+
+    <span class="var">$row</span> = <span class="cls">PrestCrecimiento</span>::<span class="fn">firstOrCreate</span>(
+        [... <span class="str">'grupo_etareo'</span> => <span class="var">$grupoEtareo</span>],
+        [<span class="str">'nuevos_m'</span> => <span class="num">0</span>, <span class="str">'nuevos_f'</span> => <span class="num">0</span>,
+         <span class="str">'repetidos_m'</span> => <span class="num">0</span>, <span class="str">'repetidos_f'</span> => <span class="num">0</span>]
+    );
+}</code></pre>
+
+    <div class="callout info">
+        <strong>4 campos:</strong> tipo_control (nuevo/repetido) × sexo (M/F) = 4 combinaciones.
+        El grupo etáreo ya incluye dentro/fuera (vía <code>grupoCrecimiento()</code>), así que
+        el campo solo necesita combinar tipo_control + sexo.
+    </div>
+</div>
+
+<!-- ───────────────── S7 ───────────────── -->
+<div class="section" id="s7">
+    <h2><span class="number">7</span> AnticoncepcionObserver — métodos anticonceptivos</h2>
+
+<pre><code><span class="kw">private function</span> <span class="fn">sincronizar</span>(<span class="cls">Anticoncepcion</span> <span class="var">$ac</span>, <span class="type">int</span> <span class="var">$delta</span>): <span class="type">void</span>
+{
+    <span class="var">$grupoEtareo</span> = <span class="var">$this</span>-><span class="fn">grupoEtareoMaterno</span>(
+        <span class="cls">Carbon</span>::<span class="fn">parse</span>(<span class="var">$persona</span>-><span class="var">fecha_nacimiento</span>),
+        <span class="var">$fechaRef</span>
+    );
+
+    <span class="var">$row</span> = <span class="cls">PrestAnticoncepcion</span>::<span class="fn">firstOrCreate</span>(
+        [<span class="str">'centro_salud_id'</span> => ...,
+         <span class="str">'metodo'</span>       => <span class="var">$ac</span>-><span class="var">metodo</span>,
+         <span class="str">'tipo_usuaria'</span> => <span class="var">$ac</span>-><span class="var">tipo_usuaria</span>,
+         <span class="str">'grupo_etareo'</span> => <span class="var">$grupoEtareo</span>],
+        [<span class="str">'cantidad'</span> => <span class="num">0</span>]
+    );
+    <span class="cmt">// increment/decrement cantidad</span>
+}</code></pre>
+
+    <p>La clave compuesta incluye <code>metodo</code> + <code>tipo_usuaria</code> + 
+    <code>grupo_etareo</code>, que es la misma estructura que usa FormularioMaterna (lección 37)
+    para la sección de anticoncepción.</p>
+</div>
+
+<!-- ───────────────── S8 ───────────────── -->
+<div class="section" id="s8">
+    <h2><span class="number">8</span> MicronutrienteNinoObserver — el más simple</h2>
+
+    <p>El único observer que <strong>no</strong> usa el trait SincronizaPrestacion:</p>
+
+<pre><code><span class="kw">class</span> <span class="cls">MicronutrienteNinoObserver</span>
+{
+    <span class="cmt">// No usa SincronizaPrestacion — no necesita clasificar edad</span>
+
+    <span class="kw">private function</span> <span class="fn">sincronizar</span>(<span class="cls">MicronutrienteNino</span> <span class="var">$micro</span>, <span class="type">int</span> <span class="var">$delta</span>): <span class="type">void</span>
+    {
+        <span class="var">$persona</span> = <span class="var">$micro</span>-><span class="var">persona</span>;
+        <span class="kw">if</span> (!<span class="var">$persona</span>) <span class="kw">return</span>;
+
+        <span class="var">$row</span> = <span class="cls">PrestMicronutriente</span>::<span class="fn">firstOrCreate</span>(
+            [<span class="str">'centro_salud_id'</span> => <span class="var">$persona</span>-><span class="var">centro_salud_id</span>,
+             <span class="str">'mes'</span>  => <span class="var">$micro</span>-><span class="var">mes</span>,
+             <span class="str">'anio'</span> => <span class="var">$micro</span>-><span class="var">anio</span>,
+             <span class="str">'tipo'</span> => <span class="var">$micro</span>-><span class="var">tipo</span>],
+            [<span class="str">'cantidad'</span> => <span class="num">0</span>]
+        );
+
+        <span class="kw">if</span> (<span class="var">$delta</span> > <span class="num">0</span>) {
+            <span class="var">$row</span>-><span class="fn">increment</span>(<span class="str">'cantidad'</span>);
+        } <span class="kw">elseif</span> (<span class="var">$row</span>-><span class="var">cantidad</span> > <span class="num">0</span>) {
+            <span class="var">$row</span>-><span class="fn">decrement</span>(<span class="str">'cantidad'</span>);
+        }
+    }
+}</code></pre>
+
+    <div class="callout tip">
+        <strong>¿Por qué no necesita el trait?</strong> El tipo de micronutriente (<code>hierro_menor_1</code>,
+        <code>vitA_2_5_1ra</code>, etc.) ya está codificado en el registro individual. No hay
+        que calcular grupo etáreo — el <code>tipo</code> ya lo implica.
+    </div>
+</div>
+
+<!-- ───────────────── S9 ───────────────── -->
+<div class="section" id="s9">
+    <h2><span class="number">9</span> firstOrCreate + increment/decrement</h2>
+
+    <p>El patrón central de todos los observers merece análisis:</p>
+
+<pre><code><span class="cmt">// 1. Obtener o crear la fila con contadores en cero</span>
+<span class="var">$row</span> = <span class="cls">PrestVacuna</span>::<span class="fn">firstOrCreate</span>(
+    <span class="var">$claveBusqueda</span>,  <span class="cmt">// WHERE conditions</span>
+    <span class="var">$valoresDefecto</span>  <span class="cmt">// Solo si no existe: inicializar en 0</span>
+);
+
+<span class="cmt">// 2. Modificar el campo específico atómicamente</span>
+<span class="kw">if</span> (<span class="var">$delta</span> > <span class="num">0</span>) {
+    <span class="var">$row</span>-><span class="fn">increment</span>(<span class="var">$campo</span>);    <span class="cmt">// UPDATE ... SET campo = campo + 1</span>
+} <span class="kw">elseif</span> (<span class="var">$row</span>-><span class="var">$campo</span> > <span class="num">0</span>) {
+    <span class="var">$row</span>-><span class="fn">decrement</span>(<span class="var">$campo</span>);    <span class="cmt">// UPDATE ... SET campo = campo - 1</span>
+}</code></pre>
+
+    <div class="callout info">
+        <strong>¿Por qué no <code>updateOrCreate</code>?</strong>
+        <ul>
+            <li><code>firstOrCreate</code> solo crea la fila si no existe, sin modificar si ya existe</li>
+            <li><code>increment/decrement</code> modifican atómicamente a nivel de SQL
+                (<code>campo = campo + 1</code>), sin race conditions</li>
+            <li><code>updateOrCreate</code> sobrescribiría el valor — imposible con +1/−1</li>
+        </ul>
+    </div>
+
+    <div class="callout warning">
+        <strong>Propiedad dinámica:</strong> <code>$row->$campo</code> (con <code>$</code> doble)
+        accede a la propiedad cuyo nombre está en la variable <code>$campo</code>.
+        Si <code>$campo = 'dentro_m'</code>, entonces <code>$row->$campo</code> es equivalente
+        a <code>$row->dentro_m</code>. Esto permite un solo código para 4+ campos.
+    </div>
+</div>
+
+<!-- ───────────────── S10 ───────────────── -->
+<div class="section" id="s10">
+    <h2><span class="number">10</span> Cierre de Fase 8</h2>
+
+    <div class="lesson-summary">
+        <h3>Lo que aprendimos en esta lección</h3>
+        <ul>
+            <li><strong>5 observers + 1 trait:</strong> Patrón consistente de sincronización
+                individual → consolidado mensual.</li>
+            <li><strong>Delta pattern (+1/−1):</strong> Un solo método <code>sincronizar()</code>
+                maneja tanto created como deleted.</li>
+            <li><strong>firstOrCreate + increment/decrement:</strong> Creación atómica de fila
+                + modificación atómica de campo, sin race conditions.</li>
+            <li><strong>PartoObserver multicadena:</strong> Un parto actualiza 3 tablas Prest*
+                y registra BCG automáticamente para nacidos vivos.</li>
+            <li><strong>Guard contra negativos:</strong> <code>elseif ($row->$campo > 0)</code>
+                previene contadores negativos.</li>
+            <li><strong>Propiedad dinámica:</strong> <code>$row->$campo</code> permite código
+                genérico para múltiples campos.</li>
+        </ul>
+    </div>
+
+    <div class="callout tip" style="border-left-color: #10b981;">
+        <strong>Fase 8 completada</strong> — Las lecciones 40-41 cubren cómo SICSAL mantiene
+        los totales mensuales sincronizados con los registros individuales.
+        <strong>Siguiente:</strong> Fase 9 — Helpers y Services (CaiHelper, CausasConsultaHelper,
+        OmsHelper).
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════ NAV ══════════════════════════════ -->
+<div class="lesson-nav">
+    <a href="40-sincroniza-prestacion.html">← 40 · SincronizaPrestacion</a>
+    <a href="42-cai-helper.html">42 · CaiHelper →</a>
+</div>
+
+<!-- ════════════════════════════════════════════ FOOTER ════════════════════════════ -->
+<footer class="footer">
+    Tutorial SICSAL — Lección 41 de 58<br>
+    <small>Observers · VacunaNino · Parto · ControlPrenatal · Crecimiento · Anticoncepcion · Micronutriente</small>
+</footer>
+
+</body>
+</html>

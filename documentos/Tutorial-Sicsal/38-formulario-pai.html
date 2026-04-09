@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lección 38 · Formulario PAI — Vacunas, Micronutrientes y Crecimiento | Tutorial SICSAL</title>
+    <link rel="stylesheet" href="css/leccion.css">
+    <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════ TOPBAR ═══════════════════════════ -->
+<div class="topbar">
+    <a href="00-indice.html" class="topbar-brand">📘 Tutorial SICSAL</a>
+    <span class="topbar-sep">·</span>
+    <span class="topbar-context">Fase 7 — Formularios Mensuales</span>
+</div>
+
+<!-- ════════════════════════════════════════════ HERO ═════════════════════════════ -->
+<div class="hero">
+    <span class="badge">Fase 7 · Formularios Mensuales</span>
+    <h1 class="hero-title">Lección 38 — Formulario PAI<br>
+        <small>Vacunas, Micronutrientes y Crecimiento</small></h1>
+    <p class="hero-subtitle">51 vacunas × 11 grupos etáreos, 21 micronutrientes SNIS,
+        control de crecimiento infantil y verificación de cero.</p>
+    <div class="hero-meta">
+        📄 FormularioPai.php &nbsp;|&nbsp; formulario-pai.blade.php &nbsp;|&nbsp;
+        🕐 Lectura ~20 min &nbsp;|&nbsp; Lección 38 de 58
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════ NAV ══════════════════════════════ -->
+<div class="lesson-nav">
+    <a href="37-formulario-materna.html">← 37 · Formulario Materna</a>
+    <a href="39-formulario-causas.html">39 · Formulario Causas →</a>
+</div>
+
+<!-- ════════════════════════════════════════════ TOC ══════════════════════════════ -->
+<nav class="toc">
+    <h2 class="toc-title">Índice de la lección</h2>
+    <ol class="toc-list">
+        <li><a href="#s1">Panorama general</a></li>
+        <li><a href="#s2">Arrays estáticos — catálogo de vacunas</a></li>
+        <li><a href="#s3">allVacunasConfig() — combinación dinámica</a></li>
+        <li><a href="#s4">cargarDatos() — keyBy compuesto y simple</a></li>
+        <li><a href="#s5">Blade — pestañas Alpine.js (3 tabs)</a></li>
+        <li><a href="#s6">Tab Vacunas — cabecera triple y grilla masiva</a></li>
+        <li><a href="#s7">Tab Micronutrientes — 21 ítems SNIS (AE7-AE27)</a></li>
+        <li><a href="#s8">Tab Crecimiento — 6 grupos × 4 campos</a></li>
+        <li><a href="#s9">guardarVacunas() — skip-empty optimization</a></li>
+        <li><a href="#s10">guardarMicronutrientes() y guardarCrecimiento()</a></li>
+        <li><a href="#s11">verificarCero — whereIn selectivo</a></li>
+        <li><a href="#s12">Resumen</a></li>
+    </ol>
+</nav>
+
+<!-- ════════════════════════════════════════════ CONTENIDO ═════════════════════════ -->
+
+<!-- ───────────────── S1 ───────────────── -->
+<div class="section" id="s1">
+    <h2><span class="number">1</span> Panorama general</h2>
+
+    <p><code>FormularioPai</code> captura el <strong>Programa Ampliado de Inmunización</strong> (PAI),
+    micronutrientes y control de crecimiento infantil. Es el formulario más denso del sistema en cuanto
+    a volumen de inputs:</p>
+
+    <table class="info-table">
+        <thead><tr><th>Sección</th><th>Modelo</th><th>Filas</th><th>Campos/fila</th><th>Total inputs</th></tr></thead>
+        <tbody>
+            <tr><td>Vacunas menores 5</td><td>PrestVacuna</td><td>23 vacunas × 5 grupos</td><td>4</td><td>460</td></tr>
+            <tr><td>Vacunas otras</td><td>PrestVacuna</td><td>28 vacunas × 6 grupos</td><td>4</td><td>672</td></tr>
+            <tr><td>Micronutrientes</td><td>PrestMicronutriente</td><td>21 tipos</td><td>1</td><td>21</td></tr>
+            <tr><td>Crecimiento</td><td>PrestCrecimiento</td><td>6 grupos</td><td>4</td><td>24</td></tr>
+        </tbody>
+    </table>
+
+    <div class="callout tip">
+        <strong>1.177 inputs</strong> potenciales — se organizan en <strong>3 pestañas Alpine.js</strong>
+        para no saturar al usuario. El tab de vacunas contiene a su vez 2 sub-secciones.
+    </div>
+</div>
+
+<!-- ───────────────── S2 ───────────────── -->
+<div class="section" id="s2">
+    <h2><span class="number">2</span> Arrays estáticos — catálogo de vacunas</h2>
+
+    <p>El formulario define cuatro arrays <code>public static</code> que actúan como esquema
+    del SNIS. Cada vacuna es un par <code>[clave, etiqueta]</code>:</p>
+
+<pre><code><span class="cmt">// 23 vacunas para menores de 5 años</span>
+<span class="kw">public static</span> <span class="type">array</span> <span class="var">$vacunasMenores5</span> = [
+    [<span class="str">'BCG'</span>,               <span class="str">'BCG'</span>],
+    [<span class="str">'Pentavalente_1'</span>,     <span class="str">'Pentavalente 1ra dosis'</span>],
+    [<span class="str">'Pentavalente_2'</span>,     <span class="str">'Pentavalente 2da dosis'</span>],
+    <span class="cmt">// ... (23 ítems en total)</span>
+    [<span class="str">'Influenza_enf_cronicas_ninos'</span>, <span class="str">'Influenza a niños con enf. crónicas'</span>],
+];
+
+<span class="cmt">// 5 grupos etáreos para menores de 5</span>
+<span class="kw">public static</span> <span class="type">array</span> <span class="var">$gruposMenores5</span> = [
+    <span class="str">'menor_1'</span>  => <span class="str">'Menor de 1 año'</span>,
+    <span class="str">'12_23m'</span>   => <span class="str">'12 a 23 meses'</span>,
+    <span class="str">'2_anios'</span>  => <span class="str">'2 años'</span>,
+    <span class="str">'3_anios'</span>  => <span class="str">'3 años'</span>,
+    <span class="str">'4_anios'</span>  => <span class="str">'4 años'</span>,
+];</code></pre>
+
+    <p>Y el catálogo equivalente para mayores de 5:</p>
+
+<pre><code><span class="cmt">// 28 vacunas para ≥5 años</span>
+<span class="kw">public static</span> <span class="type">array</span> <span class="var">$vacunasOtras</span> = [
+    [<span class="str">'dT_1'</span>,  <span class="str">'dT 1ra dosis'</span>],
+    [<span class="str">'dT_2'</span>,  <span class="str">'dT 2da dosis'</span>],
+    <span class="cmt">// ... COVID-19, VPH, Hepatitis B, Influenza ...</span>
+    [<span class="str">'COVID_refuerzo'</span>, <span class="str">'COVID-19 dosis de refuerzo'</span>],
+];
+
+<span class="cmt">// 6 grupos etáreos para otras vacunas</span>
+<span class="kw">public static</span> <span class="type">array</span> <span class="var">$gruposOtrasVac</span> = [
+    <span class="str">'5_9'</span>      => <span class="str">'5 a 9 años'</span>,
+    <span class="str">'10_anios'</span> => <span class="str">'10 años'</span>,
+    <span class="str">'11_anios'</span> => <span class="str">'11 años'</span>,
+    <span class="str">'12_20'</span>    => <span class="str">'12 a 20 años'</span>,
+    <span class="str">'21_59'</span>    => <span class="str">'21 a 59 años'</span>,
+    <span class="str">'60_mas'</span>   => <span class="str">'60 y +'</span>,
+];</code></pre>
+
+    <div class="callout info">
+        <strong>Patrón:</strong> Los arrays son <code>public static</code> para poder referenciarlos
+        desde el Blade con <code>\App\Filament\Pages\FormularioPai::$vacunasMenores5</code>, tanto
+        para renderizar las tablas como para iterar en el PHP.
+    </div>
+</div>
+
+<!-- ───────────────── S3 ───────────────── -->
+<div class="section" id="s3">
+    <h2><span class="number">3</span> allVacunasConfig() — combinación dinámica</h2>
+
+    <p>Este método estático genera un array plano con <strong>todas</strong> las combinaciones
+    vacuna×grupo, útil para <code>cargarDatos()</code> y <code>guardarVacunas()</code>:</p>
+
+<pre><code><span class="kw">public static function</span> <span class="fn">allVacunasConfig</span>(): <span class="type">array</span>
+{
+    <span class="var">$all</span> = [];
+
+    <span class="cmt">// Menores de 5: 23 vacunas × 5 grupos = 115 combos</span>
+    <span class="kw">foreach</span> (<span class="var">self</span>::<span class="var">$vacunasMenores5</span> <span class="kw">as</span> [<span class="var">$tipo</span>, <span class="var">$label</span>]) {
+        <span class="kw">foreach</span> (<span class="var">self</span>::<span class="var">$gruposMenores5</span> <span class="kw">as</span> <span class="var">$ge</span> => <span class="var">$geLabel</span>) {
+            <span class="var">$all</span>[] = [<span class="var">$tipo</span>, <span class="var">$ge</span>, <span class="var">$label</span>];
+        }
+    }
+
+    <span class="cmt">// Otras: 28 vacunas × 6 grupos = 168 combos</span>
+    <span class="kw">foreach</span> (<span class="var">self</span>::<span class="var">$vacunasOtras</span> <span class="kw">as</span> [<span class="var">$tipo</span>, <span class="var">$label</span>]) {
+        <span class="kw">foreach</span> (<span class="var">self</span>::<span class="var">$gruposOtrasVac</span> <span class="kw">as</span> <span class="var">$ge</span> => <span class="var">$geLabel</span>) {
+            <span class="var">$all</span>[] = [<span class="var">$tipo</span>, <span class="var">$ge</span>, <span class="var">$label</span>];
+        }
+    }
+
+    <span class="kw">return</span> <span class="var">$all</span>; <span class="cmt">// 283 combinaciones en total</span>
+}</code></pre>
+
+    <div class="callout tip">
+        <strong>Técnica:</strong> PHP array destructuring <code>[$tipo, $label]</code> permite extraer
+        los dos valores del sub-array directamente en el foreach, sin usar índices numéricos.
+    </div>
+</div>
+
+<!-- ───────────────── S4 ───────────────── -->
+<div class="section" id="s4">
+    <h2><span class="number">4</span> cargarDatos() — keyBy compuesto y simple</h2>
+
+    <p>Tres secciones, tres estrategias de indexación:</p>
+
+<pre><code><span class="kw">private function</span> <span class="fn">cargarDatos</span>(<span class="type">int</span> <span class="var">$centroId</span>): <span class="type">void</span>
+{
+    <span class="cmt">// ─── Vacunas: clave compuesta tipo__grupo ───</span>
+    <span class="var">$rowsVacunas</span> = <span class="cls">PrestVacuna</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -><span class="fn">where</span>(<span class="str">'mes'</span>, <span class="var">$this</span>-><span class="var">mes</span>)-><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)
+        -><span class="fn">get</span>()-><span class="fn">keyBy</span>(<span class="kw">fn</span> (<span class="var">$r</span>) => <span class="str">"{$r->tipo_vacuna}__{$r->grupo_etareo}"</span>);
+
+    <span class="kw">foreach</span> (<span class="var">self</span>::<span class="fn">allVacunasConfig</span>() <span class="kw">as</span> [<span class="var">$tipoVacuna</span>, <span class="var">$grupoEtareo</span>, <span class="var">$label</span>]) {
+        <span class="var">$key</span> = <span class="str">"{$tipoVacuna}__{$grupoEtareo}"</span>;
+        <span class="var">$row</span> = <span class="var">$rowsVacunas</span>-><span class="fn">get</span>(<span class="var">$key</span>);
+        <span class="var">$this</span>-><span class="var">vacunas</span>[<span class="var">$key</span>] = [
+            <span class="str">'dentro_m'</span> => <span class="var">$row</span>-><span class="var">dentro_m</span> ?? <span class="num">0</span>,
+            <span class="str">'dentro_f'</span> => <span class="var">$row</span>-><span class="var">dentro_f</span> ?? <span class="num">0</span>,
+            <span class="str">'fuera_m'</span>  => <span class="var">$row</span>-><span class="var">fuera_m</span>  ?? <span class="num">0</span>,
+            <span class="str">'fuera_f'</span>  => <span class="var">$row</span>-><span class="var">fuera_f</span>  ?? <span class="num">0</span>,
+        ];
+    }
+
+    <span class="cmt">// ─── Micronutrientes: keyBy('tipo') simple ───</span>
+    <span class="var">$rowsMicro</span> = <span class="cls">PrestMicronutriente</span>::<span class="fn">where</span>(...)
+        -><span class="fn">get</span>()-><span class="fn">keyBy</span>(<span class="str">'tipo'</span>);
+    <span class="kw">foreach</span> (<span class="var">$tiposMicro</span> <span class="kw">as</span> <span class="var">$tipo</span>) {
+        <span class="var">$this</span>-><span class="var">micronutrientes</span>[<span class="var">$tipo</span>] = <span class="var">$row</span>-><span class="var">cantidad</span> ?? <span class="num">0</span>;
+    }
+
+    <span class="cmt">// ─── Crecimiento: keyBy('grupo_etareo') simple ───</span>
+    <span class="var">$rowsCrecimiento</span> = <span class="cls">PrestCrecimiento</span>::<span class="fn">where</span>(...)
+        -><span class="fn">get</span>()-><span class="fn">keyBy</span>(<span class="str">'grupo_etareo'</span>);
+    <span class="kw">foreach</span> (<span class="var">$gruposCrecimiento</span> <span class="kw">as</span> <span class="var">$ge</span>) {
+        <span class="var">$this</span>-><span class="var">crecimiento</span>[<span class="var">$ge</span>] = [
+            <span class="str">'nuevos_m'</span>    => <span class="var">$row</span>-><span class="var">nuevos_m</span>    ?? <span class="num">0</span>,
+            <span class="str">'nuevos_f'</span>    => <span class="var">$row</span>-><span class="var">nuevos_f</span>    ?? <span class="num">0</span>,
+            <span class="str">'repetidos_m'</span> => <span class="var">$row</span>-><span class="var">repetidos_m</span> ?? <span class="num">0</span>,
+            <span class="str">'repetidos_f'</span> => <span class="var">$row</span>-><span class="var">repetidos_f</span> ?? <span class="num">0</span>,
+        ];
+    }
+}</code></pre>
+
+    <div class="callout info">
+        <strong>Tres niveles de keyBy:</strong>
+        <ul>
+            <li><strong>Vacunas:</strong> <code>keyBy(fn())</code> con closure → clave compuesta <code>"BCG__menor_1"</code></li>
+            <li><strong>Micronutrientes:</strong> <code>keyBy('tipo')</code> → columna directa (21 valores escalares)</li>
+            <li><strong>Crecimiento:</strong> <code>keyBy('grupo_etareo')</code> → columna directa (6 sub-arrays)</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ───────────────── S5 ───────────────── -->
+<div class="section" id="s5">
+    <h2><span class="number">5</span> Blade — pestañas Alpine.js (3 tabs)</h2>
+
+    <p>La vista usa el mismo patrón Alpine de los otros formularios — un <code>x-data</code> con
+    <code>activeTab</code> y botones que mutan el estado:</p>
+
+<pre><code><span class="op">&lt;</span><span class="kw">div</span> <span class="attr">x-data</span>=<span class="str">"{ activeTab: 'vacunas' }"</span> <span class="attr">class</span>=<span class="str">"space-y-4"</span><span class="op">&gt;</span>
+
+    <span class="cmt">&lt;!-- Navegación de tabs --&gt;</span>
+    <span class="op">&lt;</span><span class="kw">nav</span> <span class="attr">class</span>=<span class="str">"flex gap-1 rounded-xl bg-gray-100 p-1"</span><span class="op">&gt;</span>
+        <span class="kw2">@foreach</span> ([
+            <span class="str">'vacunas'</span>         => <span class="str">'1. Vacunas'</span>,
+            <span class="str">'micronutrientes'</span> => <span class="str">'2. Micronutrientes'</span>,
+            <span class="str">'crecimiento'</span>     => <span class="str">'3. Crecimiento'</span>,
+        ] <span class="kw">as</span> <span class="var">$key</span> => <span class="var">$label</span>)
+            <span class="op">&lt;</span><span class="kw">button</span>
+                <span class="attr">x-on:click</span>=<span class="str">"activeTab = '{{ $key }}'"</span>
+                <span class="attr">:class</span>=<span class="str">"activeTab === '{{ $key }}'
+                    ? 'bg-white text-primary-600 shadow'
+                    : 'text-gray-600 hover:text-gray-800'"</span><span class="op">&gt;</span>
+                {{ <span class="var">$label</span> }}
+            <span class="op">&lt;/</span><span class="kw">button</span><span class="op">&gt;</span>
+        <span class="kw2">@endforeach</span>
+    <span class="op">&lt;/</span><span class="kw">nav</span><span class="op">&gt;</span>
+
+    <span class="cmt">&lt;!-- Contenido de cada tab con x-show + x-cloak --&gt;</span>
+    <span class="op">&lt;</span><span class="kw">div</span> <span class="attr">x-show</span>=<span class="str">"activeTab === 'vacunas'"</span> <span class="attr">x-cloak</span><span class="op">&gt;</span> ... <span class="op">&lt;/</span><span class="kw">div</span><span class="op">&gt;</span>
+    <span class="op">&lt;</span><span class="kw">div</span> <span class="attr">x-show</span>=<span class="str">"activeTab === 'micronutrientes'"</span> <span class="attr">x-cloak</span><span class="op">&gt;</span> ... <span class="op">&lt;/</span><span class="kw">div</span><span class="op">&gt;</span>
+    <span class="op">&lt;</span><span class="kw">div</span> <span class="attr">x-show</span>=<span class="str">"activeTab === 'crecimiento'"</span> <span class="attr">x-cloak</span><span class="op">&gt;</span> ... <span class="op">&lt;/</span><span class="kw">div</span><span class="op">&gt;</span>
+<span class="op">&lt;/</span><span class="kw">div</span><span class="op">&gt;</span></code></pre>
+
+    <p>El array inline en el <code>@foreach</code> es una técnica concisa de Blade para definir
+    un diccionario directamente en la vista sin pasarlo desde el componente.</p>
+</div>
+
+<!-- ───────────────── S6 ───────────────── -->
+<div class="section" id="s6">
+    <h2><span class="number">6</span> Tab Vacunas — cabecera triple y grilla masiva</h2>
+
+    <p>Cada sub-sección (menores de 5 años, otras vacunaciones) usa una tabla con
+    <strong>3 filas de cabecera</strong> (thead con rowspan + colspan):</p>
+
+<pre><code><span class="op">&lt;</span><span class="kw">thead</span><span class="op">&gt;</span>
+    <span class="cmt">&lt;!-- Fila 1: nombre de los grupos (colspan=4 por grupo) --&gt;</span>
+    <span class="op">&lt;</span><span class="kw">tr</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">th</span> <span class="attr">rowspan</span>=<span class="str">"3"</span><span class="op">&gt;</span>Vacuna<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="kw2">@foreach</span> (<span class="cls">FormularioPai</span>::<span class="var">$gruposMenores5</span> <span class="kw">as</span> <span class="var">$geKey</span> => <span class="var">$geLabel</span>)
+            <span class="op">&lt;</span><span class="kw">th</span> <span class="attr">colspan</span>=<span class="str">"4"</span><span class="op">&gt;</span>{{ <span class="var">$geLabel</span> }}<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="kw2">@endforeach</span>
+    <span class="op">&lt;/</span><span class="kw">tr</span><span class="op">&gt;</span>
+
+    <span class="cmt">&lt;!-- Fila 2: Dentro / Fuera (colspan=2 por cada) --&gt;</span>
+    <span class="op">&lt;</span><span class="kw">tr</span><span class="op">&gt;</span>
+        <span class="kw2">@foreach</span> (<span class="cls">FormularioPai</span>::<span class="var">$gruposMenores5</span> <span class="kw">as</span> ...)
+            <span class="op">&lt;</span><span class="kw">th</span> <span class="attr">colspan</span>=<span class="str">"2"</span><span class="op">&gt;</span>Dentro<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">th</span> <span class="attr">colspan</span>=<span class="str">"2"</span><span class="op">&gt;</span>Fuera<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="kw2">@endforeach</span>
+    <span class="op">&lt;/</span><span class="kw">tr</span><span class="op">&gt;</span>
+
+    <span class="cmt">&lt;!-- Fila 3: M / F × 2 (dentro, fuera) --&gt;</span>
+    <span class="op">&lt;</span><span class="kw">tr</span><span class="op">&gt;</span>
+        <span class="kw2">@foreach</span> (<span class="cls">FormularioPai</span>::<span class="var">$gruposMenores5</span> <span class="kw">as</span> ...)
+            <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;</span>M<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;&lt;</span><span class="kw">th</span><span class="op">&gt;</span>F<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;</span>M<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;&lt;</span><span class="kw">th</span><span class="op">&gt;</span>F<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="kw2">@endforeach</span>
+    <span class="op">&lt;/</span><span class="kw">tr</span><span class="op">&gt;</span>
+<span class="op">&lt;/</span><span class="kw">thead</span><span class="op">&gt;</span></code></pre>
+
+    <p>Estructura jerárquica visual:</p>
+    <table class="info-table">
+        <thead><tr><th>Nivel</th><th>Qué muestra</th><th>Columnas</th></tr></thead>
+        <tbody>
+            <tr><td>Fila 1</td><td>Grupo etáreo</td><td>5 grupos × colspan=4 = 20 columnas de datos</td></tr>
+            <tr><td>Fila 2</td><td>Dentro / Fuera</td><td>5 × 2 × colspan=2 = 20 columnas</td></tr>
+            <tr><td>Fila 3</td><td>M / F</td><td>5 × 4 = 20 columnas individuales</td></tr>
+        </tbody>
+    </table>
+
+    <p>El cuerpo itera las vacunas con destructuring y construye la clave compuesta:</p>
+
+<pre><code><span class="op">&lt;</span><span class="kw">tbody</span><span class="op">&gt;</span>
+    <span class="kw2">@foreach</span> (<span class="cls">FormularioPai</span>::<span class="var">$vacunasMenores5</span> <span class="kw">as</span> [<span class="var">$tipo</span>, <span class="var">$label</span>])
+        <span class="op">&lt;</span><span class="kw">tr</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">td</span><span class="op">&gt;</span>{{ <span class="var">$label</span> }}<span class="op">&lt;/</span><span class="kw">td</span><span class="op">&gt;</span>
+            <span class="kw2">@foreach</span> (<span class="fn">array_keys</span>(<span class="cls">FormularioPai</span>::<span class="var">$gruposMenores5</span>) <span class="kw">as</span> <span class="var">$ge</span>)
+                <span class="kw2">@php</span> <span class="var">$key</span> = <span class="str">"{$tipo}__{$ge}"</span>; <span class="kw2">@endphp</span>
+                <span class="kw2">@foreach</span> ([<span class="str">'dentro_m'</span>,<span class="str">'dentro_f'</span>,<span class="str">'fuera_m'</span>,<span class="str">'fuera_f'</span>] <span class="kw">as</span> <span class="var">$campo</span>)
+                    <span class="op">&lt;</span><span class="kw">td</span><span class="op">&gt;</span>
+                        <span class="op">&lt;</span><span class="kw">input</span> <span class="attr">type</span>=<span class="str">"number"</span> <span class="attr">min</span>=<span class="str">"0"</span>
+                            <span class="attr">wire:model</span>=<span class="str">"vacunas.{{ $key }}.{{ $campo }}"</span>
+                            {{ <span class="var">$mesCerrado</span> ? <span class="str">'disabled'</span> : <span class="str">''</span> }}<span class="op">&gt;</span>
+                    <span class="op">&lt;/</span><span class="kw">td</span><span class="op">&gt;</span>
+                <span class="kw2">@endforeach</span>
+            <span class="kw2">@endforeach</span>
+        <span class="op">&lt;/</span><span class="kw">tr</span><span class="op">&gt;</span>
+    <span class="kw2">@endforeach</span>
+<span class="op">&lt;/</span><span class="kw">tbody</span><span class="op">&gt;</span></code></pre>
+
+    <div class="callout warning">
+        <strong>Atención:</strong> Son <strong>3 foreach anidados</strong> (vacunas × grupos × campos).
+        Para "Menores de 5" eso genera <code>23 × 5 × 4 = 460</code> inputs individuales en el DOM.
+        Los inputs tipo <code>number min="0"</code> y ancho fijo <code>w-12</code> mantienen una
+        grilla compacta.
+    </div>
+</div>
+
+<!-- ───────────────── S7 ───────────────── -->
+<div class="section" id="s7">
+    <h2><span class="number">7</span> Tab Micronutrientes — 21 ítems SNIS (AE7-AE27)</h2>
+
+    <p>A diferencia de las vacunas (tabla matricial), micronutrientes usa un layout de
+    <strong>grid responsive</strong> con un solo input por tipo:</p>
+
+<pre><code><span class="kw2">@php</span>
+    <span class="var">$labelsMicro</span> = [
+        <span class="str">'hierro_embarazadas_completo'</span> => <span class="str">'AE7 — Hierro embarazadas (completa)'</span>,
+        <span class="str">'hierro_puerperas_completo'</span>   => <span class="str">'AE8 — Hierro puérperas (completa)'</span>,
+        <span class="str">'hierro_menor_6m'</span>             => <span class="str">'AE9 — Hierro &lt; 6 meses (desde 4m)'</span>,
+        <span class="cmt">// ... 21 ítems siguiendo el formulario 301 SNIS</span>
+        <span class="str">'nutrimama_lactancia'</span>         => <span class="str">'AE27 — Nutri Mamá en lactancia'</span>,
+    ];
+<span class="kw2">@endphp</span>
+
+<span class="op">&lt;</span><span class="kw">div</span> <span class="attr">class</span>=<span class="str">"grid gap-3 sm:grid-cols-2"</span><span class="op">&gt;</span>
+    <span class="kw2">@foreach</span> (<span class="var">$labelsMicro</span> <span class="kw">as</span> <span class="var">$tipo</span> => <span class="var">$label</span>)
+        <span class="op">&lt;</span><span class="kw">div</span> <span class="attr">class</span>=<span class="str">"flex items-center justify-between rounded border px-3 py-2"</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">label</span><span class="op">&gt;</span>{{ <span class="var">$label</span> }}<span class="op">&lt;/</span><span class="kw">label</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">input</span> <span class="attr">type</span>=<span class="str">"number"</span> <span class="attr">min</span>=<span class="str">"0"</span>
+                   <span class="attr">wire:model</span>=<span class="str">"micronutrientes.{{ $tipo }}"</span>
+                   {{ <span class="var">$mesCerrado</span> ? <span class="str">'disabled'</span> : <span class="str">''</span> }}<span class="op">&gt;</span>
+        <span class="op">&lt;/</span><span class="kw">div</span><span class="op">&gt;</span>
+    <span class="kw2">@endforeach</span>
+<span class="op">&lt;/</span><span class="kw">div</span><span class="op">&gt;</span></code></pre>
+
+    <div class="callout info">
+        <strong>wire:model plano:</strong> A diferencia de vacunas donde el binding es
+        <code>vacunas.BCG__menor_1.dentro_m</code> (3 niveles), micronutrientes
+        usa <code>micronutrientes.hierro_menor_6m</code> (2 niveles) porque cada tipo
+        tiene un solo valor escalar (<code>cantidad</code>).
+    </div>
+
+    <p>Los códigos AE7-AE27 corresponden a las filas exactas del <strong>formulario 301 del SNIS</strong>,
+    facilitando la auditoría y verificación cruzada con el formulario impreso.</p>
+
+    <table class="info-table">
+        <thead><tr><th>Grupo</th><th>Tipos</th><th>Rango SNIS</th></tr></thead>
+        <tbody>
+            <tr><td>Hierro</td><td>6 tipos (embarazadas, puérperas, menores)</td><td>AE7–AE12</td></tr>
+            <tr><td>Vitamina A</td><td>6 tipos (puérpera, menores 1ra/2da)</td><td>AE13–AE18</td></tr>
+            <tr><td>Zinc</td><td>2 tipos (menores talla baja)</td><td>AE19–AE20</td></tr>
+            <tr><td>Nutribebé</td><td>2 tipos (menor 1 año, 1 año)</td><td>AE21–AE22</td></tr>
+            <tr><td>Lactancia</td><td>2 tipos (inmediata, exclusiva 6m)</td><td>AE23–AE24</td></tr>
+            <tr><td>Carmelo</td><td>1 tipo (mayores 60 años)</td><td>AE25</td></tr>
+            <tr><td>Nutrimamá</td><td>2 tipos (embarazada, lactancia)</td><td>AE26–AE27</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- ───────────────── S8 ───────────────── -->
+<div class="section" id="s8">
+    <h2><span class="number">8</span> Tab Crecimiento — 6 grupos × 4 campos</h2>
+
+    <p>La sección más simple: una sola tabla con filas definidas en un array local del Blade:</p>
+
+<pre><code><span class="kw2">@php</span>
+    <span class="var">$labelsCrec</span> = [
+        <span class="str">'menor_1_dentro'</span>    => <span class="str">'&lt; 1 año (dentro)'</span>,
+        <span class="str">'menor_1_fuera'</span>     => <span class="str">'&lt; 1 año (fuera)'</span>,
+        <span class="str">'1_menor_2_dentro'</span>  => <span class="str">'1 - &lt; 2 años (dentro)'</span>,
+        <span class="str">'1_menor_2_fuera'</span>   => <span class="str">'1 - &lt; 2 años (fuera)'</span>,
+        <span class="str">'2_menor_5_dentro'</span>  => <span class="str">'2 - &lt; 5 años (dentro)'</span>,
+        <span class="str">'2_menor_5_fuera'</span>   => <span class="str">'2 - &lt; 5 años (fuera)'</span>,
+    ];
+<span class="kw2">@endphp</span>
+
+<span class="op">&lt;</span><span class="kw">table</span><span class="op">&gt;</span>
+    <span class="op">&lt;</span><span class="kw">thead</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">tr</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;</span>Grupo<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">th</span> <span class="attr">colspan</span>=<span class="str">"2"</span><span class="op">&gt;</span>Nuevos<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">th</span> <span class="attr">colspan</span>=<span class="str">"2"</span><span class="op">&gt;</span>Repetidos<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="op">&lt;/</span><span class="kw">tr</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">tr</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;</span>M<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;&lt;</span><span class="kw">th</span><span class="op">&gt;</span>F<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;</span>M<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;&lt;</span><span class="kw">th</span><span class="op">&gt;</span>F<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="op">&lt;/</span><span class="kw">tr</span><span class="op">&gt;</span>
+    <span class="op">&lt;/</span><span class="kw">thead</span><span class="op">&gt;</span>
+    <span class="op">&lt;</span><span class="kw">tbody</span><span class="op">&gt;</span>
+        <span class="kw2">@foreach</span> (<span class="var">$labelsCrec</span> <span class="kw">as</span> <span class="var">$ge</span> => <span class="var">$label</span>)
+            <span class="op">&lt;</span><span class="kw">tr</span><span class="op">&gt;</span>
+                <span class="op">&lt;</span><span class="kw">td</span><span class="op">&gt;</span>{{ <span class="var">$label</span> }}<span class="op">&lt;/</span><span class="kw">td</span><span class="op">&gt;</span>
+                <span class="kw2">@foreach</span> ([<span class="str">'nuevos_m'</span>,<span class="str">'nuevos_f'</span>,<span class="str">'repetidos_m'</span>,<span class="str">'repetidos_f'</span>] <span class="kw">as</span> <span class="var">$campo</span>)
+                    <span class="op">&lt;</span><span class="kw">td</span><span class="op">&gt;</span>
+                        <span class="op">&lt;</span><span class="kw">input</span> <span class="attr">type</span>=<span class="str">"number"</span> <span class="attr">min</span>=<span class="str">"0"</span>
+                            <span class="attr">wire:model</span>=<span class="str">"crecimiento.{{ $ge }}.{{ $campo }}"</span><span class="op">&gt;</span>
+                    <span class="op">&lt;/</span><span class="kw">td</span><span class="op">&gt;</span>
+                <span class="kw2">@endforeach</span>
+            <span class="op">&lt;/</span><span class="kw">tr</span><span class="op">&gt;</span>
+        <span class="kw2">@endforeach</span>
+    <span class="op">&lt;/</span><span class="kw">tbody</span><span class="op">&gt;</span>
+<span class="op">&lt;/</span><span class="kw">table</span><span class="op">&gt;</span></code></pre>
+
+    <div class="callout tip">
+        <strong>Patrón "dentro/fuera":</strong> Cada grupo de edad se desdobla en dos filas
+        (dentro de establecimiento, fuera de establecimiento), siguiendo el formato del SNIS.
+        Total: 3 rangos × 2 ubicaciones = 6 filas × 4 campos = 24 inputs.
+    </div>
+</div>
+
+<!-- ───────────────── S9 ───────────────── -->
+<div class="section" id="s9">
+    <h2><span class="number">9</span> guardarVacunas() — skip-empty optimization</h2>
+
+    <p>Con 283 combinaciones posibles, muchas estarán en cero. El método aplica una optimización
+    inteligente: <strong>solo persiste filas con al menos un valor &gt; 0</strong>:</p>
+
+<pre><code><span class="kw">public function</span> <span class="fn">guardarVacunas</span>(): <span class="type">void</span>
+{
+    <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">mesCerrado</span>) <span class="kw">return</span>;
+    <span class="var">$centroId</span> = <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">centro_salud_id</span>;
+
+    <span class="kw">foreach</span> (<span class="var">self</span>::<span class="fn">allVacunasConfig</span>() <span class="kw">as</span> [<span class="var">$tipoVacuna</span>, <span class="var">$grupoEtareo</span>, <span class="var">$label</span>]) {
+        <span class="var">$key</span> = <span class="str">"{$tipoVacuna}__{$grupoEtareo}"</span>;
+        <span class="var">$datos</span> = <span class="var">$this</span>-><span class="var">vacunas</span>[<span class="var">$key</span>] ?? [];
+        <span class="var">$values</span> = <span class="fn">array_map</span>(<span class="str">'intval'</span>, <span class="var">$datos</span>);
+
+        <span class="hl"><span class="kw">if</span> (<span class="fn">array_sum</span>(<span class="var">$values</span>) > <span class="num">0</span>) {</span>
+            <span class="cls">PrestVacuna</span>::<span class="fn">updateOrCreate</span>(
+                [<span class="str">'centro_salud_id'</span> => <span class="var">$centroId</span>,
+                 <span class="str">'mes'</span> => <span class="var">$this</span>-><span class="var">mes</span>,
+                 <span class="str">'anio'</span> => <span class="var">$this</span>-><span class="var">anio</span>,
+                 <span class="str">'tipo_vacuna'</span> => <span class="var">$tipoVacuna</span>,
+                 <span class="str">'grupo_etareo'</span> => <span class="var">$grupoEtareo</span>],
+                <span class="var">$values</span>
+            );
+        }
+    }
+
+    <span class="cls">Notification</span>::<span class="fn">make</span>()-><span class="fn">title</span>(<span class="str">'Vacunas guardadas'</span>)-><span class="fn">success</span>()-><span class="fn">send</span>();
+}</code></pre>
+
+    <div class="callout warning">
+        <strong>¿Por qué skip-empty?</strong> Sin esta optimización, se ejecutarían
+        <strong>283 queries</strong> por guardado. Con ella, un centro que solo aplica
+        10 tipos de vacunas ejecuta solo ~50 queries (10 tipos × 5 grupos).
+        Es una optimización de rendimiento significativa.
+    </div>
+
+    <p>Nota: <code>array_map('intval', $datos)</code> sanitiza los valores convirtiendo
+    cualquier string vacío o null a <code>0</code> antes de persistir.</p>
+</div>
+
+<!-- ───────────────── S10 ───────────────── -->
+<div class="section" id="s10">
+    <h2><span class="number">10</span> guardarMicronutrientes() y guardarCrecimiento()</h2>
+
+    <p>Estos métodos son más directos — guardan <strong>todas</strong> las filas sin skip-empty 
+    (la cantidad total es pequeña: 21 y 6 respectivamente):</p>
+
+<pre><code><span class="cmt">// Micronutrientes: valor escalar por tipo</span>
+<span class="kw">public function</span> <span class="fn">guardarMicronutrientes</span>(): <span class="type">void</span>
+{
+    <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">micronutrientes</span> <span class="kw">as</span> <span class="var">$tipo</span> => <span class="var">$cantidad</span>) {
+        <span class="cls">PrestMicronutriente</span>::<span class="fn">updateOrCreate</span>(
+            [<span class="str">'centro_salud_id'</span> => <span class="var">$centroId</span>,
+             <span class="str">'mes'</span> => <span class="var">$this</span>-><span class="var">mes</span>,
+             <span class="str">'anio'</span> => <span class="var">$this</span>-><span class="var">anio</span>,
+             <span class="str">'tipo'</span> => <span class="var">$tipo</span>],
+            [<span class="str">'cantidad'</span> => (<span class="type">int</span>) <span class="var">$cantidad</span>]
+        );
+    }
+    <span class="var">$this</span>-><span class="fn">verificarCeroMicronutrientes</span>(<span class="var">$centroId</span>);
+}
+
+<span class="cmt">// Crecimiento: sub-array de 4 campos por grupo</span>
+<span class="kw">public function</span> <span class="fn">guardarCrecimiento</span>(): <span class="type">void</span>
+{
+    <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">crecimiento</span> <span class="kw">as</span> <span class="var">$ge</span> => <span class="var">$datos</span>) {
+        <span class="cls">PrestCrecimiento</span>::<span class="fn">updateOrCreate</span>(
+            [<span class="str">'centro_salud_id'</span> => <span class="var">$centroId</span>,
+             <span class="str">'mes'</span> => <span class="var">$this</span>-><span class="var">mes</span>,
+             <span class="str">'anio'</span> => <span class="var">$this</span>-><span class="var">anio</span>,
+             <span class="str">'grupo_etareo'</span> => <span class="var">$ge</span>],
+            <span class="fn">array_map</span>(<span class="str">'intval'</span>, <span class="var">$datos</span>)
+        );
+    }
+    <span class="var">$this</span>-><span class="fn">verificarCeroCrecimiento</span>(<span class="var">$centroId</span>);
+}</code></pre>
+
+    <div class="callout info">
+        <strong>Patrón updateOrCreate:</strong> Los 3 métodos comparten la misma llave
+        (<code>centro_salud_id + mes + anio + identificador de fila</code>). Lo que cambia es
+        el "identificador de fila": <code>tipo_vacuna + grupo_etareo</code> (compuesto),
+        <code>tipo</code> (escalar) o <code>grupo_etareo</code> (escalar).
+    </div>
+</div>
+
+<!-- ───────────────── S11 ───────────────── -->
+<div class="section" id="s11">
+    <h2><span class="number">11</span> verificarCero — whereIn selectivo</h2>
+
+    <p>Ambos métodos implementan el patrón de <strong>cero justificado</strong>, pero con un
+    detalle importante: micronutrientes filtra solo los tipos infantiles.</p>
+
+<pre><code><span class="cmt">// Crecimiento: suma los 4 campos de TODAS las filas</span>
+<span class="kw">private function</span> <span class="fn">verificarCeroCrecimiento</span>(<span class="type">int</span> <span class="var">$centroId</span>): <span class="type">void</span>
+{
+    <span class="var">$total</span> = <span class="cls">PrestCrecimiento</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -><span class="fn">where</span>(<span class="str">'mes'</span>, <span class="var">$this</span>-><span class="var">mes</span>)-><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)
+        -><span class="fn">sum</span>(<span class="cls">DB</span>::<span class="fn">raw</span>(<span class="str">'nuevos_m + nuevos_f + repetidos_m + repetidos_f'</span>));
+
+    <span class="kw">if</span> (<span class="var">$total</span> == <span class="num">0</span>) {
+        <span class="var">$this</span>-><span class="fn">dispatch</span>(<span class="str">'abrir-justificacion-cero'</span>,
+            <span class="attr">indicador</span>: <span class="str">'control_crecimiento'</span>);
+    }
+}
+
+<span class="cmt">// Micronutrientes: solo suma los tipos INFANTILES</span>
+<span class="kw">private function</span> <span class="fn">verificarCeroMicronutrientes</span>(<span class="type">int</span> <span class="var">$centroId</span>): <span class="type">void</span>
+{
+    <span class="var">$total</span> = <span class="cls">PrestMicronutriente</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -><span class="fn">where</span>(<span class="str">'mes'</span>, <span class="var">$this</span>-><span class="var">mes</span>)-><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)
+        -><span class="hl"><span class="fn">whereIn</span>(<span class="str">'tipo'</span>, [</span>
+            <span class="str">'hierro_menor_6m'</span>, <span class="str">'hierro_menor_1'</span>,
+            <span class="str">'hierro_1anio'</span>,    <span class="str">'hierro_2_5'</span>,
+            <span class="str">'vitA_menor_1_unica'</span>, <span class="str">'vitA_1anio_1ra'</span>,
+            <span class="str">'vitA_1anio_2da'</span>,    <span class="str">'vitA_2_5_1ra'</span>,
+            <span class="str">'vitA_2_5_2da'</span>,
+            <span class="str">'zinc_menor_1'</span>, <span class="str">'zinc_1anio'</span>,
+        <span class="hl">])</span>
+        -><span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+
+    <span class="kw">if</span> (<span class="var">$total</span> == <span class="num">0</span>) {
+        <span class="var">$this</span>-><span class="fn">dispatch</span>(<span class="str">'abrir-justificacion-cero'</span>,
+            <span class="attr">indicador</span>: <span class="str">'micronutrientes_menor_5'</span>);
+    }
+}</code></pre>
+
+    <div class="callout warning">
+        <strong>¿Por qué whereIn selectivo?</strong> De los 21 tipos de micronutrientes,
+        solo 11 corresponden a <strong>niños menores de 5 años</strong>. Los indicadores de
+        embarazadas, puérperas, adultos mayores y nutrimamá no son relevantes para el indicador
+        "micronutrientes_menor_5". Un centro podría tener cero en hierro infantil pero valores en
+        hierro para embarazadas — y aún así debe justificar el cero infantil.
+    </div>
+
+    <div class="callout tip">
+        <strong>Contraste con crecimiento:</strong> verificarCeroCrecimiento usa
+        <code>DB::raw('nuevos_m + nuevos_f + ...')</code> para sumar las 4 columnas de cada fila
+        en una sola query. Micronutrientes tiene un solo campo (<code>cantidad</code>), así que 
+        usa <code>sum('cantidad')</code> directamente.
+    </div>
+</div>
+
+<!-- ───────────────── S12 ───────────────── -->
+<div class="section" id="s12">
+    <h2><span class="number">12</span> Resumen</h2>
+
+    <div class="lesson-summary">
+        <h3>Lo que aprendimos en esta lección</h3>
+        <ul>
+            <li><strong>Arrays estáticos como esquema SNIS:</strong> 23 + 28 vacunas, 5 + 6 grupos, 
+                21 micronutrientes, 6 grupos de crecimiento — todo declarado en arrays <code>public static</code>.</li>
+            <li><strong>allVacunasConfig():</strong> combinación de dos conjuntos (menores + otras)
+                con doble destructuring, generando 283 combinaciones.</li>
+            <li><strong>Tres niveles de keyBy:</strong> closure compuesta para vacunas,
+                <code>keyBy('tipo')</code> para micro, <code>keyBy('grupo_etareo')</code> para crecimiento.</li>
+            <li><strong>Cabecera triple:</strong> <code>rowspan="3"</code> + <code>colspan=4</code>
+                para organizar jerárquicamente grupo → dentro/fuera → M/F.</li>
+            <li><strong>Skip-empty optimization:</strong> <code>array_sum($values) > 0</code>
+                antes de <code>updateOrCreate</code> para reducir queries en vacunas.</li>
+            <li><strong>wire:model multinivel:</strong> <code>vacunas.BCG__menor_1.dentro_m</code>
+                (3 niveles) vs <code>micronutrientes.hierro_menor_6m</code> (2 niveles) vs
+                <code>crecimiento.menor_1_dentro.nuevos_m</code> (3 niveles).</li>
+            <li><strong>whereIn selectivo:</strong> verificarCeroMicronutrientes filtra solo los
+                11 tipos infantiles de los 21 totales para el indicador correcto.</li>
+            <li><strong>grid vs tabla:</strong> micronutrientes usa <code>grid sm:grid-cols-2</code>
+                (layout card) mientras que vacunas y crecimiento usan <code>&lt;table&gt;</code>
+                por su naturaleza matricial.</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════ NAV ══════════════════════════════ -->
+<div class="lesson-nav">
+    <a href="37-formulario-materna.html">← 37 · Formulario Materna</a>
+    <a href="39-formulario-causas.html">39 · Formulario Causas →</a>
+</div>
+
+<!-- ════════════════════════════════════════════ FOOTER ════════════════════════════ -->
+<footer class="footer">
+    Tutorial SICSAL — Lección 38 de 58<br>
+    <small>FormularioPai · Vacunas · Micronutrientes · Crecimiento · PAI SNIS</small>
+</footer>
+
+</body>
+</html>

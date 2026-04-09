@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 30 — Resource: User | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 6 — Panel Admin (Filament)</div>
+    <div class="lesson-number">Lección 30 de 58</div>
+    <h1 class="lesson-title">Resource: User</h1>
+    <p class="lesson-subtitle">Gestión de usuarios con password condicional, roles filtrados por jerarquía, acción de aprobación y query scoping avanzado.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 6 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~30 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Avanzado</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="29-resource-meta-ine.html" class="lesson-nav-btn">← Lección 29</a>
+    <a href="31-resource-post-causa.html" class="lesson-nav-btn">Lección 31 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#resource">UserResource — query scoping avanzado</a></li>
+      <li><a href="#form-personal">UserForm — datos personales + acceso</a></li>
+      <li><a href="#form-password">Password condicional: crear vs editar</a></li>
+      <li><a href="#form-roles">Roles filtrados por jerarquía</a></li>
+      <li><a href="#table">UsersTable — acción "Aprobar"</a></li>
+      <li><a href="#resumen">Resumen</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: RESOURCE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resource">
+    <h2><span class="section-number">1</span> UserResource — query scoping avanzado</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/Users/UserResource.php</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">UserResource</span> <span class="kw">extends</span> <span class="cls">Resource</span>
+{
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$model</span> <span class="op">=</span> <span class="cls">User</span>::<span class="kw">class</span>;
+    <span class="kw">protected static</span> <span class="type">string</span>|<span class="cls">BackedEnum</span>|<span class="kw">null</span> <span class="var">$navigationIcon</span>
+        <span class="op">=</span> <span class="cls">Heroicon</span>::<span class="var">OutlinedUsers</span>;
+    <span class="kw">protected static</span> <span class="type">string</span>|<span class="cls">\UnitEnum</span>|<span class="kw">null</span> <span class="var">$navigationGroup</span>
+        <span class="op">=</span> <span class="str">'Configuración'</span>;
+    <span class="kw">protected static</span> ?<span class="type">int</span> <span class="var">$navigationSort</span> <span class="op">=</span> <span class="num">4</span>;
+
+    <span class="kw">public static function</span> <span class="fn">canAccess</span>(): <span class="type">bool</span>
+    {
+        <span class="kw">return</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()?-&gt;<span class="fn">hasAnyRole</span>([<span class="str">'superadmin'</span>, <span class="str">'admin'</span>]) <span class="op">??</span> <span class="kw">false</span>;
+    }
+
+    <span class="hl"><span class="kw">public static function</span> <span class="fn">getEloquentQuery</span>(): <span class="cls">Builder</span></span>
+    <span class="hl">{</span>
+    <span class="hl">    <span class="var">$query</span> <span class="op">=</span> <span class="kw">parent</span>::<span class="fn">getEloquentQuery</span>();</span>
+    <span class="hl">    <span class="var">$user</span>  <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>();</span>
+    <span class="hl">    <span class="kw">if</span> (<span class="var">$user</span> <span class="op">&amp;&amp;</span> <span class="var">$user</span>-&gt;<span class="fn">hasRole</span>(<span class="str">'admin'</span>)) {</span>
+    <span class="hl">        <span class="cmt">// Admin solo ve registradores de su centro</span></span>
+    <span class="hl">        <span class="var">$query</span>-&gt;<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$user</span>-&gt;<span class="var">centro_salud_id</span>)</span>
+    <span class="hl">              -&gt;<span class="fn">whereHas</span>(<span class="str">'roles'</span>,</span>
+    <span class="hl">                  <span class="kw">fn</span> (<span class="cls">Builder</span> <span class="var">$q</span>) <span class="op">=&gt;</span> <span class="var">$q</span>-&gt;<span class="fn">where</span>(<span class="str">'name'</span>, <span class="str">'registrador'</span>)</span>
+    <span class="hl">              );</span>
+    <span class="hl">    }</span>
+    <span class="hl">    <span class="kw">return</span> <span class="var">$query</span>;</span>
+    <span class="hl">}</span>
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">Query scoping doble — centro + rol</div>
+      <p>A diferencia de otros Resources que solo filtran por <code>centro_salud_id</code>, UserResource agrega <strong>un segundo filtro por rol</strong>:</p>
+      <ul>
+        <li><strong>Superadmin</strong>: ve TODOS los usuarios de todos los centros</li>
+        <li><strong>Admin</strong>: solo ve registradores de su propio centro (no puede ver a otros admins ni al superadmin)</li>
+      </ul>
+      <p><code>whereHas('roles', fn ($q) => ...)</code> filtra por relación polimórfica de Spatie Permission.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: FORM PERSONAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="form-personal">
+    <h2><span class="section-number">2</span> UserForm — datos personales + acceso</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/Users/Schemas/UserForm.php — Sección 1</div>
+      <div class="code-body">
+<pre><span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Datos personales'</span>)
+    -&gt;<span class="fn">schema</span>([
+        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'name'</span>)
+            -&gt;<span class="fn">required</span>()-&gt;<span class="fn">maxLength</span>(<span class="num">100</span>)-&gt;<span class="fn">label</span>(<span class="str">'Nombres'</span>),
+        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'apellidos'</span>)
+            -&gt;<span class="fn">required</span>()-&gt;<span class="fn">maxLength</span>(<span class="num">100</span>)-&gt;<span class="fn">label</span>(<span class="str">'Apellidos'</span>),
+        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'email'</span>)
+            -&gt;<span class="fn">email</span>()-&gt;<span class="fn">required</span>()-&gt;<span class="fn">maxLength</span>(<span class="num">255</span>)
+            -&gt;<span class="fn">label</span>(<span class="str">'Correo electrónico'</span>),
+    ])-&gt;<span class="fn">columns</span>(<span class="num">2</span>),</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: PASSWORD CONDICIONAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="form-password">
+    <h2><span class="section-number">3</span> Password condicional: crear vs editar</h2>
+
+    <div class="code-block">
+      <div class="code-header">UserForm.php — campo password</div>
+      <div class="code-body">
+<pre><span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Acceso al sistema'</span>)
+    -&gt;<span class="fn">schema</span>([
+        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'usuario'</span>)
+            -&gt;<span class="fn">required</span>()-&gt;<span class="fn">maxLength</span>(<span class="num">50</span>)
+            <span class="hl">-&gt;<span class="fn">unique</span>(<span class="var">ignoreRecord</span>: <span class="kw">true</span>)</span>
+            -&gt;<span class="fn">label</span>(<span class="str">'Nombre de usuario'</span>),
+
+        <span class="hl"><span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'password'</span>)
+            -&gt;<span class="fn">password</span>()-&gt;<span class="fn">revealable</span>()
+            -&gt;<span class="fn">required</span>(<span class="kw">fn</span> (<span class="type">string</span> <span class="var">$operation</span>) <span class="op">=&gt;</span>
+                <span class="var">$operation</span> <span class="op">===</span> <span class="str">'create'</span>)
+            -&gt;<span class="fn">dehydrated</span>(<span class="kw">fn</span> (?<span class="type">string</span> <span class="var">$state</span>) <span class="op">=&gt;</span>
+                <span class="fn">filled</span>(<span class="var">$state</span>))
+            -&gt;<span class="fn">minLength</span>(<span class="num">8</span>)
+            -&gt;<span class="fn">label</span>(<span class="kw">fn</span> (<span class="type">string</span> <span class="var">$operation</span>) <span class="op">=&gt;</span>
+                <span class="var">$operation</span> <span class="op">===</span> <span class="str">'create'</span>
+                    ? <span class="str">'Contraseña'</span>
+                    : <span class="str">'Nueva contraseña (dejar vacío para no cambiar)'</span>
+            )</span>,
+
+        <span class="cmt">// ... roles y centro_salud_id ...</span>
+
+        <span class="cls">Toggle</span>::<span class="fn">make</span>(<span class="str">'activo'</span>)-&gt;<span class="fn">default</span>(<span class="kw">true</span>),
+    ])-&gt;<span class="fn">columns</span>(<span class="num">2</span>),</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Tres trucos del campo password</div>
+      <ol>
+        <li><strong><code>required(fn ($operation) => $operation === 'create')</code></strong> — obligatorio al crear, opcional al editar</li>
+        <li><strong><code>dehydrated(fn ($state) => filled($state))</code></strong> — solo se envía al servidor si tiene valor. Si está vacío al editar, NO se sobreescribe la contraseña existente</li>
+        <li><strong><code>label(fn ($operation) => ...)</code></strong> — cambia la etiqueta según si estamos creando o editando</li>
+      </ol>
+      <p><code>$operation</code> es inyectado por Filament y vale <code>'create'</code> o <code>'edit'</code>.</p>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">unique(ignoreRecord: true)</div>
+      <p>El campo <code>usuario</code> debe ser único, pero al editar un usuario existente, <code>ignoreRecord: true</code> excluye el registro actual de la validación. Sin esto, editar un usuario fallaría porque el mismo nombre de usuario "ya existe".</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: ROLES FILTRADOS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="form-roles">
+    <h2><span class="section-number">4</span> Roles filtrados por jerarquía</h2>
+
+    <div class="code-block">
+      <div class="code-header">UserForm.php — roles y método privado</div>
+      <div class="code-body">
+<pre><span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'roles'</span>)
+    -&gt;<span class="fn">relationship</span>(<span class="str">'roles'</span>, <span class="str">'name'</span>)
+    -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">preload</span>()
+    <span class="hl">-&gt;<span class="fn">options</span>(<span class="kw">fn</span> () <span class="op">=&gt;</span> <span class="kw">self</span>::<span class="fn">getRolesDisponibles</span>())</span>
+    -&gt;<span class="fn">required</span>()-&gt;<span class="fn">label</span>(<span class="str">'Rol'</span>),
+
+<span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'centro_salud_id'</span>)
+    -&gt;<span class="fn">relationship</span>(<span class="str">'centroSalud'</span>, <span class="str">'nombre'</span>)
+    -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">preload</span>()
+    -&gt;<span class="fn">required</span>(<span class="kw">fn</span> () <span class="op">=&gt;</span> !<span class="fn">auth</span>()-&gt;<span class="fn">user</span>()?-&gt;<span class="fn">hasRole</span>(<span class="str">'superadmin'</span>))
+    -&gt;<span class="fn">disabled</span>(<span class="kw">fn</span> () <span class="op">=&gt;</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()?-&gt;<span class="fn">hasRole</span>(<span class="str">'admin'</span>))
+    -&gt;<span class="fn">default</span>(<span class="kw">fn</span> () <span class="op">=&gt;</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()?-&gt;<span class="var">centro_salud_id</span>),
+
+<span class="cmt">// ─── Método privado ───</span>
+
+<span class="hl"><span class="kw">private static function</span> <span class="fn">getRolesDisponibles</span>(): <span class="type">array</span></span>
+<span class="hl">{</span>
+<span class="hl">    <span class="var">$user</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>();</span>
+<span class="hl">    <span class="kw">if</span> (<span class="var">$user</span>?-&gt;<span class="fn">hasRole</span>(<span class="str">'superadmin'</span>)) {</span>
+<span class="hl">        <span class="kw">return</span> [</span>
+<span class="hl">            <span class="str">'superadmin'</span>  <span class="op">=&gt;</span> <span class="str">'Superadmin'</span>,</span>
+<span class="hl">            <span class="str">'admin'</span>       <span class="op">=&gt;</span> <span class="str">'Admin (Médico)'</span>,</span>
+<span class="hl">            <span class="str">'registrador'</span> <span class="op">=&gt;</span> <span class="str">'Registrador (Enfermero/a)'</span>,</span>
+<span class="hl">        ];</span>
+<span class="hl">    }</span>
+<span class="hl">    <span class="kw">return</span> [</span>
+<span class="hl">        <span class="str">'registrador'</span> <span class="op">=&gt;</span> <span class="str">'Registrador (Enfermero/a)'</span>,</span>
+<span class="hl">    ];</span>
+<span class="hl">}</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">Jerarquía de roles — escalamiento de privilegios prevenido</div>
+      <p><code>getRolesDisponibles()</code> previene escalamiento de privilegios:</p>
+      <ul>
+        <li><strong>Superadmin</strong>: puede asignar los 3 roles (superadmin, admin, registrador)</li>
+        <li><strong>Admin</strong>: solo puede crear registradores — no puede crear otros admins ni superadmins</li>
+      </ul>
+      <p>Esto es una <strong>defensa en profundidad</strong>. Incluso si alguien manipula el formulario, el backend solo permite las opciones declaradas.</p>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">centro_salud_id con required condicional</div>
+      <p>El superadmin puede no tener centro asignado (es global), por eso <code>required(fn () => !hasRole('superadmin'))</code> lo hace opcional solo para superadmin. Admin no puede cambiar el centro (disabled + default).</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: TABLE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="table">
+    <h2><span class="section-number">5</span> UsersTable — acción "Aprobar"</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/Users/Tables/UsersTable.php</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">columns</span>([
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'name'</span>)-&gt;<span class="fn">sortable</span>()-&gt;<span class="fn">searchable</span>(),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'apellidos'</span>)-&gt;<span class="fn">sortable</span>()-&gt;<span class="fn">searchable</span>(),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'usuario'</span>)-&gt;<span class="fn">searchable</span>(),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'roles.name'</span>)-&gt;<span class="fn">badge</span>(),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'centroSalud.nombre'</span>)-&gt;<span class="fn">searchable</span>(),
+    <span class="cls">IconColumn</span>::<span class="fn">make</span>(<span class="str">'activo'</span>)-&gt;<span class="fn">boolean</span>(),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'ultimo_acceso'</span>)
+        -&gt;<span class="fn">dateTime</span>(<span class="str">'d/m/Y H:i'</span>)-&gt;<span class="fn">sortable</span>()
+        -&gt;<span class="fn">toggleable</span>(<span class="var">isToggledHiddenByDefault</span>: <span class="kw">true</span>),
+])
+-&gt;<span class="fn">filters</span>([
+    <span class="cls">SelectFilter</span>::<span class="fn">make</span>(<span class="str">'activo'</span>)
+        -&gt;<span class="fn">options</span>([<span class="num">1</span> <span class="op">=&gt;</span> <span class="str">'Activos'</span>, <span class="num">0</span> <span class="op">=&gt;</span> <span class="str">'Inactivos'</span>]),
+])
+<span class="hl">-&gt;<span class="fn">defaultSort</span>(<span class="str">'activo'</span>, <span class="str">'asc'</span>)</span> <span class="cmt">// pendientes primero</span>
+-&gt;<span class="fn">recordActions</span>([
+    <span class="hl"><span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'aprobar'</span>)
+        -&gt;<span class="fn">label</span>(<span class="str">'Aprobar'</span>)
+        -&gt;<span class="fn">icon</span>(<span class="str">'heroicon-o-check-circle'</span>)
+        -&gt;<span class="fn">color</span>(<span class="str">'success'</span>)
+        -&gt;<span class="fn">visible</span>(<span class="kw">fn</span> (<span class="var">$record</span>) <span class="op">=&gt;</span> !<span class="var">$record</span>-&gt;<span class="var">activo</span>)
+        -&gt;<span class="fn">requiresConfirmation</span>()
+        -&gt;<span class="fn">modalHeading</span>(<span class="str">'Aprobar usuario'</span>)
+        -&gt;<span class="fn">modalDescription</span>(<span class="kw">fn</span> (<span class="var">$record</span>) <span class="op">=&gt;</span>
+            <span class="str">"¿Activar la cuenta de {<span class="var">$record</span>-&gt;<span class="var">name</span>}?"</span>)
+        -&gt;<span class="fn">action</span>(<span class="kw">fn</span> (<span class="var">$record</span>) <span class="op">=&gt;</span>
+            <span class="var">$record</span>-&gt;<span class="fn">update</span>([<span class="str">'activo'</span> <span class="op">=&gt;</span> <span class="kw">true</span>])
+        )</span>,
+    <span class="cls">EditAction</span>::<span class="fn">make</span>(),
+])</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">defaultSort('activo', 'asc') — pendientes primero</div>
+      <p>Los usuarios inactivos (<code>activo = false = 0</code>) aparecen primero. Combinado con la acción "Aprobar" que solo se muestra en inactivos, el flujo de aprobación es intuitivo: los pendientes están arriba con un botón verde para activar.</p>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">roles.name como badge</div>
+      <p><code>TextColumn::make('roles.name')</code> accede a la relación many-to-many de Spatie Permission. <code>->badge()</code> muestra el nombre del rol como un chip de color. Si un usuario tiene múltiples roles, se muestran todos como badges separados.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RESUMEN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen">
+    <h2><span class="section-number">6</span> Resumen</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos</h3>
+      <ul>
+        <li><strong>whereHas('roles')</strong> — query scoping por relación polimórfica</li>
+        <li><strong>Password condicional</strong> — required/dehydrated/label dinámicos con $operation</li>
+        <li><strong>unique(ignoreRecord: true)</strong> — exclusión del registro actual en validación unique</li>
+        <li><strong>getRolesDisponibles()</strong> — opciones de Select filtradas por jerarquía de roles</li>
+        <li><strong>required() condicional</strong> — campo obligatorio según el rol del creador</li>
+        <li><strong>Acción "Aprobar"</strong> — visible() + action() para aprobación rápida</li>
+        <li><strong>defaultSort('activo', 'asc')</strong> — pendientes siempre arriba</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="29-resource-meta-ine.html" class="lesson-nav-btn">← Lección 29</a>
+    <a href="31-resource-post-causa.html" class="lesson-nav-btn">Lección 31 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 30 de 58</p>
+</footer>
+
+</body>
+</html>

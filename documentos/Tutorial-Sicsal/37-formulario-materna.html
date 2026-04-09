@@ -1,0 +1,482 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 37 — FormularioMaterna | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 7 — Formularios Mensuales</div>
+    <div class="lesson-number">Lección 37 de 58</div>
+    <h1 class="lesson-title">FormularioMaterna — Salud Materna, Anticoncepción e ILE</h1>
+    <p class="lesson-subtitle">Prenatales, partos, puerperio, recién nacidos, anticoncepción (11 métodos × 6 grupos), prevención de cáncer e ILE. 303 líneas PHP + 217 líneas Blade con verificación de cero justificado.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 2 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~30 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Avanzado</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="36-formulario-servicios.html" class="lesson-nav-btn">← Lección 36</a>
+    <a href="38-formulario-pai.html" class="lesson-nav-btn">Lección 38 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#estructura">Estructura y diccionarios estáticos</a></li>
+      <li><a href="#cargar">cargarDatos() — claves compuestas de hasta 4 niveles</a></li>
+      <li><a href="#guardar">guardarX() y verificarCero — dispatch de evento</a></li>
+      <li><a href="#prenatales">Tab Prenatales — rowspan en tablas Blade</a></li>
+      <li><a href="#partos">Tab Partos — $partosConfig como array de arrays</a></li>
+      <li><a href="#anticoncepcion">Tab Anticoncepción — sub-tablas por método</a></li>
+      <li><a href="#cancer-ile">Tabs Cáncer e ILE — grid simple + modal justificación</a></li>
+      <li><a href="#resumen">Resumen</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: ESTRUCTURA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="estructura">
+    <h2><span class="section-number">1</span> Estructura y diccionarios estáticos</h2>
+
+    <p>FormularioMaterna usa el mismo patrón que FormularioServicios (lección 36): <code>FormularioMensualTrait</code> + arrays públicos + diccionarios estáticos + métodos guardar por sección. Maneja <strong>7 tablas prest_*</strong> distribuidas en 5 tabs.</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Pages/FormularioMaterna.php — propiedades</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">FormularioMaterna</span> <span class="kw">extends</span> <span class="cls">Page</span>
+{
+    <span class="kw">use</span> <span class="cls">FormularioMensualTrait</span>;
+
+    <span class="kw">const</span> <span class="var">SECCION</span> <span class="op">=</span> <span class="str">'Salud Materna'</span>;
+
+    <span class="kw">public array</span> <span class="var">$prenatales</span> <span class="op">=</span> [];       <span class="cmt">// PrestPrenatal</span>
+    <span class="kw">public array</span> <span class="var">$partos</span> <span class="op">=</span> [];           <span class="cmt">// PrestParto</span>
+    <span class="kw">public array</span> <span class="var">$puerperio</span> <span class="op">=</span> [];        <span class="cmt">// PrestPuerperio</span>
+    <span class="kw">public array</span> <span class="var">$recienNacidos</span> <span class="op">=</span> [];    <span class="cmt">// PrestRecienNacido</span>
+    <span class="kw">public array</span> <span class="var">$anticoncepcion</span> <span class="op">=</span> [];   <span class="cmt">// PrestAnticoncepcion</span>
+    <span class="kw">public array</span> <span class="var">$cancerPrevencion</span> <span class="op">=</span> []; <span class="cmt">// PrestCancerPrevencion</span>
+    <span class="kw">public array</span> <span class="var">$ile</span> <span class="op">=</span> [];              <span class="cmt">// PrestIle</span>
+}</pre>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">FormularioMaterna.php — $partosConfig (array de arrays)</div>
+      <div class="code-body">
+<pre><span class="cmt">// Cada elemento: [tipo, lugar, atendido_por, label]</span>
+<span class="hl"><span class="kw">public static array</span> <span class="var">$partosConfig</span> <span class="op">=</span> [
+    [<span class="str">'vaginal'</span>, <span class="str">'servicio'</span>, <span class="str">'personal_calificado'</span>,
+        <span class="str">'Parto vaginal en servicio - personal calificado'</span>],
+    [<span class="str">'vaginal'</span>, <span class="str">'domicilio'</span>, <span class="str">'personal_calificado'</span>,
+        <span class="str">'Parto vaginal domicilio - personal calificado'</span>],
+    [<span class="str">'vaginal'</span>, <span class="str">'domicilio'</span>, <span class="str">'partera_capacitada'</span>,
+        <span class="str">'Parto vaginal domicilio - partera capacitada'</span>],
+    [<span class="str">'vaginal'</span>, <span class="str">'domicilio'</span>, <span class="str">'partera_empirica'</span>,
+        <span class="str">'Parto vaginal domicilio - partera empírica'</span>],
+    [<span class="str">'vaginal'</span>, <span class="str">'domicilio'</span>, <span class="str">'articulacion'</span>,
+        <span class="str">'Parto vaginal domicilio - articulación'</span>],
+    [<span class="str">'vaginal'</span>, <span class="str">'domicilio'</span>, <span class="str">'otros'</span>,
+        <span class="str">'Partos atendidos por otros'</span>],
+    [<span class="str">'cesarea'</span>, <span class="str">'servicio'</span>, <span class="str">'personal_calificado'</span>,
+        <span class="str">'Cesárea en servicio'</span>],
+];</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Array de arrays vs array asociativo</div>
+      <p><code>$partosConfig</code> es un array de arrays (no asociativo). Cada fila tiene 4 elementos en posición fija: [0]=tipo, [1]=lugar, [2]=atendido_por, [3]=label. Se accede por desestructuración: <code>[$tipo, $lugar, $atendido, $label]</code>. Es útil cuando la "clave" del registro es compuesta (3 campos) y no se puede representar como un simple string.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">FormularioMaterna.php — $metodosAnticoncepcion (11 métodos)</div>
+      <div class="code-body">
+<pre><span class="kw">public static array</span> <span class="var">$metodosAnticoncepcion</span> <span class="op">=</span> [
+    <span class="str">'DIU'</span>                    <span class="op">=&gt;</span> <span class="str">'DIU'</span>,
+    <span class="str">'inyectable_mensual'</span>     <span class="op">=&gt;</span> <span class="str">'Inyectable mensual'</span>,
+    <span class="str">'inyectable_trimestral'</span>  <span class="op">=&gt;</span> <span class="str">'Inyectable trimestral'</span>,
+    <span class="str">'pildora'</span>                <span class="op">=&gt;</span> <span class="str">'Píldora'</span>,
+    <span class="str">'condon_masculino'</span>       <span class="op">=&gt;</span> <span class="str">'Condón masculino'</span>,
+    <span class="str">'condon_femenino'</span>        <span class="op">=&gt;</span> <span class="str">'Condón femenino'</span>,
+    <span class="str">'implante_subdermic'</span>     <span class="op">=&gt;</span> <span class="str">'Implante subdérmico'</span>,
+    <span class="str">'metodos_naturales'</span>      <span class="op">=&gt;</span> <span class="str">'Métodos naturales'</span>,
+    <span class="str">'AQV_femenino'</span>           <span class="op">=&gt;</span> <span class="str">'AQV femenino'</span>,
+    <span class="str">'AQV_masculino'</span>          <span class="op">=&gt;</span> <span class="str">'AQV masculino'</span>,
+    <span class="str">'pildora_emergencia'</span>     <span class="op">=&gt;</span> <span class="str">'Píldora de emergencia'</span>,
+];</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: CARGAR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="cargar">
+    <h2><span class="section-number">2</span> cargarDatos() — claves compuestas de hasta 4 niveles</h2>
+
+    <div class="code-block">
+      <div class="code-header">FormularioMaterna.php — cargar partos (clave de 4 partes)</div>
+      <div class="code-body">
+<pre><span class="cmt">// Partos: clave compuesta = tipo__lugar__atendido_por__grupo_etareo</span>
+<span class="hl"><span class="var">$rowsPartos</span> <span class="op">=</span> <span class="cls">PrestParto</span>::<span class="fn">where</span>(...)
+    -&gt;<span class="fn">get</span>()-&gt;<span class="fn">keyBy</span>(
+        <span class="kw">fn</span>(<span class="var">$r</span>) <span class="op">=&gt;</span> <span class="str">"{$r->tipo}__{$r->lugar}__{$r->atendido_por}__{$r->grupo_etareo}"</span>
+    );</span>
+
+<span class="kw">foreach</span> (<span class="kw">self</span>::<span class="var">$partosConfig</span> <span class="kw">as</span> [<span class="var">$tipo</span>, <span class="var">$lugar</span>, <span class="var">$atendido</span>, <span class="var">$label</span>]) {
+    <span class="kw">foreach</span> (<span class="fn">array_keys</span>(<span class="kw">self</span>::<span class="var">$gruposParto</span>) <span class="kw">as</span> <span class="var">$ge</span>) {
+        <span class="var">$key</span> <span class="op">=</span> <span class="str">"{$tipo}__{$lugar}__{$atendido}__{$ge}"</span>;
+        <span class="var">$row</span> <span class="op">=</span> <span class="var">$rowsPartos</span>-&gt;<span class="fn">get</span>(<span class="var">$key</span>);
+        <span class="var">$this</span>-&gt;<span class="var">partos</span>[<span class="var">$key</span>] <span class="op">=</span> <span class="var">$row</span>-&gt;<span class="var">cantidad</span> <span class="op">??</span> <span class="num">0</span>;
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Desestructuración de arrays en PHP 8</div>
+      <p><code>foreach ($partosConfig as [$tipo, $lugar, $atendido, $label])</code> usa <strong>desestructuración de arrays</strong> de PHP 7.1+. Equivale a <code>$tipo = $item[0]; $lugar = $item[1];</code> etc. Leer bien la posición: la clave compuesta del modelo tiene 4 campos, pero el label (posición 3) es solo para la UI.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">FormularioMaterna.php — cargar anticoncepción (clave triple)</div>
+      <div class="code-body">
+<pre><span class="cmt">// Anticoncepción: 11 métodos × 2 tipos × 6 grupos = 132 celdas</span>
+<span class="var">$rowsAnti</span> <span class="op">=</span> <span class="cls">PrestAnticoncepcion</span>::<span class="fn">where</span>(...)
+    -&gt;<span class="fn">get</span>()-&gt;<span class="fn">keyBy</span>(
+        <span class="kw">fn</span>(<span class="var">$r</span>) <span class="op">=&gt;</span> <span class="str">"{$r->metodo}__{$r->tipo_usuaria}__{$r->grupo_etareo}"</span>
+    );
+
+<span class="kw">foreach</span> (<span class="fn">array_keys</span>(<span class="kw">self</span>::<span class="var">$metodosAnticoncepcion</span>) <span class="kw">as</span> <span class="var">$metodo</span>) {
+    <span class="kw">foreach</span> ([<span class="str">'nueva'</span>, <span class="str">'continua'</span>] <span class="kw">as</span> <span class="var">$tipo</span>) {
+        <span class="kw">foreach</span> (<span class="fn">array_keys</span>(<span class="kw">self</span>::<span class="var">$gruposAnticoncepcion</span>) <span class="kw">as</span> <span class="var">$ge</span>) {
+            <span class="var">$key</span> <span class="op">=</span> <span class="str">"{$metodo}__{$tipo}__{$ge}"</span>;
+            <span class="var">$this</span>-&gt;<span class="var">anticoncepcion</span>[<span class="var">$key</span>] <span class="op">=</span> <span class="var">$rowsAnti</span>-&gt;<span class="fn">get</span>(<span class="var">$key</span>)?-&gt;<span class="var">cantidad</span> <span class="op">??</span> <span class="num">0</span>;
+        }
+    }
+}</pre>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: GUARDAR + CERO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="guardar">
+    <h2><span class="section-number">3</span> guardarX() y verificarCero — dispatch de evento</h2>
+
+    <div class="code-block">
+      <div class="code-header">FormularioMaterna.php — guardarPrenatales + verificarCero</div>
+      <div class="code-body">
+<pre><span class="kw">public function</span> <span class="fn">guardarPrenatales</span>(): <span class="type">void</span>
+{
+    <span class="kw">if</span> (<span class="var">$this</span>-&gt;<span class="var">mesCerrado</span>) <span class="kw">return</span>;
+    <span class="var">$centroId</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()-&gt;<span class="var">centro_salud_id</span>;
+
+    <span class="kw">foreach</span> (<span class="var">$this</span>-&gt;<span class="var">prenatales</span> <span class="kw">as</span> <span class="var">$key</span> <span class="op">=&gt;</span> <span class="var">$datos</span>) {
+        <span class="hl">[<span class="var">$tc</span>, <span class="var">$ge</span>] <span class="op">=</span> <span class="fn">explode</span>(<span class="str">'__'</span>, <span class="var">$key</span>);</span>  <span class="cmt">// Reconstruir campos</span>
+        <span class="cls">PrestPrenatal</span>::<span class="fn">updateOrCreate</span>(
+            [<span class="str">'centro_salud_id'</span> <span class="op">=&gt;</span> <span class="var">$centroId</span>, <span class="str">'mes'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">mes</span>,
+             <span class="str">'anio'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">anio</span>,
+             <span class="str">'tipo_control'</span> <span class="op">=&gt;</span> <span class="var">$tc</span>, <span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="var">$ge</span>],
+            [<span class="str">'dentro'</span> <span class="op">=&gt;</span> (<span class="type">int</span>)<span class="var">$datos</span>[<span class="str">'dentro'</span>],
+             <span class="str">'fuera'</span>  <span class="op">=&gt;</span> (<span class="type">int</span>)<span class="var">$datos</span>[<span class="str">'fuera'</span>]]
+        );
+    }
+
+    <span class="hl"><span class="var">$this</span>-&gt;<span class="fn">verificarCeroPrenatales</span>(<span class="var">$centroId</span>);</span>
+    <span class="cls">Notification</span>::<span class="fn">make</span>()-&gt;<span class="fn">title</span>(<span class="str">'Prenatales guardados'</span>)-&gt;<span class="fn">success</span>()-&gt;<span class="fn">send</span>();
+}
+
+<span class="kw">private function</span> <span class="fn">verificarCeroPrenatales</span>(<span class="type">int</span> <span class="var">$centroId</span>): <span class="type">void</span>
+{
+    <span class="var">$total</span> <span class="op">=</span> <span class="cls">PrestPrenatal</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'mes'</span>, <span class="var">$this</span>-&gt;<span class="var">mes</span>)-&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-&gt;<span class="var">anio</span>)
+        -&gt;<span class="fn">sum</span>(\<span class="cls">DB</span>::<span class="fn">raw</span>(<span class="str">'dentro + fuera'</span>));
+
+    <span class="kw">if</span> (<span class="var">$total</span> <span class="op">==</span> <span class="num">0</span>) {
+        <span class="hl"><span class="var">$this</span>-&gt;<span class="fn">dispatch</span>(<span class="str">'abrir-justificacion-cero'</span>,
+            <span class="var">indicador</span>: <span class="str">'control_prenatal'</span>);</span>
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">Cero justificado — regla de negocio clave</div>
+      <p>Si el total de prenatales o puerperio es <strong>cero</strong>, se dispara un evento <code>abrir-justificacion-cero</code> que abre un modal pidiendo justificación. Es una regla del SNIS Bolivia: todo indicador clave en cero requiere explicación obligatoria. El modal se incluye con <code>@include('filament.pages.partials.justificacion-cero-modal')</code> al final del Blade.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">FormularioMaterna.php — guardarPartosYPuerperio (3 tablas en un botón)</div>
+      <div class="code-body">
+<pre><span class="kw">public function</span> <span class="fn">guardarPartosYPuerperio</span>(): <span class="type">void</span>
+{
+    <span class="cmt">// 1. Partos — desestructurar $partosConfig</span>
+    <span class="kw">foreach</span> (<span class="kw">self</span>::<span class="var">$partosConfig</span> <span class="kw">as</span> [<span class="var">$tipo</span>, <span class="var">$lugar</span>, <span class="var">$atendido</span>, <span class="var">$label</span>]) {
+        <span class="kw">foreach</span> (<span class="fn">array_keys</span>(<span class="kw">self</span>::<span class="var">$gruposParto</span>) <span class="kw">as</span> <span class="var">$ge</span>) {
+            <span class="var">$key</span> <span class="op">=</span> <span class="str">"{$tipo}__{$lugar}__{$atendido}__{$ge}"</span>;
+            <span class="cls">PrestParto</span>::<span class="fn">updateOrCreate</span>(
+                [<span class="str">'centro_salud_id'</span> <span class="op">=&gt;</span> <span class="var">$centroId</span>, <span class="str">'mes'</span> <span class="op">=&gt;</span> ...,
+                 <span class="hl"><span class="str">'tipo'</span> <span class="op">=&gt;</span> <span class="var">$tipo</span>, <span class="str">'lugar'</span> <span class="op">=&gt;</span> <span class="var">$lugar</span>,
+                 <span class="str">'atendido_por'</span> <span class="op">=&gt;</span> <span class="var">$atendido</span>, <span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="var">$ge</span></span>],
+                [<span class="str">'cantidad'</span> <span class="op">=&gt;</span> (<span class="type">int</span>)(<span class="var">$this</span>-&gt;<span class="var">partos</span>[<span class="var">$key</span>] <span class="op">??</span> <span class="num">0</span>)]
+            );
+        }
+    }
+
+    <span class="cmt">// 2. Puerperio — 4 tipos de control</span>
+    <span class="kw">foreach</span> (<span class="var">$this</span>-&gt;<span class="var">puerperio</span> <span class="kw">as</span> <span class="var">$tc</span> <span class="op">=&gt;</span> <span class="var">$cantidad</span>) { ... }
+
+    <span class="cmt">// 3. Recién nacidos — 10 indicadores</span>
+    <span class="kw">foreach</span> (<span class="var">$this</span>-&gt;<span class="var">recienNacidos</span> <span class="kw">as</span> <span class="var">$ind</span> <span class="op">=&gt;</span> <span class="var">$cantidad</span>) { ... }
+
+    <span class="var">$this</span>-&gt;<span class="fn">verificarCeroPuerperio</span>(<span class="var">$centroId</span>);
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Un botón, tres tablas</div>
+      <p><code>guardarPartosYPuerperio()</code> guarda en 3 tablas a la vez (<code>prest_partos</code>, <code>prest_puerperio</code>, <code>prest_recien_nacidos</code>) porque en la UI están en la misma pestaña. Agrupación lógica: el usuario piensa en "partos y puerperio" como una unidad, no como 3 tablas separadas.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: PRENATALES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="prenatales">
+    <h2><span class="section-number">4</span> Tab Prenatales — rowspan en tablas Blade</h2>
+
+    <div class="code-block">
+      <div class="code-header">formulario-materna.blade.php — prenatales con rowspan</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;table&gt;</span>
+  <span class="dec">&lt;thead&gt;</span>
+    <span class="dec">&lt;tr&gt;</span>
+      <span class="dec">&lt;th&gt;</span>Tipo Control<span class="dec">&lt;/th&gt;</span>
+      <span class="dec">&lt;th&gt;</span>Grupo Etáreo<span class="dec">&lt;/th&gt;</span>
+      <span class="dec">&lt;th&gt;</span>Dentro<span class="dec">&lt;/th&gt;</span>
+      <span class="dec">&lt;th&gt;</span>Fuera<span class="dec">&lt;/th&gt;</span>
+    <span class="dec">&lt;/tr&gt;</span>
+  <span class="dec">&lt;/thead&gt;</span>
+  <span class="dec">&lt;tbody&gt;</span>
+    <span class="kw">@foreach</span> (<span class="var">$labelsTC</span> <span class="kw">as</span> <span class="var">$tc</span> <span class="op">=&gt;</span> <span class="var">$tcLabel</span>)
+      <span class="kw">@foreach</span> (<span class="var">$labelsGE</span> <span class="kw">as</span> <span class="var">$ge</span> <span class="op">=&gt;</span> <span class="var">$geLabel</span>)
+        <span class="dec">&lt;tr&gt;</span>
+          <span class="hl"><span class="kw">@if</span> (<span class="var">$loop</span>-&gt;<span class="var">first</span>)
+            <span class="dec">&lt;td</span> <span class="attr">rowspan</span><span class="op">=</span><span class="str">"{{ count($labelsGE) }}"</span><span class="dec">&gt;</span>
+              {{ <span class="var">$tcLabel</span> }}
+            <span class="dec">&lt;/td&gt;</span>
+          <span class="kw">@endif</span></span>
+          <span class="dec">&lt;td&gt;</span>{{ <span class="var">$geLabel</span> }}<span class="dec">&lt;/td&gt;</span>
+          <span class="dec">&lt;td&gt;</span>
+            <span class="dec">&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"number"</span>
+                <span class="attr">wire:model</span><span class="op">=</span><span class="str">"prenatales.{{ $tc }}__{{ $ge }}.dentro"</span><span class="dec">&gt;</span>
+          <span class="dec">&lt;/td&gt;</span>
+          <span class="dec">&lt;td&gt;</span>
+            <span class="dec">&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"number"</span>
+                <span class="attr">wire:model</span><span class="op">=</span><span class="str">"prenatales.{{ $tc }}__{{ $ge }}.fuera"</span><span class="dec">&gt;</span>
+          <span class="dec">&lt;/td&gt;</span>
+        <span class="dec">&lt;/tr&gt;</span>
+      <span class="kw">@endforeach</span>
+    <span class="kw">@endforeach</span>
+  <span class="dec">&lt;/tbody&gt;</span>
+<span class="dec">&lt;/table&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">$loop->first + rowspan</div>
+      <p>El <code>@foreach</code> interno itera 6 grupos etáreos por cada tipo de control. Solo en la <strong>primera iteración</strong> (<code>$loop->first</code>) se renderiza la celda del tipo con <code>rowspan="{{ count($labelsGE) }}"</code>. Esto fusiona las 6 filas del grupo en una sola celda vertical.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: PARTOS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="partos">
+    <h2><span class="section-number">5</span> Tab Partos — $partosConfig como array de arrays</h2>
+
+    <div class="code-block">
+      <div class="code-header">formulario-materna.blade.php — tabla de partos</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;table&gt;</span>
+  <span class="dec">&lt;thead&gt;</span>
+    <span class="dec">&lt;tr&gt;</span>
+      <span class="dec">&lt;th&gt;</span>Tipo de parto<span class="dec">&lt;/th&gt;</span>
+      <span class="kw">@foreach</span> (<span class="cls">FormularioMaterna</span>::<span class="var">$gruposParto</span> <span class="kw">as</span> <span class="var">$ge</span> <span class="op">=&gt;</span> <span class="var">$labelGe</span>)
+        <span class="dec">&lt;th&gt;</span>{{ <span class="var">$labelGe</span> }}<span class="dec">&lt;/th&gt;</span>
+      <span class="kw">@endforeach</span>
+    <span class="dec">&lt;/tr&gt;</span>
+  <span class="dec">&lt;/thead&gt;</span>
+  <span class="dec">&lt;tbody&gt;</span>
+    <span class="hl"><span class="kw">@foreach</span> (<span class="cls">FormularioMaterna</span>::<span class="var">$partosConfig</span> <span class="kw">as</span>
+        [<span class="var">$tipo</span>, <span class="var">$lugar</span>, <span class="var">$atendido</span>, <span class="var">$label</span>])</span>
+      <span class="dec">&lt;tr&gt;</span>
+        <span class="dec">&lt;td&gt;</span>{{ <span class="var">$label</span> }}<span class="dec">&lt;/td&gt;</span>
+        <span class="kw">@foreach</span> (<span class="fn">array_keys</span>(<span class="cls">FormularioMaterna</span>::<span class="var">$gruposParto</span>) <span class="kw">as</span> <span class="var">$ge</span>)
+          <span class="dec">&lt;td&gt;</span>
+            <span class="dec">&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"number"</span>
+              <span class="attr">wire:model</span><span class="op">=</span><span class="str">"partos.{{ $tipo }}__{{ $lugar }}__{{ $atendido }}__{{ $ge }}"</span><span class="dec">&gt;</span>
+          <span class="dec">&lt;/td&gt;</span>
+        <span class="kw">@endforeach</span>
+      <span class="dec">&lt;/tr&gt;</span>
+    <span class="kw">@endforeach</span>
+  <span class="dec">&lt;/tbody&gt;</span>
+<span class="dec">&lt;/table&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">wire:model con 4 partes en la clave</div>
+      <p><code>wire:model="partos.vaginal__domicilio__partera_capacitada__15_19"</code> enlaza directamente al valor <code>$this->partos['vaginal__domicilio__partera_capacitada__15_19']</code>. Las 4 partes separadas por <code>__</code> corresponden a los 4 campos de la clave compuesta. 7 tipos × 6 grupos = 42 inputs.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: ANTICONCEPCIÓN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="anticoncepcion">
+    <h2><span class="section-number">6</span> Tab Anticoncepción — sub-tablas por método</h2>
+
+    <div class="code-block">
+      <div class="code-header">formulario-materna.blade.php — tablas por método</div>
+      <div class="code-body">
+<pre><span class="kw">@foreach</span> (<span class="var">$metodos</span> <span class="kw">as</span> <span class="var">$metodoKey</span> <span class="op">=&gt;</span> <span class="var">$metodoLabel</span>)
+  <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"mb-6"</span><span class="dec">&gt;</span>
+    <span class="hl"><span class="dec">&lt;h4</span> <span class="attr">class</span><span class="op">=</span><span class="str">"font-semibold"</span><span class="dec">&gt;</span>{{ <span class="var">$metodoLabel</span> }}<span class="dec">&lt;/h4&gt;</span></span>
+    <span class="dec">&lt;table&gt;</span>
+      <span class="dec">&lt;thead&gt;</span>
+        <span class="dec">&lt;tr&gt;</span>
+          <span class="dec">&lt;th&gt;</span>Tipo<span class="dec">&lt;/th&gt;</span>
+          <span class="kw">@foreach</span> (<span class="var">$gruposAC</span> <span class="kw">as</span> <span class="var">$geKey</span> <span class="op">=&gt;</span> <span class="var">$geLabel</span>)
+            <span class="dec">&lt;th&gt;</span>{{ <span class="var">$geLabel</span> }}<span class="dec">&lt;/th&gt;</span>
+          <span class="kw">@endforeach</span>
+        <span class="dec">&lt;/tr&gt;</span>
+      <span class="dec">&lt;/thead&gt;</span>
+      <span class="dec">&lt;tbody&gt;</span>
+        <span class="kw">@foreach</span> ([<span class="str">'nueva'</span> <span class="op">=&gt;</span> <span class="str">'Nueva'</span>, <span class="str">'continua'</span> <span class="op">=&gt;</span> <span class="str">'Continua'</span>]
+                 <span class="kw">as</span> <span class="var">$tipoKey</span> <span class="op">=&gt;</span> <span class="var">$tipoLabel</span>)
+          <span class="dec">&lt;tr&gt;</span>
+            <span class="dec">&lt;td&gt;</span>{{ <span class="var">$tipoLabel</span> }}<span class="dec">&lt;/td&gt;</span>
+            <span class="kw">@foreach</span> (<span class="var">$gruposAC</span> <span class="kw">as</span> <span class="var">$geKey</span> <span class="op">=&gt;</span> <span class="var">$geLabel</span>)
+              <span class="dec">&lt;td&gt;</span>
+                <span class="dec">&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"number"</span>
+                  <span class="attr">wire:model</span><span class="op">=</span><span class="str">"anticoncepcion.{{ $metodoKey }}__{{ $tipoKey }}__{{ $geKey }}"</span><span class="dec">&gt;</span>
+              <span class="dec">&lt;/td&gt;</span>
+            <span class="kw">@endforeach</span>
+          <span class="dec">&lt;/tr&gt;</span>
+        <span class="kw">@endforeach</span>
+      <span class="dec">&lt;/tbody&gt;</span>
+    <span class="dec">&lt;/table&gt;</span>
+  <span class="dec">&lt;/div&gt;</span>
+<span class="kw">@endforeach</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">11 mini-tablas = 132 inputs</div>
+      <p>Se genera una sub-tabla por cada uno de los 11 métodos anticonceptivos. Cada una tiene 2 filas (nueva/continua) × 6 columnas (grupos etáreos) = 12 inputs por tabla, total <strong>132 inputs</strong>. Triple <code>@foreach</code> anidado: método → tipo → grupo.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: CÁNCER + ILE + MODAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="cancer-ile">
+    <h2><span class="section-number">7</span> Tabs Cáncer e ILE — grid simple + modal justificación</h2>
+
+    <p>Las pestañas de prevención de cáncer (9 indicadores) e ILE (3 indicadores) usan el patrón más simple: grid de cards con label+input, idéntico a enfermería de la lección 36.</p>
+
+    <div class="code-block">
+      <div class="code-header">formulario-materna.blade.php — ILE con explicación</div>
+      <div class="code-body">
+<pre><span class="cmt">&lt;!-- Tab 5: ILE --&gt;</span>
+<span class="dec">&lt;div</span> <span class="attr">x-show</span><span class="op">=</span><span class="str">"activeTab === 'ile'"</span> <span class="attr">x-cloak</span><span class="dec">&gt;</span>
+  <span class="dec">&lt;h3&gt;</span>Interrupción Legal del Embarazo (ILE)<span class="dec">&lt;/h3&gt;</span>
+  <span class="dec">&lt;p</span> <span class="attr">class</span><span class="op">=</span><span class="str">"text-sm text-gray-500"</span><span class="dec">&gt;</span>
+    Form 301 filas 63-65. Solo se registra cuando hay
+    atenciones de ILE por causal Violencia Sexual.
+  <span class="dec">&lt;/p&gt;</span>
+  <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"grid gap-3 sm:grid-cols-2"</span><span class="dec">&gt;</span>
+    <span class="kw">@foreach</span> (<span class="var">$labelsIle</span> <span class="kw">as</span> <span class="var">$ind</span> <span class="op">=&gt;</span> <span class="var">$label</span>)
+      <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"flex items-center justify-between..."</span><span class="dec">&gt;</span>
+        <span class="dec">&lt;label&gt;</span>{{ <span class="var">$label</span> }}<span class="dec">&lt;/label&gt;</span>
+        <span class="dec">&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"number"</span> <span class="attr">wire:model</span><span class="op">=</span><span class="str">"ile.{{ $ind }}"</span><span class="dec">&gt;</span>
+      <span class="dec">&lt;/div&gt;</span>
+    <span class="kw">@endforeach</span>
+  <span class="dec">&lt;/div&gt;</span>
+<span class="dec">&lt;/div&gt;</span>
+
+<span class="cmt">&lt;!-- Modal de justificación de cero (partial compartido) --&gt;</span>
+<span class="hl"><span class="kw">@include</span>(<span class="str">'filament.pages.partials.justificacion-cero-modal'</span>)</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">@include para partials compartidos</div>
+      <p>El modal de justificación de cero es un partial Blade compartido entre FormularioMaterna, FormularioPai y FormularioCausasConsulta. Se incluye con <code>@include</code> y se activa por el evento <code>abrir-justificacion-cero</code> que despachan los métodos <code>verificarCero*()</code>. Veremos este modal en detalle en la lección 39.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RESUMEN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen">
+    <h2><span class="section-number">8</span> Resumen</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos en esta lección</h3>
+      <ul>
+        <li><strong>Desestructuración de arrays</strong> en foreach: <code>[$tipo, $lugar, $atendido, $label]</code></li>
+        <li><strong>Claves compuestas de hasta 4 partes</strong> separadas por <code>__</code></li>
+        <li><strong>explode('__', $key)</strong> para reconstruir los campos al guardar</li>
+        <li><strong>$loop->first + rowspan</strong> para fusionar celdas en tablas Blade</li>
+        <li><strong>Sub-tablas por método</strong> — @foreach que genera N tablas completas</li>
+        <li><strong>verificarCero + dispatch()</strong> — disparar modal de justificación</li>
+        <li><strong>Un botón → 3 tablas</strong> — agrupación lógica por sección del formulario</li>
+        <li><strong>@include para partials</strong> — reutilizar el modal de justificación</li>
+        <li><strong>132 inputs</strong> en anticoncepción, <strong>42 inputs</strong> en partos — todo wire:model</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="36-formulario-servicios.html" class="lesson-nav-btn">← Lección 36</a>
+    <a href="38-formulario-pai.html" class="lesson-nav-btn">Lección 38 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 37 de 58</p>
+</footer>
+
+</body>
+</html>

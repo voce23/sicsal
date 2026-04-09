@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 32 — Widgets del Dashboard | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 6 — Panel Admin (Filament)</div>
+    <div class="lesson-number">Lección 32 de 58</div>
+    <h1 class="lesson-title">Widgets del Dashboard</h1>
+    <p class="lesson-subtitle">Cuatro widgets que componen el dashboard: estadísticas tipo tarjeta, alertas de meses sin cerrar, contexto de migración y barras de cobertura mensual.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 7 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~25 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="31-resource-post-causa.html" class="lesson-nav-btn">← Lección 31</a>
+    <a href="33-pagina-prestaciones.html" class="lesson-nav-btn">Lección 33 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#overview">Visión general — 4 widgets en el dashboard</a></li>
+      <li><a href="#estadisticas">EstadisticasPoblacion — StatsOverviewWidget</a></li>
+      <li><a href="#alertas">AlertasWidget — widget con vista Blade</a></li>
+      <li><a href="#migracion">MigracionContexto — indicadores MEF y migración</a></li>
+      <li><a href="#cobertura">CoberturaMensual — barras de progreso</a></li>
+      <li><a href="#resumen">Resumen</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: OVERVIEW
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="overview">
+    <h2><span class="section-number">1</span> Visión general — 4 widgets en el dashboard</h2>
+
+    <p>Filament muestra widgets en el dashboard automáticamente. Cada widget define un <code>$sort</code> para su orden:</p>
+
+    <div class="flow-diagram flow-vertical">
+      <div class="flow-step">sort = 1 → EstadisticasPoblacion<br><small>4 tarjetas: Padrón, Migrantes, Defunciones, Meta INE</small></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">sort = 2 → AlertasWidget<br><small>Meses sin cerrar, padrón vacío, o "sin alertas"</small></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">sort = 3 → MigracionContexto<br><small>MEF activas, MEF migradas, % migrantes</small></div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">sort = 4 → CoberturaMensual<br><small>Barras de progreso: BCG, Prenatal, Crecimiento</small></div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Dos tipos de widget</div>
+      <ul>
+        <li><strong>StatsOverviewWidget</strong>: widget built-in de Filament — solo defines <code>getStats()</code> retornando <code>Stat</code> objects</li>
+        <li><strong>Widget</strong> (base): widget libre — defines tu vista Blade con <code>$view</code> y expones datos via computed properties</li>
+      </ul>
+    </div>
+
+    <div class="file-tree">
+      <div class="file-tree-title">Archivos de esta lección</div>
+      <div class="ft-dir">app/Filament/Widgets/
+        <div class="ft-file ft-new">EstadisticasPoblacion.php</div>
+        <div class="ft-file ft-new">AlertasWidget.php</div>
+        <div class="ft-file ft-new">MigracionContexto.php</div>
+        <div class="ft-file ft-new">CoberturaMensual.php</div>
+      </div>
+      <div class="ft-dir">resources/views/filament/widgets/
+        <div class="ft-file ft-new">alertas-widget.blade.php</div>
+        <div class="ft-file ft-new">migracion-contexto.blade.php</div>
+        <div class="ft-file ft-new">cobertura-mensual.blade.php</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: ESTADÍSTICAS POBLACIÓN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="estadisticas">
+    <h2><span class="section-number">2</span> EstadisticasPoblacion — StatsOverviewWidget</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Widgets/EstadisticasPoblacion.php</div>
+      <div class="code-body">
+<pre><span class="kw">namespace</span> <span class="cls">App\Filament\Widgets</span>;
+
+<span class="kw">use</span> <span class="cls">App\Models\Defuncion</span>;
+<span class="kw">use</span> <span class="cls">App\Models\MetaIne</span>;
+<span class="kw">use</span> <span class="cls">App\Models\Persona</span>;
+<span class="kw">use</span> <span class="cls">Filament\Widgets\StatsOverviewWidget</span>;
+<span class="kw">use</span> <span class="cls">Filament\Widgets\StatsOverviewWidget\Stat</span>;
+
+<span class="kw">class</span> <span class="cls">EstadisticasPoblacion</span> <span class="kw">extends</span> <span class="hl"><span class="cls">StatsOverviewWidget</span></span>
+{
+    <span class="kw">protected static</span> ?<span class="type">int</span> <span class="var">$sort</span> <span class="op">=</span> <span class="num">1</span>;
+
+    <span class="kw">protected function</span> <span class="fn">getStats</span>(): <span class="type">array</span>
+    {
+        <span class="var">$centroId</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()-&gt;<span class="var">centro_salud_id</span>;
+
+        <span class="kw">if</span> (!<span class="var">$centroId</span>) {
+            <span class="kw">return</span> [
+                <span class="cls">Stat</span>::<span class="fn">make</span>(<span class="str">'Sin centro asignado'</span>, <span class="str">'—'</span>)
+                    -&gt;<span class="fn">description</span>(<span class="str">'Asigne un centro de salud a su usuario'</span>)
+                    -&gt;<span class="fn">color</span>(<span class="str">'danger'</span>),
+            ];
+        }
+
+        <span class="var">$anio</span> <span class="op">=</span> (<span class="type">int</span>) <span class="fn">date</span>(<span class="str">'Y'</span>);
+
+        <span class="var">$activos</span> <span class="op">=</span> <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+            -&gt;<span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>)
+            -&gt;<span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'!='</span>, <span class="str">'migrado'</span>)-&gt;<span class="fn">count</span>();
+
+        <span class="var">$migrantes</span> <span class="op">=</span> <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+            -&gt;<span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>)
+            -&gt;<span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'migrado'</span>)-&gt;<span class="fn">count</span>();
+
+        <span class="var">$defunciones</span> <span class="op">=</span> <span class="cls">Defuncion</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+            -&gt;<span class="fn">whereYear</span>(<span class="str">'fecha_defuncion'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">count</span>();
+
+        <span class="var">$metaIne</span> <span class="op">=</span> <span class="cls">MetaIne</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+            -&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+
+        <span class="kw">return</span> [
+            <span class="hl"><span class="cls">Stat</span>::<span class="fn">make</span>(<span class="str">'Padrón activo'</span>, <span class="fn">number_format</span>(<span class="var">$activos</span>))</span>
+                -&gt;<span class="fn">description</span>(<span class="str">'Residentes activos'</span>)
+                -&gt;<span class="fn">descriptionIcon</span>(<span class="str">'heroicon-m-users'</span>)
+                -&gt;<span class="fn">color</span>(<span class="str">'primary'</span>),
+            <span class="cls">Stat</span>::<span class="fn">make</span>(<span class="str">'Migrantes'</span>, <span class="fn">number_format</span>(<span class="var">$migrantes</span>))
+                -&gt;<span class="fn">description</span>(<span class="str">'Migración registrada'</span>)
+                -&gt;<span class="fn">descriptionIcon</span>(<span class="str">'heroicon-m-arrow-right-start-on-rectangle'</span>)
+                -&gt;<span class="fn">color</span>(<span class="str">'warning'</span>),
+            <span class="cls">Stat</span>::<span class="fn">make</span>(<span class="str">'Defunciones '</span> . <span class="var">$anio</span>, <span class="fn">number_format</span>(<span class="var">$defunciones</span>))
+                -&gt;<span class="fn">description</span>(<span class="str">'Año en curso'</span>)
+                -&gt;<span class="fn">descriptionIcon</span>(<span class="str">'heroicon-m-document-minus'</span>)
+                -&gt;<span class="fn">color</span>(<span class="str">'danger'</span>),
+            <span class="cls">Stat</span>::<span class="fn">make</span>(<span class="str">'Meta INE'</span>, <span class="fn">number_format</span>(<span class="var">$metaIne</span>))
+                -&gt;<span class="fn">description</span>(<span class="str">'Población proyectada '</span> . <span class="var">$anio</span>)
+                -&gt;<span class="fn">descriptionIcon</span>(<span class="str">'heroicon-m-chart-bar'</span>)
+                -&gt;<span class="fn">color</span>(<span class="str">'info'</span>),
+        ];
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">StatsOverviewWidget — solo PHP, sin Blade</div>
+      <p>Extiende <code>StatsOverviewWidget</code> y solo implementa <code>getStats()</code>. Filament genera las tarjetas automáticamente. Cada <code>Stat</code> tiene: título, valor, description, descriptionIcon y color.</p>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Siempre validar centro_salud_id</div>
+      <p>Si el usuario no tiene centro asignado (superadmin sin selección), retornamos un único Stat de aviso en lugar de queries que devolverían todos los registros. Patrón defensivo que se repite en los 4 widgets.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: ALERTAS WIDGET
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="alertas">
+    <h2><span class="section-number">3</span> AlertasWidget — widget con vista Blade</h2>
+
+    <h3>El PHP — computed property</h3>
+    <div class="code-block">
+      <div class="code-header">app/Filament/Widgets/AlertasWidget.php</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">AlertasWidget</span> <span class="kw">extends</span> <span class="cls">Widget</span>
+{
+    <span class="kw">protected</span> <span class="type">string</span> <span class="var">$view</span> <span class="op">=</span> <span class="str">'filament.widgets.alertas-widget'</span>;
+    <span class="hl"><span class="kw">protected</span> <span class="type">int</span>|<span class="type">string</span>|<span class="type">array</span> <span class="var">$columnSpan</span> <span class="op">=</span> <span class="str">'full'</span>;</span>
+    <span class="kw">protected static</span> ?<span class="type">int</span> <span class="var">$sort</span> <span class="op">=</span> <span class="num">2</span>;
+
+    <span class="hl"><span class="kw">public function</span> <span class="fn">getDatosProperty</span>(): <span class="type">array</span></span>
+    {
+        <span class="var">$centroId</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()-&gt;<span class="var">centro_salud_id</span>;
+        <span class="kw">if</span> (!<span class="var">$centroId</span>) {
+            <span class="kw">return</span> [<span class="str">'mesesSinCerrar'</span> <span class="op">=&gt;</span> [], <span class="str">'totalPersonas'</span> <span class="op">=&gt;</span> <span class="num">0</span>];
+        }
+
+        <span class="var">$anio</span> <span class="op">=</span> (<span class="type">int</span>) <span class="fn">date</span>(<span class="str">'Y'</span>);
+        <span class="var">$mesActual</span> <span class="op">=</span> (<span class="type">int</span>) <span class="fn">date</span>(<span class="str">'n'</span>);
+
+        <span class="var">$mesesCerrados</span> <span class="op">=</span> <span class="cls">MesCerrado</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+            -&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">pluck</span>(<span class="str">'mes'</span>)-&gt;<span class="fn">toArray</span>();
+
+        <span class="var">$nombresMeses</span> <span class="op">=</span> [<span class="num">1</span><span class="op">=&gt;</span><span class="str">'Enero'</span>, ... <span class="num">12</span><span class="op">=&gt;</span><span class="str">'Diciembre'</span>];
+        <span class="var">$mesesSinCerrar</span> <span class="op">=</span> [];
+        <span class="kw">for</span> (<span class="var">$m</span> <span class="op">=</span> <span class="num">1</span>; <span class="var">$m</span> <span class="op">&lt;</span> <span class="var">$mesActual</span>; <span class="var">$m</span><span class="op">++</span>) {
+            <span class="kw">if</span> (!<span class="fn">in_array</span>(<span class="var">$m</span>, <span class="var">$mesesCerrados</span>)) {
+                <span class="var">$mesesSinCerrar</span>[] <span class="op">=</span> <span class="var">$nombresMeses</span>[<span class="var">$m</span>];
+            }
+        }
+
+        <span class="kw">return</span> [
+            <span class="str">'mesesSinCerrar'</span> <span class="op">=&gt;</span> <span class="var">$mesesSinCerrar</span>,
+            <span class="str">'totalPersonas'</span> <span class="op">=&gt;</span> <span class="cls">Persona</span>::<span class="fn">where</span>(...)-&gt;<span class="fn">count</span>(),
+            <span class="str">'anio'</span> <span class="op">=&gt;</span> <span class="var">$anio</span>,
+        ];
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">getDatosProperty() — Computed Property de Livewire</div>
+      <p>El método <code>getDatosProperty()</code> crea una computed property accesible como <code>$this->datos</code> en Blade. El nombre del método sigue la convención Livewire: <code>get{Nombre}Property</code> → <code>$this->nombre</code>.</p>
+    </div>
+
+    <h3>La vista Blade — 3 estados</h3>
+    <div class="code-block">
+      <div class="code-header">resources/views/filament/widgets/alertas-widget.blade.php</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;x-filament-widgets::widget&gt;</span>
+  <span class="dec">&lt;x-filament::section</span>
+      <span class="attr">heading</span><span class="op">=</span><span class="str">"Alertas Activas"</span>
+      <span class="attr">icon</span><span class="op">=</span><span class="str">"heroicon-o-bell-alert"</span>
+      <span class="attr">icon-color</span><span class="op">=</span><span class="str">"danger"</span><span class="dec">&gt;</span>
+    <span class="kw">@php</span> <span class="var">$d</span> <span class="op">=</span> <span class="var">$this</span>-&gt;<span class="var">datos</span>; <span class="kw">@endphp</span>
+
+    <span class="cmt">&lt;!-- Estado 1: Meses sin cerrar --&gt;</span>
+    <span class="kw">@if</span> (<span class="fn">count</span>(<span class="var">$d</span>[<span class="str">'mesesSinCerrar'</span>]) <span class="op">&gt;</span> <span class="num">0</span>)
+      <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"... border-amber-200 bg-amber-50 ..."</span><span class="dec">&gt;</span>
+        <span class="hl"><span class="dec">&lt;x-heroicon-s-exclamation-triangle</span>
+            <span class="attr">class</span><span class="op">=</span><span class="str">"h-5 w-5 text-amber-500"</span> <span class="dec">/&gt;</span></span>
+        <span class="dec">&lt;p&gt;</span>Meses sin cerrar en {{ <span class="var">$d</span>[<span class="str">'anio'</span>] }}<span class="dec">&lt;/p&gt;</span>
+        <span class="dec">&lt;p&gt;</span>{{ <span class="fn">implode</span>(<span class="str">', '</span>, <span class="var">$d</span>[<span class="str">'mesesSinCerrar'</span>]) }}<span class="dec">&lt;/p&gt;</span>
+      <span class="dec">&lt;/div&gt;</span>
+    <span class="kw">@endif</span>
+
+    <span class="cmt">&lt;!-- Estado 2: Sin personas --&gt;</span>
+    <span class="kw">@if</span> (<span class="var">$d</span>[<span class="str">'totalPersonas'</span>] <span class="op">===</span> <span class="num">0</span>)
+      <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"... border-blue-200 bg-blue-50 ..."</span><span class="dec">&gt;</span>
+        Sin personas registradas
+      <span class="dec">&lt;/div&gt;</span>
+    <span class="kw">@endif</span>
+
+    <span class="cmt">&lt;!-- Estado 3: Todo bien --&gt;</span>
+    <span class="kw">@if</span> (<span class="fn">count</span>(<span class="var">$d</span>[<span class="str">'mesesSinCerrar'</span>]) <span class="op">===</span> <span class="num">0</span> <span class="op">&amp;&amp;</span> <span class="var">$d</span>[<span class="str">'totalPersonas'</span>] <span class="op">&gt;</span> <span class="num">0</span>)
+      <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"... border-green-200 bg-green-50 ..."</span><span class="dec">&gt;</span>
+        <span class="dec">&lt;x-heroicon-s-check-circle</span> ... <span class="dec">/&gt;</span>
+        Sin alertas pendientes
+      <span class="dec">&lt;/div&gt;</span>
+    <span class="kw">@endif</span>
+  <span class="dec">&lt;/x-filament::section&gt;</span>
+<span class="dec">&lt;/x-filament-widgets::widget&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Componentes Blade de Filament</div>
+      <ul>
+        <li><code>&lt;x-filament-widgets::widget&gt;</code> — wrapper obligatorio para widgets custom</li>
+        <li><code>&lt;x-filament::section&gt;</code> — caja con heading, icon e icon-color</li>
+        <li><code>&lt;x-heroicon-s-*&gt;</code> — iconos Heroicon como componentes Blade (s = solid, o = outline)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: MIGRACIÓN CONTEXTO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="migracion">
+    <h2><span class="section-number">4</span> MigracionContexto — indicadores MEF y migración</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Widgets/MigracionContexto.php</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">MigracionContexto</span> <span class="kw">extends</span> <span class="cls">Widget</span>
+{
+    <span class="kw">protected</span> <span class="type">string</span> <span class="var">$view</span> <span class="op">=</span> <span class="str">'filament.widgets.migracion-contexto'</span>;
+    <span class="kw">protected</span> <span class="type">int</span>|<span class="type">string</span>|<span class="type">array</span> <span class="var">$columnSpan</span> <span class="op">=</span> <span class="str">'full'</span>;
+    <span class="kw">protected static</span> ?<span class="type">int</span> <span class="var">$sort</span> <span class="op">=</span> <span class="num">3</span>;
+
+    <span class="kw">public function</span> <span class="fn">getDatosProperty</span>(): <span class="type">array</span>
+    {
+        <span class="var">$centroId</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()-&gt;<span class="var">centro_salud_id</span>;
+
+        <span class="cmt">// MEF activas — mujeres 15-49 NO migradas</span>
+        <span class="var">$mefActivas</span> <span class="op">=</span> <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+            -&gt;<span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>)
+            -&gt;<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)
+            -&gt;<span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'!='</span>, <span class="str">'migrado'</span>)
+            <span class="hl">-&gt;<span class="fn">whereRaw</span>(<span class="str">'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE())</span>
+                <span class="str">BETWEEN 15 AND 49'</span>)</span>
+            -&gt;<span class="fn">count</span>();
+
+        <span class="cmt">// MEF migradas — mujeres 15-49 migradas</span>
+        <span class="var">$mefMigradas</span> <span class="op">=</span> <span class="cls">Persona</span>::<span class="fn">where</span>(...<span class="str">'estado'</span>, <span class="str">'migrado'</span>)
+            -&gt;<span class="fn">whereRaw</span>(<span class="str">'TIMESTAMPDIFF(YEAR, ...) BETWEEN 15 AND 49'</span>)
+            -&gt;<span class="fn">count</span>();
+
+        <span class="kw">return</span> [
+            <span class="str">'mefActivas'</span> <span class="op">=&gt;</span> <span class="var">$mefActivas</span>,
+            <span class="str">'mefMigradas'</span> <span class="op">=&gt;</span> <span class="var">$mefMigradas</span>,
+            <span class="str">'migrantes'</span> <span class="op">=&gt;</span> <span class="var">$migrantes</span>,
+            <span class="str">'pctMigrantes'</span> <span class="op">=&gt;</span> <span class="var">$totalPadron</span> <span class="op">&gt;</span> <span class="num">0</span>
+                ? <span class="fn">round</span>(<span class="var">$migrantes</span> <span class="op">/</span> <span class="var">$totalPadron</span> <span class="op">*</span> <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>,
+            <span class="str">'pctMefMigradas'</span> <span class="op">=&gt;</span> (<span class="var">$mefActivas</span> <span class="op">+</span> <span class="var">$mefMigradas</span>) <span class="op">&gt;</span> <span class="num">0</span>
+                ? <span class="fn">round</span>(<span class="var">$mefMigradas</span> <span class="op">/</span> (<span class="var">$mefActivas</span> <span class="op">+</span> <span class="var">$mefMigradas</span>) <span class="op">*</span> <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>,
+        ];
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">whereRaw para cálculos de edad</div>
+      <p><code>TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE())</code> calcula la edad exacta en MySQL. No es portable a otros motores, pero es preciso y eficiente. Las MEF (Mujeres en Edad Fértil) son mujeres de 15 a 49 años — indicador clave del SNIS.</p>
+    </div>
+
+    <h3>Vista Blade — tabla de indicadores + alerta condicional</h3>
+    <div class="code-block">
+      <div class="code-header">resources/views/filament/widgets/migracion-contexto.blade.php</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;x-filament-widgets::widget&gt;</span>
+  <span class="dec">&lt;x-filament::section</span> <span class="attr">heading</span><span class="op">=</span><span class="str">"Contexto de Migración"</span>
+      <span class="attr">icon</span><span class="op">=</span><span class="str">"heroicon-o-arrow-right-start-on-rectangle"</span>
+      <span class="attr">icon-color</span><span class="op">=</span><span class="str">"warning"</span><span class="dec">&gt;</span>
+    <span class="kw">@php</span> <span class="var">$d</span> <span class="op">=</span> <span class="var">$this</span>-&gt;<span class="var">datos</span>; <span class="kw">@endphp</span>
+
+    <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"space-y-2 text-sm"</span><span class="dec">&gt;</span>
+      <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"flex justify-between border-b ..."</span><span class="dec">&gt;</span>
+        <span class="dec">&lt;span&gt;</span>MEF activas en padrón<span class="dec">&lt;/span&gt;</span>
+        <span class="dec">&lt;span</span> <span class="attr">class</span><span class="op">=</span><span class="str">"font-semibold"</span><span class="dec">&gt;</span>
+          {{ <span class="fn">number_format</span>(<span class="var">$d</span>[<span class="str">'mefActivas'</span>]) }}
+        <span class="dec">&lt;/span&gt;</span>
+      <span class="dec">&lt;/div&gt;</span>
+      <span class="cmt">&lt;!-- ... más filas para mefMigradas, migrantes ... --&gt;</span>
+    <span class="dec">&lt;/div&gt;</span>
+
+    <span class="hl"><span class="kw">@if</span> (<span class="var">$d</span>[<span class="str">'pctMigrantes'</span>] <span class="op">&gt;</span> <span class="num">10</span>)</span>
+      <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"... border-amber-200 bg-amber-50 ..."</span><span class="dec">&gt;</span>
+        Este indicador explica baja cobertura en:
+        Control prenatal · Partos · Planificación familiar · Vacunación.
+      <span class="dec">&lt;/div&gt;</span>
+    <span class="kw">@endif</span>
+  <span class="dec">&lt;/x-filament::section&gt;</span>
+<span class="dec">&lt;/x-filament-widgets::widget&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Alerta contextual al &gt; 10% migrantes</div>
+      <p>Si más del 10% del padrón está migrado, aparece un aviso explicando que las coberturas de programas serán más bajas de lo esperado. Este es un requerimiento del SNIS para justificar indicadores bajos.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: COBERTURA MENSUAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="cobertura">
+    <h2><span class="section-number">5</span> CoberturaMensual — barras de progreso</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Widgets/CoberturaMensual.php</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">CoberturaMensual</span> <span class="kw">extends</span> <span class="cls">Widget</span>
+{
+    <span class="kw">protected</span> <span class="type">string</span> <span class="var">$view</span> <span class="op">=</span> <span class="str">'filament.widgets.cobertura-mensual'</span>;
+    <span class="kw">protected</span> <span class="type">int</span>|<span class="type">string</span>|<span class="type">array</span> <span class="var">$columnSpan</span> <span class="op">=</span> <span class="str">'full'</span>;
+    <span class="kw">protected static</span> ?<span class="type">int</span> <span class="var">$sort</span> <span class="op">=</span> <span class="num">4</span>;
+
+    <span class="kw">public function</span> <span class="fn">getDatosProperty</span>(): <span class="type">array</span>
+    {
+        <span class="var">$centroId</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()-&gt;<span class="var">centro_salud_id</span>;
+        <span class="var">$mes</span> <span class="op">=</span> (<span class="type">int</span>) <span class="fn">date</span>(<span class="str">'n'</span>);
+        <span class="var">$anio</span> <span class="op">=</span> (<span class="type">int</span>) <span class="fn">date</span>(<span class="str">'Y'</span>);
+
+        <span class="cmt">// Metas INE del centro para el año</span>
+        <span class="var">$metasIne</span> <span class="op">=</span> <span class="cls">MetaIne</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+            -&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">get</span>();
+
+        <span class="hl"><span class="cmt">// Meta mensual = meta anual ÷ 12</span>
+        <span class="var">$metaBcg</span> <span class="op">=</span> <span class="var">$metasIne</span>
+            -&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'nacimientos_esperados'</span>)
+            -&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>) <span class="op">/</span> <span class="num">12</span>;</span>
+
+        <span class="var">$metaPrenatal</span> <span class="op">=</span> <span class="var">$metasIne</span>
+            -&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'embarazos_esperados'</span>)
+            -&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>) <span class="op">/</span> <span class="num">12</span>;
+
+        <span class="var">$metaCrecimiento</span> <span class="op">=</span> <span class="var">$metasIne</span>
+            -&gt;<span class="fn">whereIn</span>(<span class="str">'grupo_etareo'</span>,
+                [<span class="str">'menor_1'</span>, <span class="str">'1_anio'</span>, <span class="str">'2_anios'</span>, <span class="str">'3_anios'</span>, <span class="str">'4_anios'</span>])
+            -&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>) <span class="op">/</span> <span class="num">12</span>;
+
+        <span class="cmt">// Datos reales del mes desde tablas prest_*</span>
+        <span class="var">$vacunasBcg</span> <span class="op">=</span> <span class="cls">PrestVacuna</span>::<span class="fn">where</span>(...)
+            -&gt;<span class="fn">where</span>(<span class="str">'tipo_vacuna'</span>, <span class="str">'BCG'</span>)
+            -&gt;<span class="fn">selectRaw</span>(<span class="str">'SUM(dentro_m + dentro_f + fuera_m + fuera_f)'</span>)
+            -&gt;<span class="fn">value</span>(<span class="str">'total'</span>) <span class="op">??</span> <span class="num">0</span>;
+
+        <span class="kw">return</span> [
+            [<span class="str">'nombre'</span> <span class="op">=&gt;</span> <span class="str">'BCG'</span>, <span class="str">'meta'</span> <span class="op">=&gt;</span> <span class="var">$metaBcg</span>,
+             <span class="str">'atendidos'</span> <span class="op">=&gt;</span> <span class="var">$vacunasBcg</span>],
+            [<span class="str">'nombre'</span> <span class="op">=&gt;</span> <span class="str">'Prenatal'</span>, <span class="str">'meta'</span> <span class="op">=&gt;</span> <span class="var">$metaPrenatal</span>,
+             <span class="str">'atendidos'</span> <span class="op">=&gt;</span> <span class="var">$prenatales</span>],
+            [<span class="str">'nombre'</span> <span class="op">=&gt;</span> <span class="str">'Crecimiento'</span>, <span class="str">'meta'</span> <span class="op">=&gt;</span> <span class="var">$metaCrecimiento</span>,
+             <span class="str">'atendidos'</span> <span class="op">=&gt;</span> <span class="var">$crecimiento</span>],
+        ];
+    }
+}</pre>
+      </div>
+    </div>
+
+    <h3>Vista Blade — barras de progreso con colores</h3>
+    <div class="code-block">
+      <div class="code-header">resources/views/filament/widgets/cobertura-mensual.blade.php</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;x-filament-widgets::widget&gt;</span>
+  <span class="dec">&lt;x-filament::section</span> <span class="attr">heading</span><span class="op">=</span><span class="str">"Cobertura Rápida del Mes"</span>
+      <span class="attr">icon</span><span class="op">=</span><span class="str">"heroicon-o-chart-bar"</span> <span class="attr">icon-color</span><span class="op">=</span><span class="str">"success"</span><span class="dec">&gt;</span>
+    <span class="kw">@php</span> <span class="var">$programas</span> <span class="op">=</span> <span class="var">$this</span>-&gt;<span class="var">datos</span>; <span class="kw">@endphp</span>
+
+    <span class="kw">@foreach</span> (<span class="var">$programas</span> <span class="kw">as</span> <span class="var">$prog</span>)
+      <span class="kw">@php</span>
+        <span class="var">$pct</span> <span class="op">=</span> <span class="var">$prog</span>[<span class="str">'meta'</span>] <span class="op">&gt;</span> <span class="num">0</span>
+            ? <span class="fn">min</span>(<span class="fn">round</span>(<span class="var">$prog</span>[<span class="str">'atendidos'</span>] <span class="op">/</span> <span class="var">$prog</span>[<span class="str">'meta'</span>] <span class="op">*</span> <span class="num">100</span>), <span class="num">100</span>)
+            : <span class="num">0</span>;
+        <span class="hl"><span class="var">$color</span> <span class="op">=</span> <span class="var">$pct</span> <span class="op">&gt;=</span> <span class="num">80</span> ? <span class="str">'bg-green-500'</span>
+            : (<span class="var">$pct</span> <span class="op">&gt;=</span> <span class="num">50</span> ? <span class="str">'bg-yellow-500'</span> : <span class="str">'bg-red-500'</span>);</span>
+      <span class="kw">@endphp</span>
+
+      <span class="dec">&lt;div&gt;</span>
+        <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"flex justify-between text-xs"</span><span class="dec">&gt;</span>
+          <span class="dec">&lt;span&gt;</span>{{ <span class="var">$prog</span>[<span class="str">'nombre'</span>] }}<span class="dec">&lt;/span&gt;</span>
+          <span class="dec">&lt;span&gt;</span>{{ <span class="var">$prog</span>[<span class="str">'atendidos'</span>] }} / {{ <span class="fn">round</span>(<span class="var">$prog</span>[<span class="str">'meta'</span>]) }}
+                ({{ <span class="var">$pct</span> }}%)<span class="dec">&lt;/span&gt;</span>
+        <span class="dec">&lt;/div&gt;</span>
+        <span class="cmt">&lt;!-- Progress bar --&gt;</span>
+        <span class="hl"><span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"h-2 w-full rounded-full bg-gray-200"</span><span class="dec">&gt;</span>
+          <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"{{ $color }} h-2 rounded-full"</span>
+               <span class="attr">style</span><span class="op">=</span><span class="str">"width: {{ $pct }}%"</span><span class="dec">&gt;&lt;/div&gt;</span>
+        <span class="dec">&lt;/div&gt;</span></span>
+      <span class="dec">&lt;/div&gt;</span>
+    <span class="kw">@endforeach</span>
+  <span class="dec">&lt;/x-filament::section&gt;</span>
+<span class="dec">&lt;/x-filament-widgets::widget&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-title">Colores de la barra de cobertura</div>
+      <table>
+        <thead><tr><th>Rango</th><th>Color</th><th>Significado</th></tr></thead>
+        <tbody>
+          <tr><td>≥ 80%</td><td><span class="type-badge" style="background:#22c55e">bg-green-500</span></td><td>Cobertura adecuada</td></tr>
+          <tr><td>50-79%</td><td><span class="type-badge" style="background:#eab308;color:#000">bg-yellow-500</span></td><td>Cobertura parcial</td></tr>
+          <tr><td>&lt; 50%</td><td><span class="type-badge" style="background:#ef4444">bg-red-500</span></td><td>Cobertura crítica</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RESUMEN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen">
+    <h2><span class="section-number">6</span> Resumen</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos</h3>
+      <ul>
+        <li><strong>StatsOverviewWidget</strong> — solo PHP, Filament genera las tarjetas (Stat::make)</li>
+        <li><strong>Widget base + $view</strong> — define tu propia vista Blade para control total</li>
+        <li><strong>getDatosProperty()</strong> — computed property de Livewire (get{Name}Property → $this->name)</li>
+        <li><strong>$columnSpan = 'full'</strong> — widget ocupa todo el ancho del dashboard</li>
+        <li><strong>$sort</strong> — orden de aparición en el dashboard</li>
+        <li><strong>x-filament-widgets::widget</strong> — wrapper obligatorio para widgets custom</li>
+        <li><strong>x-filament::section</strong> — componente de sección con heading, icon, icon-color</li>
+        <li><strong>whereRaw + TIMESTAMPDIFF</strong> — cálculos de edad en MySQL</li>
+        <li><strong>selectRaw + SUM</strong> — agregaciones complejas para coberturas</li>
+        <li><strong>Barras de progreso</strong> — Tailwind CSS con colores condicionales (verde/amarillo/rojo)</li>
+        <li><strong>Patrón defensivo</strong> — siempre validar centro_salud_id antes de queries</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="31-resource-post-causa.html" class="lesson-nav-btn">← Lección 31</a>
+    <a href="33-pagina-prestaciones.html" class="lesson-nav-btn">Lección 33 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 32 de 58</p>
+</footer>
+
+</body>
+</html>

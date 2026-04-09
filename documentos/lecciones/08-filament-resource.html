@@ -1,0 +1,431 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 08 — Filament Resources | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand"><span class="dot"></span> SICSAL — Lección 08</div>
+  <nav>
+    <a href="07-roles-permisos.html">← Anterior</a>
+    <a href="00-indice.html">Índice</a>
+    <a href="09-filament-formularios.html">Siguiente →</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 08 de 16</span>
+    <h1>Filament Resources</h1>
+    <p>Cómo crear un CRUD completo (listar, crear, editar, eliminar) sin escribir HTML, usando Filament Resources.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos</h2>
+    <table class="db-table">
+      <thead><tr><th>Archivo</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>app/Filament/Resources/CentroSaluds/CentroSaludResource.php</code></td><td>Resource principal: modelo, navegación, acceso</td></tr>
+        <tr><td><code>.../Schemas/CentroSaludForm.php</code></td><td>Formulario de creación/edición</td></tr>
+        <tr><td><code>.../Tables/CentroSaludsTable.php</code></td><td>Tabla con columnas, filtros y acciones</td></tr>
+        <tr><td><code>.../Pages/ListCentroSaluds.php</code></td><td>Página de listado</td></tr>
+        <tr><td><code>app/Filament/Resources/Personas/PersonaResource.php</code></td><td>Resource avanzado con filtro por rol</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. ¿Qué es Filament?</a></li>
+      <li><a href="#s2">2. Anatomía de un Resource</a></li>
+      <li><a href="#s3">3. El Resource principal</a></li>
+      <li><a href="#s4">4. Las páginas: List, Create, Edit</a></li>
+      <li><a href="#s5">5. La tabla: columnas, filtros y acciones</a></li>
+      <li><a href="#s6">6. El formulario: campos y secciones</a></li>
+      <li><a href="#s7">7. Control de acceso por rol</a></li>
+      <li><a href="#s8">8. Todos los Resources de SICSAL</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es Filament?</h2>
+
+    <p><strong>Filament</strong> es un framework para construir paneles de administración en Laravel. Con él, descríbes tu interfaz en PHP puro — sin escribir HTML, CSS ni JavaScript. Filament genera automáticamente:</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-title">Tablas</div>
+        <div class="card-body">Columnas, búsqueda, filtros, ordenamiento, paginación, acciones masivas</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Formularios</div>
+        <div class="card-body">Campos de texto, selects, datepickers, toggles, validación automática</div>
+      </div>
+      <div class="card">
+        <div class="card-title">Navegación</div>
+        <div class="card-body">Menú lateral con grupos, iconos, orden personalizado</div>
+      </div>
+      <div class="card">
+        <div class="card-title">CRUD</div>
+        <div class="card-body">Create, Read, Update, Delete — todo conectado al modelo Eloquent</div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">SICSAL usa Filament 5</div>
+      <p>La versión más reciente, construida sobre Livewire. Todo es reactivo sin recargar la página. Los formularios se validan en tiempo real.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> Anatomía de un Resource</h2>
+
+    <p>Cada Resource de SICSAL sigue esta estructura de carpetas:</p>
+
+    <div class="file-tree">
+      <div class="tree-item"><span class="tree-folder">📂 CentroSaluds/</span></div>
+      <div class="tree-item tree-indent"><span class="tree-file">CentroSaludResource.php</span> <span class="tag tag-teal">principal</span></div>
+      <div class="tree-item tree-indent"><span class="tree-folder">📂 Pages/</span></div>
+      <div class="tree-item tree-indent tree-indent"><span class="tree-file">ListCentroSaluds.php</span> <span class="tag tag-blue">listado</span></div>
+      <div class="tree-item tree-indent tree-indent"><span class="tree-file">CreateCentroSalud.php</span> <span class="tag tag-blue">crear</span></div>
+      <div class="tree-item tree-indent tree-indent"><span class="tree-file">EditCentroSalud.php</span> <span class="tag tag-blue">editar</span></div>
+      <div class="tree-item tree-indent"><span class="tree-folder">📂 Schemas/</span></div>
+      <div class="tree-item tree-indent tree-indent"><span class="tree-file">CentroSaludForm.php</span> <span class="tag tag-purple">formulario</span></div>
+      <div class="tree-item tree-indent"><span class="tree-folder">📂 Tables/</span></div>
+      <div class="tree-item tree-indent tree-indent"><span class="tree-file">CentroSaludsTable.php</span> <span class="tag tag-purple">tabla</span></div>
+    </div>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-box" style="background:#d1fae5">Resource<br><small>Modelo + navegación</small></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box" style="background:#e0f2fe">Pages<br><small>List / Create / Edit</small></div>
+      </div>
+      <div class="arch-row" style="margin-top: 0.5rem;">
+        <div class="arch-box" style="background:#fef3c7">Schemas (Form)<br><small>Campos del formulario</small></div>
+        <div class="arch-arrow">←→</div>
+        <div class="arch-box" style="background:#fce7f3">Tables<br><small>Columnas + filtros + acciones</small></div>
+      </div>
+      <div class="arch-label">El Resource orquesta todo. Las Pages, Schemas y Tables son piezas independientes.</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> El Resource principal</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/CentroSaluds/CentroSaludResource.php</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">CentroSaludResource</span> <span class="kw">extends</span> <span class="cls">Resource</span>
+{
+    <span class="cmt">// ─── 1. Modelo Eloquent asociado ───</span>
+    <span class="kw">protected static</span> ?<span class="kw">string</span> <span class="var">$model</span> = <span class="cls">CentroSalud</span>::<span class="kw">class</span>;
+
+    <span class="cmt">// ─── 2. Navegación del panel lateral ───</span>
+    <span class="kw">protected static</span> <span class="var">$navigationIcon</span>  = <span class="cls">Heroicon</span>::<span class="var">OutlinedBuildingOffice2</span>;
+    <span class="kw">protected static</span> <span class="var">$navigationGroup</span> = <span class="str">'Configuración'</span>;
+    <span class="kw">protected static</span> <span class="var">$navigationLabel</span> = <span class="str">'Centros de Salud'</span>;
+    <span class="kw">protected static</span> <span class="var">$navigationSort</span>  = <span class="num">1</span>;
+
+    <span class="cmt">// ─── 3. Etiquetas en español ───</span>
+    <span class="kw">protected static</span> ?<span class="kw">string</span> <span class="var">$modelLabel</span>       = <span class="str">'Centro de Salud'</span>;
+    <span class="kw">protected static</span> ?<span class="kw">string</span> <span class="var">$pluralModelLabel</span> = <span class="str">'Centros de Salud'</span>;
+    <span class="kw">protected static</span> ?<span class="kw">string</span> <span class="var">$recordTitleAttribute</span> = <span class="str">'nombre'</span>;
+
+    <span class="cmt">// ─── 4. Solo superadmin puede ver este Resource ───</span>
+    <span class="kw">public static function</span> <span class="fn">canAccess</span>(): <span class="kw">bool</span>
+    {
+        <span class="kw">return</span> <span class="fn">auth</span>()-><span class="fn">user</span>()?-><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>) ?? <span class="kw2">false</span>;
+    }
+
+    <span class="cmt">// ─── 5. Conectar formulario, tabla y páginas ───</span>
+    <span class="kw">public static function</span> <span class="fn">form</span>(<span class="cls">Schema</span> <span class="var">$schema</span>): <span class="cls">Schema</span>
+    {
+        <span class="kw">return</span> <span class="cls">CentroSaludForm</span>::<span class="fn">configure</span>(<span class="var">$schema</span>);
+    }
+
+    <span class="kw">public static function</span> <span class="fn">table</span>(<span class="cls">Table</span> <span class="var">$table</span>): <span class="cls">Table</span>
+    {
+        <span class="kw">return</span> <span class="cls">CentroSaludsTable</span>::<span class="fn">configure</span>(<span class="var">$table</span>);
+    }
+
+    <span class="kw">public static function</span> <span class="fn">getPages</span>(): <span class="kw">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'index'</span>  => <span class="cls">ListCentroSaluds</span>::<span class="fn">route</span>(<span class="str">'/'</span>),
+            <span class="str">'create'</span> => <span class="cls">CreateCentroSalud</span>::<span class="fn">route</span>(<span class="str">'/create'</span>),
+            <span class="str">'edit'</span>   => <span class="cls">EditCentroSalud</span>::<span class="fn">route</span>(<span class="str">'/{record}/edit'</span>),
+        ];
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Todo es declarativo</div>
+      <p>No escribes HTML. Declaras: "mi modelo es CentroSalud", "va en el grupo Configuración", "usa este icono". Filament construye toda la interfaz por ti.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> Las páginas: List, Create, Edit</h2>
+
+    <p>Cada Resource tiene 3 páginas estándar. La mayoría son simples:</p>
+
+    <div class="code-block">
+      <div class="code-header">Pages/ListCentroSaluds.php — Listado con botón "Nuevo"</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">ListCentroSaluds</span> <span class="kw">extends</span> <span class="cls">ListRecords</span>
+{
+    <span class="kw">protected static string</span> <span class="var">$resource</span> = <span class="cls">CentroSaludResource</span>::<span class="kw">class</span>;
+
+    <span class="kw">protected function</span> <span class="fn">getHeaderActions</span>(): <span class="kw">array</span>
+    {
+        <span class="kw">return</span> [<span class="cls">CreateAction</span>::<span class="fn">make</span>()];
+    }
+}</pre>
+    </div>
+
+    <p>En el caso de <strong>Personas</strong>, la página de creación hace algo especial — asigna automáticamente el centro del usuario:</p>
+
+    <div class="code-block">
+      <div class="code-header">Pages/CreatePersona.php — Asignar centro automáticamente</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">CreatePersona</span> <span class="kw">extends</span> <span class="cls">CreateRecord</span>
+{
+    <span class="kw">protected static string</span> <span class="var">$resource</span> = <span class="cls">PersonaResource</span>::<span class="kw">class</span>;
+
+    <span class="cmt">// Antes de guardar, agregar el centro del usuario</span>
+    <span class="kw">protected function</span> <span class="fn">mutateFormDataBeforeCreate</span>(<span class="kw">array</span> <span class="var">$data</span>): <span class="kw">array</span>
+    {
+        <span class="var">$data</span>[<span class="str">'centro_salud_id'</span>] = <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">centro_salud_id</span>;
+        <span class="kw">return</span> <span class="var">$data</span>;
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">mutateFormDataBeforeCreate</div>
+      <p>Este hook se ejecuta justo antes de guardar el registro nuevo. Es ideal para agregar datos que el usuario no debe llenar manualmente (como <code>centro_salud_id</code> o <code>user_id</code>).</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> La tabla: columnas, filtros y acciones</h2>
+
+    <div class="code-block">
+      <div class="code-header">Tables/CentroSaludsTable.php — Ejemplo simple</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">CentroSaludsTable</span>
+{
+    <span class="kw">public static function</span> <span class="fn">configure</span>(<span class="cls">Table</span> <span class="var">$table</span>): <span class="cls">Table</span>
+    {
+        <span class="kw">return</span> <span class="var">$table</span>
+            -><span class="fn">columns</span>([
+                <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'nombre'</span>)
+                    -><span class="fn">searchable</span>()-><span class="fn">sortable</span>()
+                    -><span class="fn">label</span>(<span class="str">'Nombre'</span>),
+
+                <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'codigo_snis'</span>)
+                    -><span class="fn">searchable</span>()
+                    -><span class="fn">label</span>(<span class="str">'Código SNIS'</span>),
+
+                <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'municipio.nombre'</span>)  <span class="cmt">// ← relación</span>
+                    -><span class="fn">searchable</span>()-><span class="fn">sortable</span>()
+                    -><span class="fn">label</span>(<span class="str">'Municipio'</span>),
+
+                <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'subsector'</span>)
+                    -><span class="fn">badge</span>()                  <span class="cmt">// ← Muestra como etiqueta</span>
+                    -><span class="fn">label</span>(<span class="str">'Subsector'</span>),
+
+                <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'poblacion_ine'</span>)
+                    -><span class="fn">numeric</span>()-><span class="fn">sortable</span>()
+                    -><span class="fn">label</span>(<span class="str">'Pob. INE'</span>),
+
+                <span class="cls">IconColumn</span>::<span class="fn">make</span>(<span class="str">'activo'</span>)
+                    -><span class="fn">boolean</span>()                <span class="cmt">// ← ✅ o ❌ automático</span>
+                    -><span class="fn">label</span>(<span class="str">'Activo'</span>),
+            ])
+            -><span class="fn">recordActions</span>([
+                <span class="cls">EditAction</span>::<span class="fn">make</span>(),
+            ]);
+    }
+}</pre>
+    </div>
+
+    <p>La tabla de <strong>Personas</strong> es más compleja — incluye filtros, colores por estado y acciones masivas:</p>
+
+    <div class="code-block">
+      <div class="code-header">Tables/PersonasTable.php — Columna con colores según estado</div>
+      <pre class="code-body language-php"><span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'estado'</span>)
+    -><span class="fn">badge</span>()
+    -><span class="fn">color</span>(<span class="kw">fn</span> (<span class="kw">string</span> <span class="var">$state</span>) => <span class="kw">match</span> (<span class="var">$state</span>) {
+        <span class="str">'residente'</span> => <span class="str">'success'</span>,   <span class="cmt">// Verde</span>
+        <span class="str">'temporal'</span>  => <span class="str">'warning'</span>,   <span class="cmt">// Amarillo</span>
+        <span class="str">'migrado'</span>   => <span class="str">'danger'</span>,    <span class="cmt">// Rojo</span>
+        <span class="str">'fallecido'</span> => <span class="str">'gray'</span>,      <span class="cmt">// Gris</span>
+    }),</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Tables/PersonasTable.php — Acción rápida: verificar persona</div>
+      <pre class="code-body language-php"><span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'verificar_rapido'</span>)
+    -><span class="fn">label</span>(<span class="str">'Verificar'</span>)
+    -><span class="fn">icon</span>(<span class="str">'heroicon-m-check-badge'</span>)
+    -><span class="fn">color</span>(<span class="str">'success'</span>)
+    -><span class="fn">visible</span>(<span class="kw">fn</span> (<span class="var">$record</span>) => !<span class="var">$record</span>-><span class="var">verificado</span>)
+    -><span class="fn">requiresConfirmation</span>()
+    -><span class="fn">action</span>(<span class="kw">function</span> (<span class="var">$record</span>) {
+        <span class="var">$record</span>-><span class="fn">update</span>([
+            <span class="str">'verificado'</span>         => <span class="kw2">true</span>,
+            <span class="str">'fecha_verificacion'</span> => <span class="fn">today</span>(),
+            <span class="str">'verificado_por'</span>     => <span class="fn">auth</span>()-><span class="fn">id</span>(),
+        ]);
+    }),</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> El formulario: campos y secciones</h2>
+
+    <div class="code-block">
+      <div class="code-header">Schemas/CentroSaludForm.php — Formulario con secciones</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">CentroSaludForm</span>
+{
+    <span class="kw">public static function</span> <span class="fn">configure</span>(<span class="cls">Schema</span> <span class="var">$schema</span>): <span class="cls">Schema</span>
+    {
+        <span class="kw">return</span> <span class="var">$schema</span>-><span class="fn">components</span>([
+
+            <span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Información General'</span>)-><span class="fn">columns</span>(<span class="num">2</span>)-><span class="fn">schema</span>([
+
+                <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'municipio_id'</span>)
+                    -><span class="fn">relationship</span>(<span class="str">'municipio'</span>, <span class="str">'nombre'</span>)
+                    -><span class="fn">searchable</span>()-><span class="fn">preload</span>()-><span class="fn">required</span>()
+                    -><span class="fn">label</span>(<span class="str">'Municipio'</span>),
+
+                <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'nombre'</span>)
+                    -><span class="fn">required</span>()-><span class="fn">maxLength</span>(<span class="num">150</span>)
+                    -><span class="fn">label</span>(<span class="str">'Nombre del centro'</span>),
+
+                <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'codigo_snis'</span>)
+                    -><span class="fn">maxLength</span>(<span class="num">20</span>)
+                    -><span class="fn">label</span>(<span class="str">'Código SNIS'</span>),
+
+                <span class="cls">Toggle</span>::<span class="fn">make</span>(<span class="str">'activo'</span>)
+                    -><span class="fn">default</span>(<span class="kw2">true</span>)
+                    -><span class="fn">label</span>(<span class="str">'Activo'</span>)-><span class="fn">columnSpan</span>(<span class="num">2</span>),
+            ]),
+
+            <span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Ubicación Geográfica'</span>)-><span class="fn">columns</span>(<span class="num">2</span>)-><span class="fn">schema</span>([
+                <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'latitud'</span>)
+                    -><span class="fn">numeric</span>()
+                    -><span class="fn">rules</span>([<span class="str">'nullable'</span>, <span class="str">'between:-90,90'</span>])
+                    -><span class="fn">label</span>(<span class="str">'Latitud'</span>),
+
+                <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'longitud'</span>)
+                    -><span class="fn">numeric</span>()
+                    -><span class="fn">rules</span>([<span class="str">'nullable'</span>, <span class="str">'between:-180,180'</span>])
+                    -><span class="fn">label</span>(<span class="str">'Longitud'</span>),
+            ]),
+        ]);
+    }
+}</pre>
+    </div>
+
+    <table class="db-table">
+      <thead><tr><th>Componente</th><th>Para qué sirve</th><th>Ejemplo</th></tr></thead>
+      <tbody>
+        <tr><td><code>TextInput</code></td><td>Campo de texto o número</td><td>Nombre, código SNIS</td></tr>
+        <tr><td><code>Select</code></td><td>Lista desplegable</td><td>Municipio, subsector</td></tr>
+        <tr><td><code>DatePicker</code></td><td>Selector de fecha</td><td>Fecha de nacimiento</td></tr>
+        <tr><td><code>Radio</code></td><td>Opciones mutuamente excluyentes</td><td>Sexo (M/F)</td></tr>
+        <tr><td><code>Toggle</code></td><td>Interruptor on/off</td><td>Activo, verificado</td></tr>
+        <tr><td><code>Textarea</code></td><td>Texto largo</td><td>Observaciones</td></tr>
+        <tr><td><code>Section</code></td><td>Agrupar campos visualmente</td><td>"Datos personales"</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 7 ════════════════════════ -->
+  <div class="section" id="s7">
+    <h2 class="section-title"><span class="number">7</span> Control de acceso por rol</h2>
+
+    <p>Hay dos patrones para controlar quién ve qué en Filament:</p>
+
+    <div class="code-block">
+      <div class="code-header">Patrón 1: canAccess() — ocultar todo el Resource</div>
+      <pre class="code-body language-php"><span class="cmt">// CentroSaludResource: SOLO superadmin ve el menú "Centros de Salud"</span>
+<span class="kw">public static function</span> <span class="fn">canAccess</span>(): <span class="kw">bool</span>
+{
+    <span class="kw">return</span> <span class="fn">auth</span>()-><span class="fn">user</span>()?-><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>) ?? <span class="kw2">false</span>;
+}</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Patrón 2: getEloquentQuery() — filtrar datos por centro</div>
+      <pre class="code-body language-php"><span class="cmt">// PersonaResource: todos ven "Personas", pero admin/registrador
+// solo ven las de SU centro</span>
+<span class="kw">public static function</span> <span class="fn">getEloquentQuery</span>(): <span class="cls">Builder</span>
+{
+    <span class="var">$query</span> = <span class="kw">parent</span>::<span class="fn">getEloquentQuery</span>();
+    <span class="var">$user</span>  = <span class="fn">auth</span>()-><span class="fn">user</span>();
+
+    <span class="kw">if</span> (<span class="var">$user</span> && !<span class="var">$user</span>-><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>)) {
+        <span class="var">$query</span>-><span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$user</span>-><span class="var">centro_salud_id</span>);
+    }
+    <span class="kw">return</span> <span class="var">$query</span>;
+}</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 8 ════════════════════════ -->
+  <div class="section" id="s8">
+    <h2 class="section-title"><span class="number">8</span> Todos los Resources de SICSAL</h2>
+
+    <table class="db-table">
+      <thead><tr><th>Resource</th><th>Modelo</th><th>Grupo de navegación</th><th>Acceso</th></tr></thead>
+      <tbody>
+        <tr><td>PersonaResource</td><td>Persona</td><td>Padrón Poblacional</td><td>Todos (filtrado por centro)</td></tr>
+        <tr><td>CentroSaludResource</td><td>CentroSalud</td><td>Configuración</td><td>Solo superadmin</td></tr>
+        <tr><td>ComunidadResource</td><td>Comunidad</td><td>Configuración</td><td>Solo superadmin</td></tr>
+        <tr><td>UserResource</td><td>User</td><td>Configuración</td><td>Solo superadmin</td></tr>
+        <tr><td>MetaIneResource</td><td>MetaIne</td><td>Configuración</td><td>Solo superadmin</td></tr>
+        <tr><td>DefuncionResource</td><td>Defuncion</td><td>Padrón Poblacional</td><td>Todos (filtrado por centro)</td></tr>
+        <tr><td>CausasConsultaResource</td><td>CausaConsultaExterna</td><td>Prestaciones</td><td>Todos (filtrado por centro)</td></tr>
+        <tr><td>PostResource</td><td>Post</td><td>Blog</td><td>Admin+</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 08</h3>
+    <ul>
+      <li>Un <strong>Filament Resource</strong> genera un CRUD completo en PHP puro — sin HTML.</li>
+      <li>Estructura: Resource (principal) + Pages/ (listado, crear, editar) + Schemas/ (formulario) + Tables/ (tabla).</li>
+      <li>Propiedades como <code>$model</code>, <code>$navigationGroup</code>, <code>$navigationIcon</code> configuran la navegación.</li>
+      <li><code>canAccess()</code> oculta Resources completos según el rol.</li>
+      <li><code>getEloquentQuery()</code> filtra datos para que cada usuario solo vea su centro.</li>
+      <li><code>mutateFormDataBeforeCreate()</code> inyecta datos automáticos antes de guardar.</li>
+    </ul>
+  </div>
+
+  <div class="lesson-nav">
+    <a href="07-roles-permisos.html">← Lección 07: Roles y Permisos</a>
+    <a href="09-filament-formularios.html">Lección 09: Formularios Filament →</a>
+  </div>
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 08: Filament Resources</span>
+    <span>Resource · Table · Schema · Pages · canAccess</span>
+  </div>
+</div>
+</body>
+</html>

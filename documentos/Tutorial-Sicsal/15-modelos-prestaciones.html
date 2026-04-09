@@ -1,0 +1,485 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 15 — Modelos prest_* y auxiliares | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 3 — Modelos Eloquent</div>
+    <div class="lesson-number">Lección 15 de 58</div>
+    <h1 class="lesson-title">Modelos prest_* y auxiliares</h1>
+    <p class="lesson-subtitle">16 modelos de prestaciones agregadas + 4 auxiliares. Todos siguen un patrón repetitivo: centro + mes + año + dimensión + contadores.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 20 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~25 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Básico-Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="14-modelos-clinicos.html" class="lesson-nav-btn">← Lección 14</a>
+    <a href="16-modelo-user.html" class="lesson-nav-btn">Lección 16 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#patron-prest">El patrón Prest*: modelo mínimo, máxima utilidad</a></li>
+      <li><a href="#grupo-contadores">Grupo 1: Contadores M/F (consulta, vacunas, crecimiento)</a></li>
+      <li><a href="#grupo-cantidad">Grupo 2: Contador único (micronutrientes, puerperio, enfermería, etc.)</a></li>
+      <li><a href="#grupo-indicador">Grupo 3: Indicador + cantidad (recién nacidos, internaciones, cáncer, ILE)</a></li>
+      <li><a href="#meta-ine">MetaIne — poblaciones de referencia</a></li>
+      <li><a href="#justificacion">JustificacionCero — cero justificado</a></li>
+      <li><a href="#mes-cerrado">MesCerrado — control de período</a></li>
+      <li><a href="#observacion">ObservacionMensual</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: PATRÓN PREST
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="patron-prest">
+    <h2 class="section-title"><span class="number">1</span> El patrón Prest*: modelo mínimo, máxima utilidad</h2>
+
+    <p>Los 16 modelos Prest* son los más simples del proyecto. Todos comparten esta estructura:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Plantilla genérica Prest*</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">PrestXxx</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'prest_xxx'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>,
+        <span class="cmt">// + dimensión (tipo, indicador, grupo_etareo...)</span>
+        <span class="cmt">// + contadores (cantidad, masculino/femenino, dentro/fuera...)</span>
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="str">'cantidad'</span> <span class="op">=></span> <span class="str">'integer'</span>];
+    }
+
+    <span class="kw">public function</span> <span class="fn">centroSalud</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">CentroSalud</span><span class="op">::</span><span class="kw">class</span>);
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">¿Por qué son tan simples?</div>
+        Los modelos Prest* no tienen scopes, accessors ni lifecycle hooks. Su complejidad está en la <strong>migración</strong> (constraints UNIQUE, enums) y en las <strong>vistas/exports</strong> que los consumen. El modelo solo es el puente entre la tabla y el código PHP.
+      </div>
+    </div>
+
+    <p>Diferencias clave entre los 16 modelos:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Variación</th>
+          <th>Modelos</th>
+          <th>Contadores</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>M/F dentro/fuera</td>
+          <td>PrestVacuna</td>
+          <td>dentro_m, dentro_f, fuera_m, fuera_f</td>
+        </tr>
+        <tr>
+          <td>M/F primera/nueva/repetida</td>
+          <td>PrestConsultaExterna</td>
+          <td>primera_m, primera_f, nueva_m, nueva_f, repetida_m, repetida_f</td>
+        </tr>
+        <tr>
+          <td>M/F nuevos/repetidos</td>
+          <td>PrestCrecimiento</td>
+          <td>nuevos_m, nuevos_f, repetidos_m, repetidos_f</td>
+        </tr>
+        <tr>
+          <td>dentro/fuera</td>
+          <td>PrestPrenatal</td>
+          <td>dentro, fuera</td>
+        </tr>
+        <tr>
+          <td>masculino/femenino</td>
+          <td>PrestReferencia, PrestOdontologia</td>
+          <td>masculino, femenino</td>
+        </tr>
+        <tr>
+          <td>cantidad simple</td>
+          <td>10 modelos restantes</td>
+          <td>cantidad</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: GRUPO CONTADORES M/F
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="grupo-contadores">
+    <h2 class="section-title"><span class="number">2</span> Grupo 1: Contadores M/F</h2>
+
+    <h3 class="subsection-title">PrestConsultaExterna</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/PrestConsultaExterna.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">protected</span> <span class="var">$fillable</span> = [
+    <span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>, <span class="str">'grupo_etareo'</span>,
+    <span class="str">'primera_m'</span>, <span class="str">'primera_f'</span>,     <span class="cmt">// primera consulta</span>
+    <span class="str">'nueva_m'</span>, <span class="str">'nueva_f'</span>,         <span class="cmt">// caso nuevo</span>
+    <span class="str">'repetida_m'</span>, <span class="str">'repetida_f'</span>,   <span class="cmt">// consulta repetida</span>
+];
+
+<span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+{
+    <span class="kw">return</span> [
+        <span class="str">'primera_m'</span> <span class="op">=></span> <span class="str">'integer'</span>, <span class="str">'primera_f'</span> <span class="op">=></span> <span class="str">'integer'</span>,
+        <span class="str">'nueva_m'</span> <span class="op">=></span> <span class="str">'integer'</span>, <span class="str">'nueva_f'</span> <span class="op">=></span> <span class="str">'integer'</span>,
+        <span class="str">'repetida_m'</span> <span class="op">=></span> <span class="str">'integer'</span>, <span class="str">'repetida_f'</span> <span class="op">=></span> <span class="str">'integer'</span>,
+    ];
+}</pre>
+    </div>
+
+    <p>Este es el modelo con más contadores (6). Cada columna es un cruce de <strong>tipo de consulta</strong> × <strong>sexo</strong>.</p>
+
+    <h3 class="subsection-title">PrestVacuna</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/PrestVacuna.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">protected</span> <span class="var">$fillable</span> = [
+    <span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>,
+    <span class="str">'tipo_vacuna'</span>, <span class="str">'grupo_etareo'</span>,
+    <span class="str">'dentro_m'</span>, <span class="str">'dentro_f'</span>,   <span class="cmt">// vacunados en establecimiento</span>
+    <span class="str">'fuera_m'</span>, <span class="str">'fuera_f'</span>,     <span class="cmt">// vacunados en comunidad</span>
+];</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: GRUPO CANTIDAD
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="grupo-cantidad">
+    <h2 class="section-title"><span class="number">3</span> Grupo 2: Contador único (cantidad)</h2>
+
+    <p>10 modelos usan un solo campo <code class="inline">cantidad</code>. Son prácticamente idénticos — solo cambia la dimensión:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Modelo</th>
+          <th>Dimensión</th>
+          <th>$fillable extra</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>PrestMicronutriente</td><td>tipo</td><td>tipo, cantidad</td></tr>
+        <tr><td>PrestPuerperio</td><td>tipo_control</td><td>tipo_control, cantidad</td></tr>
+        <tr><td>PrestEnfermeria</td><td>tipo</td><td>tipo, cantidad</td></tr>
+        <tr><td>PrestActividadComunidad</td><td>tipo_actividad</td><td>tipo_actividad, cantidad</td></tr>
+        <tr><td>PrestAnticoncepcion</td><td>metodo + tipo_usuaria + grupo</td><td>metodo, tipo_usuaria, grupo_etareo, cantidad</td></tr>
+        <tr><td>PrestParto</td><td>tipo + lugar + atendido_por + grupo</td><td>tipo, lugar, atendido_por, grupo_etareo, cantidad</td></tr>
+        <tr><td>PrestRecienNacido</td><td>indicador</td><td>indicador, cantidad</td></tr>
+        <tr><td>PrestInternacion</td><td>indicador</td><td>indicador, cantidad</td></tr>
+        <tr><td>PrestCancerPrevencion</td><td>indicador</td><td>indicador, cantidad</td></tr>
+        <tr><td>PrestIle</td><td>indicador</td><td>indicador, cantidad</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">PrestIle — el más minimalista</div>
+        <code class="inline">PrestIle</code> ni siquiera define <code class="inline">casts()</code> ni relación <code class="inline">centroSalud()</code> — es un modelo de solo 7 líneas. Funciona porque Eloquent asume valores por defecto sensatos. Sin embargo, agregar la relación es recomendable para consistencia.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: GRUPO INDICADOR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="grupo-indicador">
+    <h2 class="section-title"><span class="number">4</span> Grupo 3: Indicador + masculino/femenino</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/PrestReferencia.php (representativo)</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">PrestReferencia</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'prest_referencias'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>, <span class="str">'tipo'</span>,
+        <span class="str">'masculino'</span>, <span class="str">'femenino'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'masculino'</span> <span class="op">=></span> <span class="str">'integer'</span>,
+            <span class="str">'femenino'</span>  <span class="op">=></span> <span class="str">'integer'</span>,
+        ];
+    }
+
+    <span class="kw">public function</span> <span class="fn">centroSalud</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">CentroSalud</span><span class="op">::</span><span class="kw">class</span>);
+    }
+}</pre>
+    </div>
+
+    <p><code class="inline">PrestOdontologia</code> sigue el mismo patrón pero agrega <code class="inline">procedimiento</code> y <code class="inline">grupo_etareo</code> como dimensiones adicionales.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: META INE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="meta-ine">
+    <h2 class="section-title"><span class="number">5</span> MetaIne — poblaciones de referencia</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/MetaIne.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">MetaIne</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'metas_ine'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'centro_salud_id'</span>, <span class="str">'anio'</span>, <span class="str">'grupo_etareo'</span>,
+        <span class="str">'sexo'</span>, <span class="str">'cantidad'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="str">'cantidad'</span> <span class="op">=></span> <span class="str">'integer'</span>];
+    }
+
+    <span class="kw">public function</span> <span class="fn">centroSalud</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">CentroSalud</span><span class="op">::</span><span class="kw">class</span>);
+    }
+}</pre>
+    </div>
+
+    <p>Este modelo es el <strong>denominador</strong> de todas las fórmulas de cobertura. Sin él, no podemos calcular qué porcentaje de la población meta fue atendida:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Ejemplo — calcular cobertura</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// Meta INE: menores de 1 año en el centro</span>
+<span class="var">$meta</span> = <span class="cls">MetaIne</span><span class="op">::</span><span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+    <span class="op">-></span><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="num">2026</span>)
+    <span class="op">-></span><span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'menor_1'</span>)
+    <span class="op">-></span><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'ambos'</span>)
+    <span class="op">-></span><span class="fn">value</span>(<span class="str">'cantidad'</span>);  <span class="cmt">// → ej: 50</span>
+
+<span class="cmt">// Prestación: vacunas BCG aplicadas</span>
+<span class="var">$vacunados</span> = <span class="cls">PrestVacuna</span><span class="op">::</span><span class="fn">where</span>(...)
+    <span class="op">-></span><span class="fn">sum</span>(<span class="cls">DB</span><span class="op">::</span><span class="fn">raw</span>(<span class="str">'dentro_m + dentro_f + fuera_m + fuera_f'</span>));
+
+<span class="cmt">// Cobertura = (vacunados / meta) × 100</span>
+<span class="var">$cobertura</span> = <span class="var">$meta</span> > <span class="num">0</span>
+    ? <span class="fn">round</span>(<span class="var">$vacunados</span> / <span class="var">$meta</span> * <span class="num">100</span>, <span class="num">1</span>)
+    : <span class="num">0</span>;</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: JUSTIFICACIÓN CERO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="justificacion">
+    <h2 class="section-title"><span class="number">6</span> JustificacionCero — cero justificado</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/JustificacionCero.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">JustificacionCero</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'justificaciones_cero'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>, <span class="str">'indicador'</span>,
+        <span class="str">'motivo'</span>, <span class="str">'detalle'</span>, <span class="str">'registrado_por'</span>,
+    ];
+
+    <span class="kw">public function</span> <span class="fn">centroSalud</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">CentroSalud</span><span class="op">::</span><span class="kw">class</span>);
+    }
+
+    <span class="kw">public function</span> <span class="fn">registradoPor</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">User</span><span class="op">::</span><span class="kw">class</span>, <span class="str">'registrado_por'</span>);
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">Regla de negocio fundamental</div>
+        Si un indicador clave (control_prenatal, partos, vacunación, etc.) tiene valor <strong>cero</strong> en un mes, el sistema obliga al registrador a justificar por qué. Los 5 motivos posibles están definidos como enum en la migración. Este modelo almacena esa justificación.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: MES CERRADO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="mes-cerrado">
+    <h2 class="section-title"><span class="number">7</span> MesCerrado — control de período</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/MesCerrado.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">MesCerrado</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'meses_cerrados'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>,
+        <span class="str">'cerrado_por'</span>, <span class="str">'fecha_cierre'</span>,
+        <span class="str">'reabierto_por'</span>, <span class="str">'fecha_reapertura'</span>,
+    ];
+
+    <span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'fecha_cierre'</span>    <span class="op">=></span> <span class="str">'datetime'</span>,
+            <span class="str">'fecha_reapertura'</span> <span class="op">=></span> <span class="str">'datetime'</span>,
+        ];
+    }
+
+    <span class="kw">public function</span> <span class="fn">centroSalud</span>(): <span class="type">BelongsTo</span> { ... }
+    <span class="kw">public function</span> <span class="fn">cerradoPor</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">User</span><span class="op">::</span><span class="kw">class</span>, <span class="str">'cerrado_por'</span>);
+    }
+    <span class="kw">public function</span> <span class="fn">reabiertoPor</span>(): <span class="type">BelongsTo</span>
+    {
+        <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">User</span><span class="op">::</span><span class="kw">class</span>, <span class="str">'reabierto_por'</span>);
+    }
+}</pre>
+    </div>
+
+    <p>Este modelo tiene <strong>2 relaciones a User</strong> con FKs diferentes: <code class="inline">cerrado_por</code> y <code class="inline">reabierto_por</code>. Nótese el uso de <code class="inline">'datetime'</code> en vez de <code class="inline">'date'</code> — aquí sí importa la hora exacta del cierre.</p>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Flujo de cierre/reapertura</div>
+        <strong>Admin</strong> cierra un mes → se graban <code class="inline">cerrado_por</code> y <code class="inline">fecha_cierre</code>.<br>
+        Si hay error, <strong>superadmin</strong> reabre → se graban <code class="inline">reabierto_por</code> y <code class="inline">fecha_reapertura</code>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 8: OBSERVACIÓN MENSUAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="observacion">
+    <h2 class="section-title"><span class="number">8</span> ObservacionMensual</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/ObservacionMensual.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">class</span> <span class="cls">ObservacionMensual</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$table</span> = <span class="str">'observaciones_mensuales'</span>;
+
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>,
+        <span class="str">'texto'</span>, <span class="str">'registrado_por'</span>,
+    ];
+
+    <span class="kw">public function</span> <span class="fn">centroSalud</span>(): <span class="type">BelongsTo</span> { ... }
+    <span class="kw">public function</span> <span class="fn">registradoPor</span>(): <span class="type">BelongsTo</span> { ... }
+}</pre>
+    </div>
+
+    <p>Un campo de texto libre para que el registrador anote situaciones especiales del mes: brotes, campañas especiales, problemas logísticos, etc.</p>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 15</h3>
+    <ul>
+      <li><strong>16 modelos Prest*</strong> — todos con patrón centro + mes + año + dimensión + contadores</li>
+      <li>3 variaciones de contadores: M/F, dentro/fuera, cantidad única</li>
+      <li><strong>MetaIne</strong> — denominador para fórmulas de cobertura (29 grupos etáreos)</li>
+      <li><strong>JustificacionCero</strong> — regla de negocio: obligar justificación cuando indicador = 0</li>
+      <li><strong>MesCerrado</strong> — 2 relaciones a User (cerrado_por / reabierto_por), cast datetime</li>
+      <li><strong>ObservacionMensual</strong> — notas de texto libre por período</li>
+      <li>Total: <strong>20 modelos</strong> creados en esta lección, todos simples pero fundamentales</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="14-modelos-clinicos.html" class="lesson-nav-btn">← Lección 14: Modelos clínicos individuales</a>
+    <a href="16-modelo-user.html" class="lesson-nav-btn">Lección 16: Modelo User + Post + Comentario →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 15 de 58</span>
+    <span>Siguiente: Modelo User con roles, permisos y relaciones</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

@@ -1,0 +1,542 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 04 — Vite, Tailwind CSS y Assets | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 1 — Fundamentos</div>
+    <div class="lesson-number">Lección 04 de 58</div>
+    <h1 class="lesson-title">Vite, Tailwind CSS y Assets</h1>
+    <p class="lesson-subtitle">Configurar Vite como bundler, Tailwind CSS 4 para estilos, app.css, app.js y el tema de Filament.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 4 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~20 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Principiante</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="03-estructura-proyecto.html" class="lesson-nav-btn">← Lección 03</a>
+    <a href="05-git-versionamiento.html" class="lesson-nav-btn">Lección 05 →</a>
+  </div>
+
+  <!-- ═══ Tabla de Contenidos ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#que-es-vite">¿Qué es Vite?</a></li>
+      <li><a href="#vite-config">Archivo vite.config.js</a></li>
+      <li><a href="#que-es-tailwind">¿Qué es Tailwind CSS?</a></li>
+      <li><a href="#app-css">Archivo resources/css/app.css</a></li>
+      <li><a href="#app-js">Archivo resources/js/app.js</a></li>
+      <li><a href="#theme-filament">Tema personalizado para Filament</a></li>
+      <li><a href="#compilar">Compilar assets</a></li>
+      <li><a href="#usar-en-blade">Usar assets en Blade</a></li>
+      <li><a href="#resumen-archivos">Archivos de esta lección</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: QUÉ ES VITE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="que-es-vite">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es Vite?</h2>
+
+    <p><strong>Vite</strong> es un bundler — una herramienta que toma tus archivos CSS y JavaScript "fuente" y los convierte en archivos optimizados para producción.</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Sin Vite</th>
+          <th>Con Vite</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Escribes CSS manualmente en archivos separados</td>
+          <td>Escribes Tailwind CSS y Vite lo compila</td>
+        </tr>
+        <tr>
+          <td>Import de Chart.js no funciona en el navegador</td>
+          <td>Vite empaqueta Chart.js con tu código</td>
+        </tr>
+        <tr>
+          <td>Cambias un archivo y refrescas manualmente</td>
+          <td>Vite detecta cambios y recarga automáticamente (HMR)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">HMR = Hot Module Replacement</div>
+        Cuando <code class="inline">npm run dev</code> está corriendo, cada vez que guardas un archivo CSS, JS o Blade, el navegador se actualiza <strong>sin recargar la página</strong>. Es la función más útil de Vite para desarrollo.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: VITE.CONFIG.JS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="vite-config">
+    <h2 class="section-title"><span class="number">2</span> Archivo vite.config.js</h2>
+
+    <p>Este archivo en la raíz del proyecto indica a Vite qué archivos compilar y qué plugins usar. Crea o reemplaza el contenido de <code class="inline">vite.config.js</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">vite.config.js</span>
+        <span class="code-lang">javascript</span>
+      </div>
+      <pre class="code-body"><span class="kw">import</span> { <span class="fn">defineConfig</span> } <span class="kw">from</span> <span class="str">'vite'</span>;
+<span class="kw">import</span> <span class="var">laravel</span> <span class="kw">from</span> <span class="str">'laravel-vite-plugin'</span>;
+<span class="kw">import</span> <span class="var">tailwindcss</span> <span class="kw">from</span> <span class="str">'@tailwindcss/vite'</span>;
+
+<span class="kw">export default</span> <span class="fn">defineConfig</span>({
+    <span class="attr">plugins</span>: [
+        <span class="fn">laravel</span>({
+            <span class="attr">input</span>: [
+                <span class="str">'resources/css/app.css'</span>,
+                <span class="str">'resources/js/app.js'</span>,
+                <span class="str">'resources/css/filament/admin/theme.css'</span>,
+            ],
+            <span class="attr">refresh</span>: <span class="kw">true</span>,
+        }),
+        <span class="fn">tailwindcss</span>(),
+    ],
+    <span class="attr">server</span>: {
+        <span class="attr">cors</span>: <span class="kw">true</span>,
+        <span class="attr">watch</span>: {
+            <span class="attr">ignored</span>: [<span class="str">'**/storage/framework/views/**'</span>],
+        },
+    },
+});</pre>
+    </div>
+
+    <h3 class="subsection-title">Explicación línea por línea</h3>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Propiedad</th>
+          <th>Qué hace</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>input</code></td>
+          <td>Los 3 archivos fuente que Vite compilará: CSS app, JS app, y tema Filament</td>
+        </tr>
+        <tr>
+          <td><code>refresh: true</code></td>
+          <td>Recarga el navegador cuando cambias archivos Blade</td>
+        </tr>
+        <tr>
+          <td><code>tailwindcss()</code></td>
+          <td>Plugin que integra Tailwind CSS 4 con Vite</td>
+        </tr>
+        <tr>
+          <td><code>server.cors</code></td>
+          <td>Permite que el servidor de Vite sirva assets cross-origin</td>
+        </tr>
+        <tr>
+          <td><code>watch.ignored</code></td>
+          <td>Ignora la caché de vistas compiladas para no recargar innecesariamente</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: QUÉ ES TAILWIND
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="que-es-tailwind">
+    <h2 class="section-title"><span class="number">3</span> ¿Qué es Tailwind CSS?</h2>
+
+    <p><strong>Tailwind CSS</strong> es un framework CSS "utility-first". En vez de escribir clases como <code class="inline">.btn-primary</code>, usas clases pequeñas directamente:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Comparación</span>
+        <span class="code-lang">html</span>
+      </div>
+      <pre class="code-body"><span class="cmt">&lt;!-- CSS tradicional --&gt;</span>
+<span class="op">&lt;</span><span class="kw">button</span> <span class="attr">class</span>=<span class="str">"btn btn-primary btn-lg"</span><span class="op">&gt;</span>Guardar<span class="op">&lt;/</span><span class="kw">button</span><span class="op">&gt;</span>
+
+<span class="cmt">&lt;!-- Tailwind CSS --&gt;</span>
+<span class="op">&lt;</span><span class="kw">button</span> <span class="attr">class</span>=<span class="str">"bg-blue-600 text-white px-6 py-3 rounded-lg hover:bg-blue-700"</span><span class="op">&gt;</span>
+    Guardar
+<span class="op">&lt;/</span><span class="kw">button</span><span class="op">&gt;</span></pre>
+    </div>
+
+    <p>SICSAL usa <strong>Tailwind CSS 4.2</strong>, que no necesita archivo <code class="inline">tailwind.config.js</code> — la configuración va dentro de <code class="inline">app.css</code> con directivas <code class="inline">@theme</code>.</p>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Tailwind 4 vs Tailwind 3</div>
+        En Tailwind 3 necesitabas <code class="inline">tailwind.config.js</code>. En Tailwind 4, la configuración se define con <code class="inline">@theme { }</code> dentro del CSS. Es más simple y rápido.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: APP.CSS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="app-css">
+    <h2 class="section-title"><span class="number">4</span> Archivo resources/css/app.css</h2>
+
+    <p>Este es el archivo CSS principal de la aplicación. Crea o reemplaza <code class="inline">resources/css/app.css</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">resources/css/app.css</span>
+        <span class="code-lang">css</span>
+      </div>
+      <pre class="code-body"><span class="dec">@import</span> <span class="str">'tailwindcss'</span>;
+<span class="dec">@import</span> <span class="str">'../../vendor/livewire/flux/dist/flux.css'</span>;
+
+<span class="dec">@source</span> <span class="str">'../views'</span>;
+<span class="dec">@source</span> <span class="str">'../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php'</span>;
+<span class="dec">@source</span> <span class="str">'../../vendor/livewire/flux-pro/stubs/**/*.blade.php'</span>;
+<span class="dec">@source</span> <span class="str">'../../vendor/livewire/flux/stubs/**/*.blade.php'</span>;
+
+<span class="dec">@custom-variant</span> <span class="fn">dark</span> (<span class="str">&:where(.dark, .dark *)</span>);
+
+<span class="dec">@theme</span> {
+    <span class="var">--font-sans</span>: <span class="str">'Instrument Sans'</span>, ui-sans-serif, system-ui, sans-serif,
+        <span class="str">'Apple Color Emoji'</span>, <span class="str">'Segoe UI Emoji'</span>, <span class="str">'Segoe UI Symbol'</span>,
+        <span class="str">'Noto Color Emoji'</span>;
+
+    <span class="var">--color-zinc-50</span>: <span class="num">#fafafa</span>;
+    <span class="var">--color-zinc-100</span>: <span class="num">#f5f5f5</span>;
+    <span class="var">--color-zinc-200</span>: <span class="num">#e5e5e5</span>;
+    <span class="var">--color-zinc-300</span>: <span class="num">#d4d4d4</span>;
+    <span class="var">--color-zinc-400</span>: <span class="num">#a3a3a3</span>;
+    <span class="var">--color-zinc-500</span>: <span class="num">#737373</span>;
+    <span class="var">--color-zinc-600</span>: <span class="num">#525252</span>;
+    <span class="var">--color-zinc-700</span>: <span class="num">#404040</span>;
+    <span class="var">--color-zinc-800</span>: <span class="num">#262626</span>;
+    <span class="var">--color-zinc-900</span>: <span class="num">#171717</span>;
+    <span class="var">--color-zinc-950</span>: <span class="num">#0a0a0a</span>;
+
+    <span class="var">--color-accent</span>: <span class="fn">var</span>(<span class="var">--color-neutral-800</span>);
+    <span class="var">--color-accent-content</span>: <span class="fn">var</span>(<span class="var">--color-neutral-800</span>);
+    <span class="var">--color-accent-foreground</span>: <span class="fn">var</span>(<span class="var">--color-white</span>);
+}</pre>
+    </div>
+
+    <h3 class="subsection-title">Explicación</h3>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Línea</th>
+          <th>Qué hace</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>@import 'tailwindcss'</code></td>
+          <td>Importa todas las utilidades de Tailwind CSS 4</td>
+        </tr>
+        <tr>
+          <td><code>@import '...flux.css'</code></td>
+          <td>Importa estilos de Flux (componentes UI de Livewire)</td>
+        </tr>
+        <tr>
+          <td><code>@source '../views'</code></td>
+          <td>Escanea archivos Blade para detectar clases Tailwind usadas</td>
+        </tr>
+        <tr>
+          <td><code>@custom-variant dark</code></td>
+          <td>Define cómo funciona el modo oscuro</td>
+        </tr>
+        <tr>
+          <td><code>@theme { }</code></td>
+          <td>Configura fuentes y colores personalizados. Reemplaza al <code>tailwind.config.js</code> de v3</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: APP.JS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="app-js">
+    <h2 class="section-title"><span class="number">5</span> Archivo resources/js/app.js</h2>
+
+    <p>El archivo JavaScript principal. Lo usamos para registrar Chart.js globalmente (para pirámides poblacionales y gráficos de coberturas):</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">resources/js/app.js</span>
+        <span class="code-lang">javascript</span>
+      </div>
+      <pre class="code-body"><span class="kw">import</span> { <span class="cls">Chart</span>, <span class="var">registerables</span> } <span class="kw">from</span> <span class="str">'chart.js'</span>;
+<span class="cls">Chart</span>.<span class="fn">register</span>(...<span class="var">registerables</span>);
+<span class="var">window</span>.<span class="cls">Chart</span> = <span class="cls">Chart</span>;</pre>
+    </div>
+
+    <p>Solo 3 líneas. Esto:</p>
+    <ol>
+      <li>Importa Chart.js y todos sus componentes registrables</li>
+      <li>Registra todos los tipos de gráfico (bar, line, pie, etc.)</li>
+      <li>Expone <code class="inline">Chart</code> en <code class="inline">window</code> para que los componentes Livewire puedan usarlo</li>
+    </ol>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">¿Por qué window.Chart?</div>
+        Los componentes Livewire ejecutan JavaScript en el navegador. Necesitan acceso a <code class="inline">Chart</code> globalmente. Sin <code class="inline">window.Chart = Chart</code>, Livewire no podría crear gráficos porque <code class="inline">import</code> solo funciona dentro de módulos Vite.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: THEME FILAMENT
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="theme-filament">
+    <h2 class="section-title"><span class="number">6</span> Tema personalizado para Filament</h2>
+
+    <p>Filament tiene su propio sistema de temas. Creamos un archivo CSS que personaliza el sidebar del panel admin con colores médicos:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          Crea la carpeta <code class="inline">resources/css/filament/admin/</code>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          Crea el archivo <code class="inline">theme.css</code> dentro
+        </div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">mkdir</span> <span class="flag">-p</span> resources/css/filament/admin</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">resources/css/filament/admin/theme.css</span>
+        <span class="code-lang">css</span>
+      </div>
+      <pre class="code-body"><span class="dec">@import</span> <span class="str">'../../../../vendor/filament/filament/resources/css/theme.css'</span>;
+
+<span class="dec">@source</span> <span class="str">'../../../../app/Filament/**/*'</span>;
+<span class="dec">@source</span> <span class="str">'../../../../resources/views/filament/**/*'</span>;
+
+<span class="cmt">/* =========================================================
+   SICSAL — Sidebar personalizado para personal de salud
+   ========================================================= */</span>
+
+<span class="cmt">/* --- Sidebar fondo suave --- */</span>
+<span class="cls">.fi-sidebar</span> {
+    <span class="dec">@apply</span> <span class="fn">bg-gradient-to-b from-green-50 to-white
+           dark:from-gray-900 dark:to-gray-950</span>;
+}
+
+<span class="cmt">/* --- Grupos de navegación: etiquetas con color --- */</span>
+<span class="cls">.fi-sidebar-group-btn</span> {
+    <span class="dec">@apply</span> <span class="fn">rounded-lg px-3 py-1.5 mt-1 transition-all duration-200</span>;
+}
+
+<span class="cls">.fi-sidebar-group-label</span> {
+    <span class="dec">@apply</span> <span class="fn">text-[13px] font-bold tracking-wide uppercase</span>;
+}</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">¿Qué es @apply?</div>
+        <code class="inline">@apply</code> es una directiva de Tailwind que permite usar clases utility dentro de CSS. Así personalizamos componentes de Filament sin escribir CSS puro.
+      </div>
+    </div>
+
+    <p>Este tema le da al panel admin un estilo médico sutil: sidebar con degradado verde claro y etiquetas de grupos con colores diferenciados. Lo completaremos en la Lección 24 cuando configuremos el panel.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: COMPILAR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="compilar">
+    <h2 class="section-title"><span class="number">7</span> Compilar assets</h2>
+
+    <p>Hay dos modos de compilación:</p>
+
+    <h3 class="subsection-title">Modo desarrollo (con HMR)</h3>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">npm</span> run dev
+<span class="output">  VITE v8.0.0  ready in 285 ms</span>
+<span class="output">  ➜  Local:   http://localhost:5173/</span>
+<span class="output">  ➜  press h + enter to show help</span></pre>
+    </div>
+
+    <p>Esto inicia el servidor de Vite en el puerto 5173. Cada vez que guardas un archivo CSS, JS o Blade, el navegador se actualiza automáticamente.</p>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">Importante</div>
+        <code class="inline">npm run dev</code> debe estar corriendo mientras desarrollas. Si lo cierras, los estilos de Tailwind no se cargarán porque Laravel espera que Vite los sirva.
+      </div>
+    </div>
+
+    <h3 class="subsection-title">Modo producción</h3>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">npm</span> run build
+<span class="output">vite v8.0.0 building for production...</span>
+<span class="output">✓ 50 modules transformed.</span>
+<span class="output">public/build/manifest.json          0.50 kB</span>
+<span class="output">public/build/assets/app-AbCdEf.css   28.32 kB │ gzip: 6.12 kB</span>
+<span class="output">public/build/assets/app-GhIjKl.js   198.45 kB │ gzip: 62.30 kB</span>
+<span class="output">✓ built in 3.20s</span></pre>
+    </div>
+
+    <p>Esto genera archivos minificados en <code class="inline">public/build/</code> con nombres hasheados para cache-busting.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 8: USAR EN BLADE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="usar-en-blade">
+    <h2 class="section-title"><span class="number">8</span> Usar assets en Blade</h2>
+
+    <p>Para incluir los CSS y JS compilados en tus vistas Blade, usa la directiva <code class="inline">@vite</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">resources/views/layout.blade.php (ejemplo)</span>
+        <span class="code-lang">blade</span>
+      </div>
+      <pre class="code-body"><span class="op">&lt;!</span><span class="kw">DOCTYPE html</span><span class="op">&gt;</span>
+<span class="op">&lt;</span><span class="kw">html</span> <span class="attr">lang</span>=<span class="str">"es"</span><span class="op">&gt;</span>
+<span class="op">&lt;</span><span class="kw">head</span><span class="op">&gt;</span>
+    <span class="op">&lt;</span><span class="kw">meta</span> <span class="attr">charset</span>=<span class="str">"UTF-8"</span><span class="op">&gt;</span>
+    <span class="op">&lt;</span><span class="kw">title</span><span class="op">&gt;</span>SICSAL<span class="op">&lt;/</span><span class="kw">title</span><span class="op">&gt;</span>
+
+    <span class="cmt">{{-- Esto incluye app.css y app.js compilados por Vite --}}</span>
+    <span class="dec">@vite</span>([<span class="str">'resources/css/app.css'</span>, <span class="str">'resources/js/app.js'</span>])
+<span class="op">&lt;/</span><span class="kw">head</span><span class="op">&gt;</span>
+<span class="op">&lt;</span><span class="kw">body</span><span class="op">&gt;</span>
+    <span class="var">{{ $slot }}</span>
+<span class="op">&lt;/</span><span class="kw">body</span><span class="op">&gt;</span>
+<span class="op">&lt;/</span><span class="kw">html</span><span class="op">&gt;</span></pre>
+    </div>
+
+    <p>La directiva <code class="inline">@vite</code> genera automáticamente las etiquetas <code class="inline">&lt;link&gt;</code> y <code class="inline">&lt;script&gt;</code> correctas. En desarrollo apunta al servidor de Vite (puerto 5173); en producción apunta a los archivos compilados en <code class="inline">public/build/</code>.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 9: ARCHIVOS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen-archivos">
+    <h2 class="section-title"><span class="number">9</span> Archivos de esta lección</h2>
+
+    <div class="file-tree">
+      <div class="file-tree-title">Archivos creados/modificados</div>
+      <ul>
+        <li><span class="ft-file ft-new">vite.config.js</span> — configuración de Vite con plugins Laravel + Tailwind</li>
+        <li><span class="ft-dir">resources/</span>
+          <ul>
+            <li><span class="ft-dir">css/</span>
+              <ul>
+                <li><span class="ft-file ft-new">app.css</span> — Tailwind + Flux + tema @theme</li>
+                <li><span class="ft-dir">filament/admin/</span>
+                  <ul>
+                    <li><span class="ft-file ft-new">theme.css</span> — sidebar personalizado del panel</li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+            <li><span class="ft-dir">js/</span>
+              <ul>
+                <li><span class="ft-file ft-new">app.js</span> — Chart.js registrado globalmente</li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 04</h3>
+    <ul>
+      <li><strong>Vite 8</strong> es el bundler — compila CSS y JS, tiene HMR</li>
+      <li><strong>vite.config.js</strong> define los 3 entry points (app.css, app.js, theme.css)</li>
+      <li><strong>Tailwind CSS 4</strong> se configura con <code class="inline">@theme</code> dentro del CSS</li>
+      <li><strong>app.css</strong> importa Tailwind + Flux y define colores/fuentes</li>
+      <li><strong>app.js</strong> registra Chart.js globalmente para gráficos Livewire</li>
+      <li><strong>theme.css</strong> personaliza el sidebar de Filament con estilo médico</li>
+      <li><code class="inline">npm run dev</code> para desarrollo, <code class="inline">npm run build</code> para producción</li>
+      <li><code class="inline">@vite()</code> en Blade incluye los assets compilados</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="03-estructura-proyecto.html" class="lesson-nav-btn">← Lección 03: Estructura del Proyecto</a>
+    <a href="05-git-versionamiento.html" class="lesson-nav-btn">Lección 05: Git y Control de Versiones →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 04 de 58</span>
+    <span>Siguiente: Git: Control de Versiones</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

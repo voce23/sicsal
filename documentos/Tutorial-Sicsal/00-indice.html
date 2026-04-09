@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SICSAL — Tutorial Completo: Índice</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+  <style>
+    .index-hero {
+      background: linear-gradient(135deg, #0f766e 0%, #134e4a 60%, #0891b2 100%);
+      color: white;
+      padding: 3.5rem 2rem 3rem;
+      margin: 0 -1.5rem 2.5rem;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+    }
+    .index-hero::before {
+      content: '';
+      position: absolute;
+      top: -80px; right: -80px;
+      width: 300px; height: 300px;
+      background: rgba(255,255,255,.04);
+      border-radius: 50%;
+    }
+    .index-hero h1 { font-size: 2.4rem; margin-bottom: .5rem; }
+    .index-hero p { font-size: 1.05rem; color: #ccfbf1; max-width: 650px; margin: 0 auto; line-height: 1.6; }
+
+    .stack-bar {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .stack-item {
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.2);
+      padding: .4rem 1rem;
+      border-radius: 999px;
+      font-size: .82rem;
+      font-weight: 600;
+      color: #ccfbf1;
+    }
+
+    .stats-bar {
+      display: flex;
+      justify-content: center;
+      gap: 2rem;
+      margin-top: 1.5rem;
+      flex-wrap: wrap;
+    }
+    .stat-item {
+      text-align: center;
+    }
+    .stat-num {
+      font-size: 1.6rem;
+      font-weight: 700;
+      color: #fff;
+      display: block;
+    }
+    .stat-label {
+      font-size: .75rem;
+      color: #99f6e4;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+    }
+
+    .phase { margin-bottom: 2.5rem; }
+    .phase-header {
+      display: flex;
+      align-items: center;
+      gap: .75rem;
+      margin-bottom: 1rem;
+    }
+    .phase-icon {
+      width: 44px; height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      color: white;
+      flex-shrink: 0;
+    }
+    .phase-title { font-size: 1.2rem; font-weight: 700; color: var(--gray-900); }
+    .phase-desc { font-size: .85rem; color: var(--gray-500); }
+
+    .lesson-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: .75rem;
+    }
+    .lesson-card {
+      display: flex;
+      align-items: flex-start;
+      gap: .75rem;
+      background: white;
+      border: 1px solid var(--gray-200);
+      border-radius: var(--radius-md);
+      padding: 1rem 1.1rem;
+      box-shadow: var(--shadow-sm);
+      transition: all .2s;
+      text-decoration: none;
+      color: inherit;
+    }
+    .lesson-card:hover {
+      border-color: var(--teal-400);
+      box-shadow: var(--shadow-md);
+      transform: translateY(-2px);
+      text-decoration: none;
+    }
+    .lnum {
+      background: var(--teal-600);
+      color: white;
+      width: 32px; height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .82rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .lesson-card-body { flex: 1; }
+    .lesson-card-title { font-weight: 700; font-size: .92rem; color: var(--gray-800); margin-bottom: .2rem; }
+    .lesson-card-tech { font-size: .72rem; color: var(--gray-400); }
+    .lesson-card-desc { font-size: .8rem; color: var(--gray-500); margin-top: .25rem; }
+
+    .p-fund  .phase-icon { background: var(--teal-600); }
+    .p-db    .phase-icon { background: var(--blue-600); }
+    .p-model .phase-icon { background: #6366f1; }
+    .p-auth  .phase-icon { background: var(--purple-600); }
+    .p-seed  .phase-icon { background: var(--green-600); }
+    .p-admin .phase-icon { background: var(--amber-600); }
+    .p-form  .phase-icon { background: #ec4899; }
+    .p-obs   .phase-icon { background: #f97316; }
+    .p-help  .phase-icon { background: #06b6d4; }
+    .p-live  .phase-icon { background: #8b5cf6; }
+    .p-exp   .phase-icon { background: #ef4444; }
+    .p-imp   .phase-icon { background: #64748b; }
+    .p-fin   .phase-icon { background: #0d9488; }
+  </style>
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <span style="color:var(--teal-200); font-size:.82rem;">58 Lecciones · Laravel 13 + Filament 5 + Livewire 4</span>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="index-hero">
+    <h1>Tutorial Completo SICSAL</h1>
+    <p>Construye paso a paso un sistema de información de salud real. 58 lecciones que te llevan desde cero hasta un proyecto completo con 278+ archivos y ~23,000 líneas de código.</p>
+    <div class="stack-bar">
+      <span class="stack-item">🐘 Laravel 13</span>
+      <span class="stack-item">🛡️ Filament 5</span>
+      <span class="stack-item">⚡ Livewire 4</span>
+      <span class="stack-item">🏔️ Alpine.js</span>
+      <span class="stack-item">🎨 Tailwind CSS 4</span>
+      <span class="stack-item">🖥️ Laragon</span>
+    </div>
+    <div class="stats-bar">
+      <div class="stat-item"><span class="stat-num">58</span><span class="stat-label">Lecciones</span></div>
+      <div class="stat-item"><span class="stat-num">13</span><span class="stat-label">Fases</span></div>
+      <div class="stat-item"><span class="stat-num">278+</span><span class="stat-label">Archivos</span></div>
+      <div class="stat-item"><span class="stat-num">~23K</span><span class="stat-label">Líneas</span></div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 1: FUNDAMENTOS (01-05)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-fund">
+    <div class="phase-header">
+      <div class="phase-icon">🏗️</div>
+      <div>
+        <div class="phase-title">Fase 1 — Fundamentos (01–05)</div>
+        <div class="phase-desc">Instalar herramientas, crear el proyecto Laravel, entender su estructura</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="01-instalar-herramientas.html" class="lesson-card">
+        <div class="lnum">01</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Instalar Herramientas</div>
+          <div class="lesson-card-tech">Laragon · PHP 8.3 · MySQL · Node.js · VS Code</div>
+          <div class="lesson-card-desc">Preparar el entorno de desarrollo completo en Windows.</div>
+        </div>
+      </a>
+      <a href="02-crear-proyecto.html" class="lesson-card">
+        <div class="lnum">02</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Crear el Proyecto Laravel</div>
+          <div class="lesson-card-tech">Composer · .env · APP_KEY · sicsal.test</div>
+          <div class="lesson-card-desc">Crear el proyecto, configurar .env, generar APP_KEY y verificar.</div>
+        </div>
+      </a>
+      <a href="03-estructura-proyecto.html" class="lesson-card">
+        <div class="lnum">03</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Estructura del Proyecto</div>
+          <div class="lesson-card-tech">Laravel · Artisan · Ciclo de vida</div>
+          <div class="lesson-card-desc">Carpetas, archivos clave, qué hace cada cosa, ciclo de una petición.</div>
+        </div>
+      </a>
+      <a href="04-vite-tailwind.html" class="lesson-card">
+        <div class="lnum">04</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Vite, Tailwind CSS y Assets</div>
+          <div class="lesson-card-tech">Vite 8 · Tailwind CSS 4 · app.css · app.js</div>
+          <div class="lesson-card-desc">Configurar Vite, instalar Tailwind, compilar assets frontend.</div>
+        </div>
+      </a>
+      <a href="05-git.html" class="lesson-card">
+        <div class="lnum">05</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Git: Control de Versiones</div>
+          <div class="lesson-card-tech">Git · .gitignore · Commits</div>
+          <div class="lesson-card-desc">Iniciar repositorio, .gitignore correcto, primer commit.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 2: BASE DE DATOS — ESTRUCTURA (06-11)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-db">
+    <div class="phase-header">
+      <div class="phase-icon">🗃️</div>
+      <div>
+        <div class="phase-title">Fase 2 — Base de Datos: Estructura (06–11)</div>
+        <div class="phase-desc">Crear las 50 migraciones del sistema en 6 lecciones progresivas</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="06-migraciones-municipios.html" class="lesson-card">
+        <div class="lnum">06</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Migraciones: Municipios y Centros</div>
+          <div class="lesson-card-tech">Schema · Blueprint · Foreign Keys</div>
+          <div class="lesson-card-desc">Tablas municipios y centros_salud con relaciones.</div>
+        </div>
+      </a>
+      <a href="07-migraciones-comunidades.html" class="lesson-card">
+        <div class="lnum">07</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Migraciones: Comunidades y Usuarios</div>
+          <div class="lesson-card-tech">Schema · add_sicsal_fields_to_users</div>
+          <div class="lesson-card-desc">Tabla comunidades y campos extra en users.</div>
+        </div>
+      </a>
+      <a href="08-migraciones-personas.html" class="lesson-card">
+        <div class="lnum">08</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Migraciones: Personas y Defunciones</div>
+          <div class="lesson-card-tech">Schema · Índices · Soft scenarios</div>
+          <div class="lesson-card-desc">Tabla personas (columna vertebral) y defunciones.</div>
+        </div>
+      </a>
+      <a href="09-migraciones-clinicos.html" class="lesson-card">
+        <div class="lnum">09</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Migraciones: Datos Clínicos Individuales</div>
+          <div class="lesson-card-tech">vacunas_ninos · embarazos · partos · etc.</div>
+          <div class="lesson-card-desc">8 tablas de registros clínicos por persona.</div>
+        </div>
+      </a>
+      <a href="10-migraciones-prest1.html" class="lesson-card">
+        <div class="lnum">10</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Migraciones: Prestaciones Parte 1</div>
+          <div class="lesson-card-tech">prest_consulta_externa · prest_vacunas · etc.</div>
+          <div class="lesson-card-desc">6 tablas de consolidados mensuales prest_*.</div>
+        </div>
+      </a>
+      <a href="11-migraciones-prest2.html" class="lesson-card">
+        <div class="lnum">11</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Migraciones: Prestaciones Parte 2 + Auxiliares</div>
+          <div class="lesson-card-tech">prest_* restantes · constraints · indexes</div>
+          <div class="lesson-card-desc">10+ tablas restantes, constraints UNIQUE e índices.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 3: MODELOS ELOQUENT (12-16)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-model">
+    <div class="phase-header">
+      <div class="phase-icon">🧩</div>
+      <div>
+        <div class="phase-title">Fase 3 — Modelos Eloquent (12–16)</div>
+        <div class="phase-desc">37 modelos con relaciones, scopes, accessors y casts</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="12-modelos-base.html" class="lesson-card">
+        <div class="lnum">12</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Modelos: Municipio, CentroSalud, Comunidad</div>
+          <div class="lesson-card-tech">Eloquent · Relaciones · fillable · casts</div>
+          <div class="lesson-card-desc">Los 3 modelos geográficos base del sistema.</div>
+        </div>
+      </a>
+      <a href="13-modelo-persona.html" class="lesson-card">
+        <div class="lnum">13</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Modelo Persona</div>
+          <div class="lesson-card-tech">Scopes · Accessors · 148 líneas</div>
+          <div class="lesson-card-desc">El modelo más importante: scopes, accessor nombre_completo, relaciones.</div>
+        </div>
+      </a>
+      <a href="14-modelos-clinicos.html" class="lesson-card">
+        <div class="lnum">14</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Modelos: Registros Clínicos</div>
+          <div class="lesson-card-tech">9 modelos · belongsTo Persona</div>
+          <div class="lesson-card-desc">VacunaNino, Embarazo, Parto, Anticoncepcion y 5 más.</div>
+        </div>
+      </a>
+      <a href="15-modelos-prest.html" class="lesson-card">
+        <div class="lnum">15</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Modelos: Prestaciones y Auxiliares</div>
+          <div class="lesson-card-tech">16 modelos Prest* + 4 auxiliares</div>
+          <div class="lesson-card-desc">Modelos de consolidados mensuales + metas, observaciones, etc.</div>
+        </div>
+      </a>
+      <a href="16-modelos-user-post.html" class="lesson-card">
+        <div class="lnum">16</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Modelos: User, Post, Comentario, CausaConsulta</div>
+          <div class="lesson-card-tech">HasRoles · Blog · Comentarios</div>
+          <div class="lesson-card-desc">Modelo User con Spatie + modelos del blog y causas.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 4: AUTENTICACIÓN Y SEGURIDAD (17-21)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-auth">
+    <div class="phase-header">
+      <div class="phase-icon">🔐</div>
+      <div>
+        <div class="phase-title">Fase 4 — Autenticación y Seguridad (17–21)</div>
+        <div class="phase-desc">Fortify, Spatie Permission, traits y vistas de autenticación</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="17-fortify.html" class="lesson-card">
+        <div class="lnum">17</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Fortify: Instalación y Configuración</div>
+          <div class="lesson-card-tech">Laravel Fortify · FortifyServiceProvider</div>
+          <div class="lesson-card-desc">Instalar, configurar login, 2FA y proteger rutas.</div>
+        </div>
+      </a>
+      <a href="18-actions-user.html" class="lesson-card">
+        <div class="lnum">18</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Actions: CreateNewUser + RequireAprobado</div>
+          <div class="lesson-card-tech">Actions · Middleware · Validación</div>
+          <div class="lesson-card-desc">Crear usuarios Admin-only + middleware de aprobación.</div>
+        </div>
+      </a>
+      <a href="19-spatie-permission.html" class="lesson-card">
+        <div class="lnum">19</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Spatie Permission: Roles y Permisos</div>
+          <div class="lesson-card-tech">Spatie · superadmin · admin · registrador</div>
+          <div class="lesson-card-desc">Instalar, crear roles, asignar, middleware de verificación.</div>
+        </div>
+      </a>
+      <a href="20-traits-auth.html" class="lesson-card">
+        <div class="lnum">20</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Traits: HasCentroSelector y Validación</div>
+          <div class="lesson-card-tech">Traits · Centro activo · Password rules</div>
+          <div class="lesson-card-desc">Selector de centro, validación de passwords y perfil.</div>
+        </div>
+      </a>
+      <a href="21-vistas-auth.html" class="lesson-card">
+        <div class="lnum">21</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Vistas de Autenticación</div>
+          <div class="lesson-card-tech">Blade · Login · Register · 2FA · Pendiente</div>
+          <div class="lesson-card-desc">Todas las vistas: login, registro, forgot-password, verify-email, pendiente.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 5: SEEDERS (22-23)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-seed">
+    <div class="phase-header">
+      <div class="phase-icon">🌱</div>
+      <div>
+        <div class="phase-title">Fase 5 — Seeders (22–23)</div>
+        <div class="phase-desc">Poblar la base de datos con datos iniciales y de prueba</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="22-seeders-base.html" class="lesson-card">
+        <div class="lnum">22</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Seeders Base</div>
+          <div class="lesson-card-tech">Database · Roles · Municipio · CentroSalud · etc.</div>
+          <div class="lesson-card-desc">7 seeders esenciales: roles, geografía, users, metas INE.</div>
+        </div>
+      </a>
+      <a href="23-seeder-prueba.html" class="lesson-card">
+        <div class="lnum">23</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Seeder de Datos de Prueba</div>
+          <div class="lesson-card-tech">DatosPruebaSeeder · 441 líneas</div>
+          <div class="lesson-card-desc">Genera personas, vacunas, embarazos, prestaciones ficticias.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 6: PANEL ADMIN — FILAMENT (24-35)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-admin">
+    <div class="phase-header">
+      <div class="phase-icon">⚙️</div>
+      <div>
+        <div class="phase-title">Fase 6 — Panel Admin: Filament (24–35)</div>
+        <div class="phase-desc">Resources, Widgets, Páginas de Prestaciones, Reportes e Importación</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="24-filament-instalacion.html" class="lesson-card">
+        <div class="lnum">24</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Instalar Filament + AdminPanelProvider</div>
+          <div class="lesson-card-tech">Filament 5 · Panel · Navegación</div>
+          <div class="lesson-card-desc">Instalación, configurar AdminPanelProvider, navegación y tema.</div>
+        </div>
+      </a>
+      <a href="25-resource-centro.html" class="lesson-card">
+        <div class="lnum">25</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Resource: CentroSalud</div>
+          <div class="lesson-card-tech">Resource · Form · Table · Pages</div>
+          <div class="lesson-card-desc">Tu primer Resource completo con filtrado por centro.</div>
+        </div>
+      </a>
+      <a href="26-resource-comunidad.html" class="lesson-card">
+        <div class="lnum">26</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Resource: Comunidad</div>
+          <div class="lesson-card-tech">Resource · Select relacional · Filtros</div>
+          <div class="lesson-card-desc">Resource con select relacional a centro_salud.</div>
+        </div>
+      </a>
+      <a href="27-resource-persona.html" class="lesson-card">
+        <div class="lnum">27</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Resource: Persona</div>
+          <div class="lesson-card-tech">PersonaForm 121 · PersonasTable 198 líneas</div>
+          <div class="lesson-card-desc">El resource más complejo: form y table separados.</div>
+        </div>
+      </a>
+      <a href="28-resource-defuncion.html" class="lesson-card">
+        <div class="lnum">28</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Resource: Defunción</div>
+          <div class="lesson-card-tech">Auto-fill desde Persona · afterStateUpdated</div>
+          <div class="lesson-card-desc">Resource con auto-llenado de datos desde Persona.</div>
+        </div>
+      </a>
+      <a href="29-resource-metaine.html" class="lesson-card">
+        <div class="lnum">29</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Resource: MetaIne</div>
+          <div class="lesson-card-tech">Resource · Indicadores INE</div>
+          <div class="lesson-card-desc">Metas poblacionales INE por centro de salud.</div>
+        </div>
+      </a>
+      <a href="30-resource-user.html" class="lesson-card">
+        <div class="lnum">30</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Resource: User</div>
+          <div class="lesson-card-tech">Password condicional · Roles</div>
+          <div class="lesson-card-desc">Gestión de usuarios con password condicional y roles Spatie.</div>
+        </div>
+      </a>
+      <a href="31-resource-post-causas.html" class="lesson-card">
+        <div class="lnum">31</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Resources: Post y CausaConsultaExterna</div>
+          <div class="lesson-card-tech">Blog · Causas OMS</div>
+          <div class="lesson-card-desc">Dos resources adicionales: blog y causas de consulta.</div>
+        </div>
+      </a>
+      <a href="32-widgets.html" class="lesson-card">
+        <div class="lnum">32</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Widgets: Alertas, Cobertura, Estadísticas</div>
+          <div class="lesson-card-tech">Filament Widgets · Dashboard</div>
+          <div class="lesson-card-desc">4 widgets para el dashboard del panel admin.</div>
+        </div>
+      </a>
+      <a href="33-pagina-prestaciones.html" class="lesson-card">
+        <div class="lnum">33</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Página Prestaciones</div>
+          <div class="lesson-card-tech">Grid 12 meses · FormularioMensualTrait</div>
+          <div class="lesson-card-desc">Página principal de captura de datos mensuales.</div>
+        </div>
+      </a>
+      <a href="34-pagina-reportes.html" class="lesson-card">
+        <div class="lnum">34</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Página Reportes</div>
+          <div class="lesson-card-tech">PDF · Excel · PPTX unificado</div>
+          <div class="lesson-card-desc">Interfaz unificada para generar reportes en 3 formatos.</div>
+        </div>
+      </a>
+      <a href="35-pagina-importar.html" class="lesson-card">
+        <div class="lnum">35</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Página ImportarDesdeVes</div>
+          <div class="lesson-card-tech">Upload · Importación SNIS</div>
+          <div class="lesson-card-desc">Interfaz para importar archivos .ves del SNIS.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 7: FORMULARIOS MENSUALES (36-39)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-form">
+    <div class="phase-header">
+      <div class="phase-icon">📋</div>
+      <div>
+        <div class="phase-title">Fase 7 — Formularios Mensuales (36–39)</div>
+        <div class="phase-desc">Los formularios de captura de datos: Servicios, Materna, PAI, Causas</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="36-form-servicios.html" class="lesson-card">
+        <div class="lnum">36</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Formulario Servicios</div>
+          <div class="lesson-card-tech">309 PHP + 390 Blade</div>
+          <div class="lesson-card-desc">Formulario de servicios generales: consulta, vacunas, etc.</div>
+        </div>
+      </a>
+      <a href="37-form-materna.html" class="lesson-card">
+        <div class="lnum">37</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Formulario Materna</div>
+          <div class="lesson-card-tech">256 PHP + 274 Blade</div>
+          <div class="lesson-card-desc">Prenatales, partos, puerperio y anticoncepción.</div>
+        </div>
+      </a>
+      <a href="38-form-pai.html" class="lesson-card">
+        <div class="lnum">38</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Formulario PAI</div>
+          <div class="lesson-card-tech">245 PHP + 233 Blade</div>
+          <div class="lesson-card-desc">Programa Ampliado de Inmunización: esquema de vacunas.</div>
+        </div>
+      </a>
+      <a href="39-form-causas-cero.html" class="lesson-card">
+        <div class="lnum">39</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Causas Consulta + Cero Justificado + Cierre</div>
+          <div class="lesson-card-tech">Justificación cero · Cierre de mes</div>
+          <div class="lesson-card-desc">Causas de consulta, justificación de ceros y cierre mensual.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 8: OBSERVERS (40-41)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-obs">
+    <div class="phase-header">
+      <div class="phase-icon">👁️</div>
+      <div>
+        <div class="phase-title">Fase 8 — Observers (40–41)</div>
+        <div class="phase-desc">Sincronización automática entre registros individuales y consolidados</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="40-observers-base.html" class="lesson-card">
+        <div class="lnum">40</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">SincronizaPrestacion + Primeros Observers</div>
+          <div class="lesson-card-tech">Trait · VacunaNinoObserver · PartoObserver</div>
+          <div class="lesson-card-desc">El trait base y 2 observers principales.</div>
+        </div>
+      </a>
+      <a href="41-observers-restantes.html" class="lesson-card">
+        <div class="lnum">41</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">4 Observers Restantes + Registro</div>
+          <div class="lesson-card-tech">Observers · AppServiceProvider</div>
+          <div class="lesson-card-desc">Completar observers y registrarlos en el provider.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 9: HELPERS Y SERVICIOS (42-44)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-help">
+    <div class="phase-header">
+      <div class="phase-icon">🔧</div>
+      <div>
+        <div class="phase-title">Fase 9 — Helpers y Servicios (42–44)</div>
+        <div class="phase-desc">Cálculos de coberturas, indicadores CAI y lectura de archivos .mdb</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="42-cai-helper.html" class="lesson-card">
+        <div class="lnum">42</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">CaiHelper</div>
+          <div class="lesson-card-tech">496 líneas · Coberturas · Fórmulas INE</div>
+          <div class="lesson-card-desc">El helper principal: cálculos CAI, semáforos, indicadores.</div>
+        </div>
+      </a>
+      <a href="43-helpers-causas-oms.html" class="lesson-card">
+        <div class="lnum">43</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">CausasConsultaHelper + OmsHelper</div>
+          <div class="lesson-card-tech">Agrupaciones OMS · Cálculos</div>
+          <div class="lesson-card-desc">Helpers para causas de consulta y clasificación OMS.</div>
+        </div>
+      </a>
+      <a href="44-ves-mdb-reader.html" class="lesson-card">
+        <div class="lnum">44</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">VesMdbReader</div>
+          <div class="lesson-card-tech">Service · Lectura .mdb cross-platform</div>
+          <div class="lesson-card-desc">Servicio para leer archivos .mdb/.ves del SNIS.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 10: LIVEWIRE — VISTAS PÚBLICAS (45-50)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-live">
+    <div class="phase-header">
+      <div class="phase-icon">⚡</div>
+      <div>
+        <div class="phase-title">Fase 10 — Livewire: Vistas Públicas (45–50)</div>
+        <div class="phase-desc">Layouts, componentes reactivos, blog, pirámide poblacional, informes</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="45-layouts-blade.html" class="lesson-card">
+        <div class="lnum">45</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Layouts y Componentes Blade</div>
+          <div class="lesson-card-tech">Layouts · Header · Sidebar · Settings</div>
+          <div class="lesson-card-desc">Layouts, componentes reutilizables, páginas de settings.</div>
+        </div>
+      </a>
+      <a href="46-blog-postview.html" class="lesson-card">
+        <div class="lnum">46</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Blog + PostView</div>
+          <div class="lesson-card-tech">Livewire · Paginación · Vista detalle</div>
+          <div class="lesson-card-desc">Componente Blog con listado y PostView para detalle.</div>
+        </div>
+      </a>
+      <a href="47-poblacion.html" class="lesson-card">
+        <div class="lnum">47</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Componente Población</div>
+          <div class="lesson-card-tech">Chart.js · Pirámide · Coberturas</div>
+          <div class="lesson-card-desc">Pirámide poblacional con Chart.js y tabla de coberturas.</div>
+        </div>
+      </a>
+      <a href="48-informe-cai.html" class="lesson-card">
+        <div class="lnum">48</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Componente InformeCAI</div>
+          <div class="lesson-card-tech">3 formatos descarga · Excel · PDF · PPTX</div>
+          <div class="lesson-card-desc">Interfaz para generar informes CAI en 3 formatos.</div>
+        </div>
+      </a>
+      <a href="49-comunidades-causas.html" class="lesson-card">
+        <div class="lnum">49</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">ComunidadesPoblacion + CausasConsulta</div>
+          <div class="lesson-card-tech">Livewire · Tablas · Filtros</div>
+          <div class="lesson-card-desc">Dos componentes de consulta con filtros interactivos.</div>
+        </div>
+      </a>
+      <a href="50-comentarios-logout.html" class="lesson-card">
+        <div class="lnum">50</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Comentarios + Logout</div>
+          <div class="lesson-card-tech">Livewire · Comentarios · Acción Logout</div>
+          <div class="lesson-card-desc">Sistema de comentarios en posts y acción de logout.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 11: EXPORTACIONES (51-54)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-exp">
+    <div class="phase-header">
+      <div class="phase-icon">📊</div>
+      <div>
+        <div class="phase-title">Fase 11 — Exportaciones (51–54)</div>
+        <div class="phase-desc">Generar reportes en Excel, PDF y PowerPoint con estilos profesionales</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="51-export-cai.html" class="lesson-card">
+        <div class="lnum">51</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">InformeCAIExport (7 hojas Excel)</div>
+          <div class="lesson-card-tech">Maatwebsite · EstiloExcel trait · 7 Sheets</div>
+          <div class="lesson-card-desc">Export multi-hoja con estilos y trait reutilizable.</div>
+        </div>
+      </a>
+      <a href="52-export-comunidades.html" class="lesson-card">
+        <div class="lnum">52</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">ComunidadesPoblacion + PadronComunidades</div>
+          <div class="lesson-card-tech">4 Sheets · Estilos profesionales</div>
+          <div class="lesson-card-desc">Dos exports con sheets especializados.</div>
+        </div>
+      </a>
+      <a href="53-export-causas.html" class="lesson-card">
+        <div class="lnum">53</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">CausasConsultaExternaExport</div>
+          <div class="lesson-card-tech">224 líneas · Estilos profesionales</div>
+          <div class="lesson-card-desc">Export de causas con formato tipo SNIS.</div>
+        </div>
+      </a>
+      <a href="54-presentacion-cai.html" class="lesson-card">
+        <div class="lnum">54</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">PresentacionCAI PowerPoint</div>
+          <div class="lesson-card-tech">PhpPresentation · 961 líneas</div>
+          <div class="lesson-card-desc">Generar presentación .pptx con gráficos y tablas.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 12: IMPORTACIÓN SNIS (55-56)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-imp">
+    <div class="phase-header">
+      <div class="phase-icon">📥</div>
+      <div>
+        <div class="phase-title">Fase 12 — Importación SNIS (55–56)</div>
+        <div class="phase-desc">Comandos artisan para importar datos desde archivos .ves y otras fuentes</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="55-importar-ves-snis.html" class="lesson-card">
+        <div class="lnum">55</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">ImportarVes + ImportarSnis</div>
+          <div class="lesson-card-tech">Console Commands · .ves · Mapeo</div>
+          <div class="lesson-card-desc">Extracción de archivos .ves y mapeo de códigos SNIS.</div>
+        </div>
+      </a>
+      <a href="56-importar-complementarios.html" class="lesson-card">
+        <div class="lnum">56</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Importar Censo, Defunciones, Causas, etc.</div>
+          <div class="lesson-card-tech">5 Commands · NormalizarNombres · TransferirSoaps</div>
+          <div class="lesson-card-desc">Comandos complementarios de importación y normalización.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       FASE 13: FINALIZACIÓN (57-58)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="phase p-fin">
+    <div class="phase-header">
+      <div class="phase-icon">🏁</div>
+      <div>
+        <div class="phase-title">Fase 13 — Finalización (57–58)</div>
+        <div class="phase-desc">Vistas PDF, página de inicio, rutas, configuración final y verificación</div>
+      </div>
+    </div>
+    <div class="lesson-grid">
+      <a href="57-vistas-pdf-inicio.html" class="lesson-card">
+        <div class="lnum">57</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Vistas PDF + Página Inicio</div>
+          <div class="lesson-card-tech">DomPDF · Blade · inicio.blade.php</div>
+          <div class="lesson-card-desc">3 vistas PDF y la página de inicio pública.</div>
+        </div>
+      </a>
+      <a href="58-rutas-final.html" class="lesson-card">
+        <div class="lnum">58</div>
+        <div class="lesson-card-body">
+          <div class="lesson-card-title">Rutas + Configuración Final + Verificación</div>
+          <div class="lesson-card-tech">web.php · Config · Tests · Deploy</div>
+          <div class="lesson-card-desc">Rutas finales, optimización y checklist de verificación completa.</div>
+        </div>
+      </a>
+    </div>
+  </div>
+
+</div><!-- page-wrapper -->
+
+<!-- ═══ Footer ═══ -->
+<div style="max-width:960px; margin:0 auto; padding: 0 1.5rem;">
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · 58 Lecciones</span>
+    <span>Laravel 13 · Filament 5 · Livewire 4</span>
+  </div>
+</div>
+
+</body>
+</html>

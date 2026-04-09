@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 13 — Modelo Persona: scopes, accessors, mutators | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 3 — Modelos Eloquent</div>
+    <div class="lesson-number">Lección 13 de 58</div>
+    <h1 class="lesson-title">Modelo Persona</h1>
+    <p class="lesson-subtitle">El modelo más complejo: 170+ líneas con scopes reutilizables, accessors computados, mutators para normalización, y 6 relaciones. El corazón del padrón comunitario.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 1 archivo</span>
+      <span class="lesson-meta-item">⏱️ ~35 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="12-modelos-basicos.html" class="lesson-nav-btn">← Lección 12</a>
+    <a href="14-modelos-clinicos.html" class="lesson-nav-btn">Lección 14 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#estructura-general">Estructura general del modelo</a></li>
+      <li><a href="#fillable-casts">$fillable y casts (fechas, booleanos)</a></li>
+      <li><a href="#relaciones">6 relaciones (BelongsTo + HasMany + HasOne)</a></li>
+      <li><a href="#mutators">Mutators: normalizar nombres al guardar</a></li>
+      <li><a href="#accessors">Accessors: propiedades computadas</a></li>
+      <li><a href="#scopes">Scopes: filtros reutilizables</a></li>
+      <li><a href="#uso-real">Uso real en el proyecto</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: ESTRUCTURA GENERAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="estructura-general">
+    <h2 class="section-title"><span class="number">1</span> Estructura general del modelo</h2>
+
+    <p>El modelo <code class="inline">Persona</code> representa a los habitantes del padrón comunitario. Es el más largo del proyecto (~170 líneas) y el que mejor ilustra las capacidades de Eloquent.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Persona.php — imports</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">&lt;?php</span>
+
+<span class="kw">namespace</span> <span class="cls">App\Models</span>;
+
+<span class="kw">use</span> <span class="cls">Carbon\Carbon</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Casts\Attribute</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Model</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Relations\BelongsTo</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Relations\HasMany</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Eloquent\Relations\HasOne</span>;</pre>
+    </div>
+
+    <p>Nuevos imports respecto a los modelos anteriores:</p>
+    <ul>
+      <li><strong>Carbon</strong> — biblioteca para manejar fechas (ya incluida en Laravel)</li>
+      <li><strong>Attribute</strong> — clase para definir accessors/mutators modernos</li>
+      <li><strong>HasOne</strong> — relación "tiene uno" (para defunción)</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: FILLABLE Y CASTS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="fillable-casts">
+    <h2 class="section-title"><span class="number">2</span> $fillable y casts</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Persona.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">protected</span> <span class="var">$fillable</span> = [
+    <span class="str">'centro_salud_id'</span>, <span class="str">'comunidad_id'</span>, <span class="str">'nombres'</span>, <span class="str">'apellidos'</span>,
+    <span class="str">'fecha_nacimiento'</span>, <span class="str">'sexo'</span>, <span class="str">'ci'</span>, <span class="str">'tipo_seguro'</span>, <span class="str">'estado'</span>,
+    <span class="str">'destino_migracion'</span>, <span class="str">'fecha_migracion'</span>, <span class="str">'grupo_etareo'</span>,
+    <span class="str">'fecha_registro'</span>, <span class="str">'observaciones'</span>, <span class="str">'activo'</span>, <span class="str">'created_by'</span>,
+    <span class="str">'verificado'</span>, <span class="str">'fecha_verificacion'</span>, <span class="str">'verificado_por'</span>,
+];
+
+<span class="kw">protected function</span> <span class="fn">casts</span>(): <span class="type">array</span>
+{
+    <span class="kw">return</span> [
+        <span class="str">'fecha_nacimiento'</span>    <span class="op">=></span> <span class="str">'date'</span>,
+        <span class="str">'fecha_migracion'</span>     <span class="op">=></span> <span class="str">'date'</span>,
+        <span class="str">'fecha_registro'</span>      <span class="op">=></span> <span class="str">'date'</span>,
+        <span class="str">'activo'</span>              <span class="op">=></span> <span class="str">'boolean'</span>,
+        <span class="str">'verificado'</span>          <span class="op">=></span> <span class="str">'boolean'</span>,
+        <span class="str">'fecha_verificacion'</span>  <span class="op">=></span> <span class="str">'date'</span>,
+    ];
+}</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Cast 'date' vs 'datetime'</div>
+        <code class="inline">'date'</code> devuelve un objeto Carbon sin hora (solo Y-m-d). <code class="inline">'datetime'</code> incluye hora. Usamos <code class="inline">'date'</code> porque para las personas solo necesitamos la fecha, no el minuto exacto en que nacieron.
+      </div>
+    </div>
+
+    <p>Nótese que hay <strong>19 columnas</strong> en <code class="inline">$fillable</code> — muchas más que Municipio (3) o Comunidad (6). Esto refleja la complejidad del registro de una persona en el sistema de salud.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: RELACIONES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="relaciones">
+    <h2 class="section-title"><span class="number">3</span> 6 relaciones</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Persona.php — relaciones</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// ─── BelongsTo (3) ───</span>
+<span class="kw">public function</span> <span class="fn">centroSalud</span>(): <span class="type">BelongsTo</span>
+{
+    <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">CentroSalud</span><span class="op">::</span><span class="kw">class</span>);
+}
+
+<span class="kw">public function</span> <span class="fn">comunidad</span>(): <span class="type">BelongsTo</span>
+{
+    <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">Comunidad</span><span class="op">::</span><span class="kw">class</span>);
+}
+
+<span class="kw">public function</span> <span class="fn">creadoPor</span>(): <span class="type">BelongsTo</span>
+{
+    <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">belongsTo</span>(<span class="cls">User</span><span class="op">::</span><span class="kw">class</span>, <span class="str">'created_by'</span>);
+}
+
+<span class="cmt">// ─── HasMany (4) ───</span>
+<span class="kw">public function</span> <span class="fn">embarazos</span>(): <span class="type">HasMany</span>
+{
+    <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">Embarazo</span><span class="op">::</span><span class="kw">class</span>);
+}
+
+<span class="kw">public function</span> <span class="fn">vacunas</span>(): <span class="type">HasMany</span>
+{
+    <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">VacunaNino</span><span class="op">::</span><span class="kw">class</span>);
+}
+
+<span class="kw">public function</span> <span class="fn">crecimiento</span>(): <span class="type">HasMany</span>
+{
+    <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">CrecimientoInfantil</span><span class="op">::</span><span class="kw">class</span>);
+}
+
+<span class="kw">public function</span> <span class="fn">micronutrientes</span>(): <span class="type">HasMany</span>
+{
+    <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">MicronutrienteNino</span><span class="op">::</span><span class="kw">class</span>);
+}
+
+<span class="kw">public function</span> <span class="fn">anticoncepciones</span>(): <span class="type">HasMany</span>
+{
+    <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasMany</span>(<span class="cls">Anticoncepcion</span><span class="op">::</span><span class="kw">class</span>);
+}
+
+<span class="cmt">// ─── HasOne (1) ───</span>
+<span class="kw">public function</span> <span class="fn">defuncion</span>(): <span class="type">HasOne</span>
+{
+    <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="fn">hasOne</span>(<span class="cls">Defuncion</span><span class="op">::</span><span class="kw">class</span>);
+}</pre>
+    </div>
+
+    <h3 class="subsection-title">Conceptos nuevos</h3>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong><code class="inline">belongsTo(User::class, 'created_by')</code></strong> — Cuando la FK no sigue la convención (<code class="inline">user_id</code>), necesitas pasarla como segundo argumento. Aquí la columna se llama <code class="inline">created_by</code> en vez de <code class="inline">user_id</code>.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong><code class="inline">HasOne</code></strong> — Similar a <code class="inline">HasMany</code>, pero devuelve <strong>un solo objeto</strong> (o null). Una persona solo puede tener una defunción.
+        </div>
+      </div>
+    </div>
+
+    <div class="arch-diagram">
+      <div class="arch-box" style="background: var(--badge-blue);">
+        <strong>CentroSalud</strong><br>← belongsTo
+      </div>
+      <div class="arch-arrow">↗</div>
+      <div class="arch-box" style="background: var(--badge-green); min-width: 200px;">
+        <strong>Persona</strong><br>
+        ← belongsTo Comunidad<br>
+        ← belongsTo User (created_by)<br>
+        → hasMany ×5<br>
+        → hasOne Defuncion
+      </div>
+      <div class="arch-arrow">↘</div>
+      <div class="arch-box" style="background: var(--badge-purple);">
+        Embarazos<br>
+        Vacunas<br>
+        Crecimiento<br>
+        Micronutrientes<br>
+        Anticoncepción
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: MUTATORS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="mutators">
+    <h2 class="section-title"><span class="number">4</span> Mutators: normalizar nombres al guardar</h2>
+
+    <p>Un <strong>mutator</strong> transforma el valor <em>antes</em> de guardarlo en la BD. En SICSAL, todos los nombres se guardan en formato Title Case:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Persona.php — mutators</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">protected function</span> <span class="fn">nombres</span>(): <span class="type">Attribute</span>
+{
+    <span class="kw">return</span> <span class="cls">Attribute</span><span class="op">::</span><span class="fn">make</span>(
+        <span class="var">set</span>: <span class="kw">fn</span> (<span class="type">string</span> <span class="var">$value</span>) <span class="op">=></span>
+            <span class="fn">mb_convert_case</span>(<span class="fn">mb_strtolower</span>(<span class="var">$value</span>), <span class="num">MB_CASE_TITLE</span>, <span class="str">'UTF-8'</span>),
+    );
+}
+
+<span class="kw">protected function</span> <span class="fn">apellidos</span>(): <span class="type">Attribute</span>
+{
+    <span class="kw">return</span> <span class="cls">Attribute</span><span class="op">::</span><span class="fn">make</span>(
+        <span class="var">set</span>: <span class="kw">fn</span> (<span class="type">string</span> <span class="var">$value</span>) <span class="op">=></span>
+            <span class="fn">mb_convert_case</span>(<span class="fn">mb_strtolower</span>(<span class="var">$value</span>), <span class="num">MB_CASE_TITLE</span>, <span class="str">'UTF-8'</span>),
+    );
+}</pre>
+    </div>
+
+    <div class="flow-diagram">
+      <div class="flow-step">"JUAN PÉREZ"</div>
+      <div class="flow-arrow">→ mb_strtolower →</div>
+      <div class="flow-step">"juan pérez"</div>
+      <div class="flow-arrow">→ MB_CASE_TITLE →</div>
+      <div class="flow-step">"Juan Pérez"</div>
+      <div class="flow-arrow">→ BD</div>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">¿Por qué mb_ y no strtolower/ucwords?</div>
+        Las funciones <code class="inline">mb_*</code> manejan correctamente caracteres UTF-8 como tildes (á, é, í) y eñe (ñ). Las funciones nativas de PHP sin <code class="inline">mb_</code> pueden corromper estos caracteres.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: ACCESSORS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="accessors">
+    <h2 class="section-title"><span class="number">5</span> Accessors: propiedades computadas</h2>
+
+    <p>Un <strong>accessor</strong> genera un valor al <em>leer</em> el modelo, sin almacenar nada en la BD. Es una propiedad virtual.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Persona.php — accessors</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// $persona->edad → 34</span>
+<span class="kw">public function</span> <span class="fn">getEdadAttribute</span>(): <span class="type">int</span>
+{
+    <span class="kw">return</span> <span class="cls">Carbon</span><span class="op">::</span><span class="fn">parse</span>(<span class="var">$this</span><span class="op">-></span><span class="var">fecha_nacimiento</span>)<span class="op">-></span><span class="var">age</span>;
+}
+
+<span class="cmt">// $persona->edad_meses → 408</span>
+<span class="kw">public function</span> <span class="fn">getEdadMesesAttribute</span>(): <span class="type">int</span>
+{
+    <span class="kw">return</span> <span class="cls">Carbon</span><span class="op">::</span><span class="fn">parse</span>(<span class="var">$this</span><span class="op">-></span><span class="var">fecha_nacimiento</span>)<span class="op">-></span><span class="fn">diffInMonths</span>(<span class="fn">now</span>());
+}
+
+<span class="cmt">// $persona->nombre_completo → "Juan Pérez"</span>
+<span class="kw">public function</span> <span class="fn">getNombreCompletoAttribute</span>(): <span class="type">string</span>
+{
+    <span class="kw">return</span> <span class="str">"{$this->nombres} {$this->apellidos}"</span>;
+}
+
+<span class="cmt">// $persona->grupo_etareo_calculado → "20_39"</span>
+<span class="kw">public function</span> <span class="fn">getGrupoEtareoCalculadoAttribute</span>(): <span class="type">string</span>
+{
+    <span class="var">$meses</span> = <span class="var">$this</span><span class="op">-></span><span class="var">edad_meses</span>;
+    <span class="var">$anios</span> = <span class="var">$this</span><span class="op">-></span><span class="var">edad</span>;
+
+    <span class="kw">if</span> (<span class="var">$meses</span> < <span class="num">6</span>)  <span class="kw">return</span> <span class="str">'menor_6m'</span>;
+    <span class="kw">if</span> (<span class="var">$meses</span> < <span class="num">12</span>) <span class="kw">return</span> <span class="str">'6m_menor_1'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">5</span>)  <span class="kw">return</span> <span class="str">'1_4'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">10</span>) <span class="kw">return</span> <span class="str">'5_9'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">15</span>) <span class="kw">return</span> <span class="str">'10_14'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">20</span>) <span class="kw">return</span> <span class="str">'15_19'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">40</span>) <span class="kw">return</span> <span class="str">'20_39'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">50</span>) <span class="kw">return</span> <span class="str">'40_49'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">60</span>) <span class="kw">return</span> <span class="str">'50_59'</span>;
+
+    <span class="kw">return</span> <span class="str">'mayor_60'</span>;
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Convención de nombres</div>
+        Los accessors legados usan el patrón <code class="inline">get{NombreEnCamelCase}Attribute</code>. Laravel convierte automáticamente:
+        <ul style="margin-top: 0.5rem;">
+          <li><code class="inline">getEdadAttribute</code> → <code class="inline">$persona->edad</code></li>
+          <li><code class="inline">getEdadMesesAttribute</code> → <code class="inline">$persona->edad_meses</code></li>
+          <li><code class="inline">getGrupoEtareoCalculadoAttribute</code> → <code class="inline">$persona->grupo_etareo_calculado</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <h3 class="subsection-title">¿Por qué calcular el grupo etáreo?</h3>
+
+    <p>La tabla <code class="inline">personas</code> tiene una columna <code class="inline">grupo_etareo</code>, pero la edad cambia con el tiempo. El accessor <code class="inline">grupo_etareo_calculado</code> siempre devuelve el grupo <strong>actual</strong> basado en la fecha de nacimiento. Los rangos coinciden exactamente con los del formulario 301 del SNIS.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: SCOPES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="scopes">
+    <h2 class="section-title"><span class="number">6</span> Scopes: filtros reutilizables</h2>
+
+    <p>Un <strong>scope</strong> es un método que agrega un <code class="inline">WHERE</code> a las queries de Eloquent. Se definen con el prefijo <code class="inline">scope</code> y se usan sin él:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Models/Persona.php — scopes</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// Filtros simples ──────────────────────────────────</span>
+<span class="kw">public function</span> <span class="fn">scopeActivos</span>(<span class="var">$query</span>)
+{
+    <span class="kw">return</span> <span class="var">$query</span><span class="op">-></span><span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>);
+}
+
+<span class="kw">public function</span> <span class="fn">scopeResidentes</span>(<span class="var">$query</span>)
+{
+    <span class="kw">return</span> <span class="var">$query</span><span class="op">-></span><span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'residente'</span>);
+}
+
+<span class="kw">public function</span> <span class="fn">scopeVerificados</span>(<span class="var">$query</span>)
+{
+    <span class="kw">return</span> <span class="var">$query</span><span class="op">-></span><span class="fn">where</span>(<span class="str">'verificado'</span>, <span class="kw">true</span>);
+}
+
+<span class="cmt">// Scope compuesto ──────────────────────────────────</span>
+<span class="kw">public function</span> <span class="fn">scopePadronActivo</span>(<span class="var">$query</span>)
+{
+    <span class="kw">return</span> <span class="var">$query</span><span class="op">-></span><span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>)
+                 <span class="op">-></span><span class="fn">whereIn</span>(<span class="str">'estado'</span>, [<span class="str">'residente'</span>, <span class="str">'temporal'</span>])
+                 <span class="op">-></span><span class="fn">where</span>(<span class="str">'verificado'</span>, <span class="kw">true</span>);
+}
+
+<span class="cmt">// Scopes por grupo etáreo/sexo ─────────────────────</span>
+<span class="kw">public function</span> <span class="fn">scopeMenoresDe5</span>(<span class="var">$query</span>)
+{
+    <span class="kw">return</span> <span class="var">$query</span><span class="op">-></span><span class="fn">where</span>(<span class="str">'fecha_nacimiento'</span>, <span class="str">'>='</span>, <span class="fn">now</span>()<span class="op">-></span><span class="fn">subYears</span>(<span class="num">5</span>));
+}
+
+<span class="kw">public function</span> <span class="fn">scopeMujeresMef</span>(<span class="var">$query</span>)
+{
+    <span class="kw">return</span> <span class="var">$query</span><span class="op">-></span><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)
+        <span class="op">-></span><span class="fn">where</span>(<span class="str">'fecha_nacimiento'</span>, <span class="str">'&lt;='</span>, <span class="fn">now</span>()<span class="op">-></span><span class="fn">subYears</span>(<span class="num">15</span>))
+        <span class="op">-></span><span class="fn">where</span>(<span class="str">'fecha_nacimiento'</span>, <span class="str">'>='</span>, <span class="fn">now</span>()<span class="op">-></span><span class="fn">subYears</span>(<span class="num">49</span>));
+}</pre>
+    </div>
+
+    <h3 class="subsection-title">Uso encadenado</h3>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Ejemplo — combinando scopes</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// Contar menores de 5 activos y verificados de un centro</span>
+<span class="var">$total</span> = <span class="cls">Persona</span><span class="op">::</span><span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+    <span class="op">-></span><span class="fn">padronActivo</span>()     <span class="cmt">// activo + residente/temporal + verificado</span>
+    <span class="op">-></span><span class="fn">menoresDe5</span>()       <span class="cmt">// nacidos hace menos de 5 años</span>
+    <span class="op">-></span><span class="fn">count</span>();
+
+<span class="cmt">// Listar mujeres MEF migradas</span>
+<span class="var">$migradas</span> = <span class="cls">Persona</span><span class="op">::</span><span class="fn">migrados</span>()
+    <span class="op">-></span><span class="fn">mujeresMef</span>()
+    <span class="op">-></span><span class="fn">get</span>();</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">Scopes vs queries directas</div>
+        Sin scopes: <code class="inline">Persona::where('activo', true)->where('estado', 'residente')->where('verificado', true)</code><br>
+        Con scopes: <code class="inline">Persona::padronActivo()</code><br>
+        Mismo resultado, pero el scope es <strong>reutilizable</strong>, <strong>legible</strong> y centraliza la lógica de negocio.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: USO REAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="uso-real">
+    <h2 class="section-title"><span class="number">7</span> Uso real en el proyecto</h2>
+
+    <p>Persona es el modelo central de SICSAL. Se usa en:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Lugar</th>
+          <th>Uso</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>PersonaResource (Filament)</td><td>CRUD del padrón comunitario</td></tr>
+        <tr><td>ComunidadesPoblacion (Livewire)</td><td>Tabla dinámica de población por comunidad</td></tr>
+        <tr><td>InformeCAI (Livewire)</td><td>Cálculo de coberturas</td></tr>
+        <tr><td>CaiHelper</td><td>Fórmulas de indicadores del CAI</td></tr>
+        <tr><td>Exports</td><td>Exportar padrón a Excel/PDF</td></tr>
+        <tr><td>Observers</td><td>Acciones automáticas al crear/modificar persona</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Patrón: centralizar lógica en el modelo</div>
+        En vez de repetir <code class="inline">where('activo', true)->where('estado', 'residente')</code> en 10 archivos diferentes, lo definimos una vez como scope en el modelo. Si la regla cambia, solo la modificamos en un lugar.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 13</h3>
+    <ul>
+      <li><strong>Persona</strong> → modelo más complejo (~170 líneas, 19 fillable, 6 casts, 8 relaciones)</li>
+      <li><strong>Mutators</strong> (<code class="inline">Attribute::make(set:)</code>) → transforman datos antes de guardar (Title Case con mb_*)</li>
+      <li><strong>Accessors</strong> (<code class="inline">get*Attribute</code>) → propiedades virtuales calculadas (edad, nombre_completo, grupo_etareo_calculado)</li>
+      <li><strong>Scopes</strong> (<code class="inline">scope*</code>) → filtros reutilizables que encapsulan lógica de negocio</li>
+      <li><strong>HasOne</strong> → relación "tiene uno" (persona → defunción)</li>
+      <li><strong>FK no convencional</strong> → <code class="inline">belongsTo(User::class, 'created_by')</code></li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="12-modelos-basicos.html" class="lesson-nav-btn">← Lección 12: Municipio, CentroSalud, Comunidad</a>
+    <a href="14-modelos-clinicos.html" class="lesson-nav-btn">Lección 14: Modelos clínicos individuales →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 13 de 58</span>
+    <span>Siguiente: 9 modelos clínicos individuales</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

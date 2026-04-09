@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lección 44 — VesMdbReader: Lectura de archivos .mdb | Tutorial SICSAL</title>
+    <link rel="stylesheet" href="css/leccion.css">
+    <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL — Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+    <span class="badge">Fase 9 — Helpers y Servicios</span>
+    <h1>Lección 44 — VesMdbReader: Lectura de archivos .mdb</h1>
+    <p class="subtitle">Un servicio cross-platform que lee bases de datos Access 97 (.mdb) del SNIS
+        usando VBScript en Windows y mdbtools en Linux, con whitelist de tablas y filtrado seguro.</p>
+    <div class="meta-row">
+        <span>📄 2 archivos — 310 líneas</span>
+        <span>⏱️ ~30 min</span>
+        <span>📘 Lección 44 de 58</span>
+    </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+    <a href="43-causas-consulta-helper.html">← 43. CausasConsultaHelper + OmsHelper</a>
+    <a href="45-layouts-componentes.html">45. Layouts y componentes Blade →</a>
+</nav>
+
+<!-- ───── Archivos ───── -->
+<div class="info-box" style="margin:2rem auto;max-width:54rem;">
+    <strong>Archivos creados en esta lección:</strong>
+    <table class="file-table" style="margin-top:.5rem">
+        <tr><td><code>app/Services/VesMdbReader.php</code></td><td>200 líneas</td><td>Servicio PHP — lectura cross-platform de .mdb</td></tr>
+        <tr><td><code>resources/scripts/leer_ves.vbs</code></td><td>110 líneas</td><td>VBScript — bridge a DAO.DBEngine.36</td></tr>
+    </table>
+</div>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+    <h3>Contenido</h3>
+    <ol>
+        <li><a href="#s1">¿Qué son los archivos .ves y .mdb?</a></li>
+        <li><a href="#s2">Arquitectura cross-platform</a></li>
+        <li><a href="#s3">Constructor y constantes</a></li>
+        <li><a href="#s4">El método tabla() — punto de entrada</a></li>
+        <li><a href="#s5">Whitelist de tablas — seguridad</a></li>
+        <li><a href="#s6">Windows: VBScript + DAO 3.6</a></li>
+        <li><a href="#s7">El script leer_ves.vbs</a></li>
+        <li><a href="#s8">Linux: mdbtools</a></li>
+        <li><a href="#s9">Filtrado en PHP para mdbtools</a></li>
+        <li><a href="#s10">Cierre de Fase 9</a></li>
+    </ol>
+</nav>
+
+<!-- ═══════════ Sección 1 ═══════════ -->
+<section class="section" id="s1">
+    <h2>1 — ¿Qué son los archivos .ves y .mdb?</h2>
+    <p>El <strong>SNIS</strong> (Sistema Nacional de Información en Salud de Bolivia) distribuye
+        software basado en Access 97 que genera archivos <code>.ves</code>. Estos archivos son
+        en realidad bases de datos <strong>Microsoft Access formato Jet 3.x</strong> (archivos .mdb
+        renombrados).</p>
+
+    <p>Cada archivo .ves contiene:</p>
+    <ul>
+        <li><strong>Tablas TMP</strong> — Plantillas de formularios (301G01_TMP, 301G03_TMP, etc.)</li>
+        <li><strong>Tablas DAT</strong> — Datos mensuales (301G01_DAT01 a DAT12 por cada grupo)</li>
+        <li><strong>Tabla ESTABL</strong> — Datos del establecimiento de salud</li>
+        <li><strong>Tabla 301_CAB</strong> — Cabecera con metadatos del archivo</li>
+    </ul>
+
+    <p>SICSAL necesita leer estos archivos para importar datos históricos del SNIS al padrón digital.</p>
+
+    <div class="callout warning">
+        <div class="callout-title">Formato obsoleto</div>
+        Access 97 (Jet 3.x) es un formato de 1997. Los drivers modernos de ODBC no siempre lo
+        soportan. Por eso necesitamos <strong>DAO.DBEngine.36</strong> en Windows (COM de 32-bit)
+        o <strong>mdbtools</strong> en Linux.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 2 ═══════════ -->
+<section class="section" id="s2">
+    <h2>2 — Arquitectura cross-platform</h2>
+
+    <div class="arch-diagram">
+        <div class="arch-box">VesMdbReader::tabla('301G01_DAT05')</div>
+        <div class="arch-arrow">↓ PHP_OS_FAMILY</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:1rem;max-width:36rem;margin:0 auto">
+            <div>
+                <div class="arch-box" style="font-size:.85rem">Windows</div>
+                <div class="arch-arrow">↓</div>
+                <div class="arch-box" style="font-size:.85rem">cscript.exe (32-bit)<br>+ leer_ves.vbs</div>
+                <div class="arch-arrow">↓</div>
+                <div class="arch-box" style="font-size:.85rem">DAO.DBEngine.36<br>(COM / Jet 3.x)</div>
+            </div>
+            <div>
+                <div class="arch-box" style="font-size:.85rem">Linux</div>
+                <div class="arch-arrow">↓</div>
+                <div class="arch-box" style="font-size:.85rem">mdb-json<br>(mdbtools package)</div>
+                <div class="arch-arrow">↓</div>
+                <div class="arch-box" style="font-size:.85rem">NDJSON parsing<br>+ filtro PHP</div>
+            </div>
+        </div>
+        <div class="arch-arrow">↓ ambos devuelven</div>
+        <div class="arch-box">array&lt;int, array&lt;string, mixed&gt;&gt;</div>
+    </div>
+
+    <p>El código detecta <code>PHP_OS_FAMILY</code> en runtime y elige la estrategia adecuada.
+        Ambas vías devuelven el mismo formato: un array de arrays asociativos.</p>
+</section>
+
+<!-- ═══════════ Sección 3 ═══════════ -->
+<section class="section" id="s3">
+    <h2>3 — Constructor y constantes</h2>
+
+    <div class="code-block">
+        <div class="code-header">app/Services/VesMdbReader.php — configuración</div>
+        <pre><code><span class="kw">namespace</span> <span class="cls">App\Services</span>;
+
+<span class="kw">class</span> <span class="cls">VesMdbReader</span>
+{
+    <span class="kw">private</span> <span class="type">string</span> <span class="var">$mdbPath</span>;
+
+    <span class="cmt">/** Ruta al cscript.exe de 32-bit (necesario para DAO) */</span>
+    <span class="kw">private const</span> <span class="var">CSCRIPT32</span> = <span class="str">'C:\\Windows\\SysWow64\\cscript.exe'</span>;
+
+    <span class="cmt">/** Ruta al VBScript lector, relativa a base_path() */</span>
+    <span class="kw">private const</span> <span class="var">VBS_SCRIPT</span> = <span class="str">'resources/scripts/leer_ves.vbs'</span>;
+
+    <span class="cmt">/** Nombres de tabla permitidos (whitelist) */</span>
+    <span class="kw">private const</span> <span class="var">TABLAS_PERMITIDAS</span> = [
+        <span class="str">'301_CAB'</span>, <span class="str">'301G01_TMP'</span>, <span class="str">'301G02_TMP'</span>,
+        <span class="str">'301G03_TMP'</span>, <span class="str">'301G04_TMP'</span>, <span class="str">'301G05_TMP'</span>,
+        <span class="cmt">// ... 301G06 a 301G38 ...</span>
+        <span class="str">'ESTABL'</span>, <span class="str">'CONSOLIDADO'</span>,
+        <span class="cmt">// Tablas DAT mensuales (48 tablas)</span>
+        <span class="str">'301G01_DAT01'</span>, <span class="str">'301G01_DAT02'</span>, <span class="cmt">// ... hasta DAT12</span>
+        <span class="str">'301G03_DAT01'</span>, <span class="cmt">// ... grupos 03, 37, 38 × 12 meses</span>
+    ];
+
+    <span class="kw">public function</span> <span class="fn">__construct</span>(<span class="type">string</span> <span class="var">$mdbPath</span>)
+    {
+        <span class="var">$this</span>-&gt;<span class="var">mdbPath</span> = <span class="var">$mdbPath</span>;
+    }</code></pre>
+    </div>
+
+    <div class="callout info">
+        <div class="callout-title">SysWow64 — no System32</div>
+        En Windows 64-bit, <code>SysWow64</code> contiene los binarios de 32-bit. Necesitamos
+        la versión de 32-bit de <code>cscript.exe</code> porque DAO.DBEngine.36 es un COM de 32-bit
+        que no puede cargarse en un proceso de 64-bit.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 4 ═══════════ -->
+<section class="section" id="s4">
+    <h2>4 — El método tabla() — punto de entrada</h2>
+
+    <div class="code-block">
+        <div class="code-header">tabla() — API pública</div>
+        <pre><code><span class="kw">public function</span> <span class="fn">tabla</span>(<span class="type">string</span> <span class="var">$tabla</span>, <span class="type">string</span> <span class="var">$filtroWhere</span> = <span class="str">''</span>): <span class="type">array</span>
+{
+    <span class="cmt">// 1. Validar contra whitelist — previene inyección SQL</span>
+    <span class="kw">if</span> (! <span class="var">$this</span>-&gt;<span class="fn">tablaPermitida</span>(<span class="var">$tabla</span>)) {
+        <span class="kw">throw new</span> \<span class="cls">InvalidArgumentException</span>(
+            <span class="str">"Tabla '<span class="var">{$tabla}</span>' no está en la lista de tablas permitidas."</span>
+        );
+    }
+
+    <span class="cmt">// 2. Elegir estrategia por sistema operativo</span>
+    <span class="kw">if</span> (<span class="var">PHP_OS_FAMILY</span> === <span class="str">'Windows'</span>) {
+        <span class="kw">return</span> <span class="var">$this</span>-&gt;<span class="fn">leerConVbscript</span>(<span class="var">$tabla</span>, <span class="var">$filtroWhere</span>);
+    }
+
+    <span class="kw">return</span> <span class="var">$this</span>-&gt;<span class="fn">leerConMdbtools</span>(<span class="var">$tabla</span>, <span class="var">$filtroWhere</span>);
+}</code></pre>
+    </div>
+
+    <p>Uso típico:</p>
+    <div class="code-block">
+        <div class="code-header">Ejemplo de uso</div>
+        <pre><code><span class="var">$reader</span> = <span class="kw">new</span> <span class="cls">VesMdbReader</span>(<span class="str">'C:\ruta\transfer.mdb'</span>);
+
+<span class="cmt">// Leer tabla completa</span>
+<span class="var">$rows</span> = <span class="var">$reader</span>-&gt;<span class="fn">tabla</span>(<span class="str">'301G01_DAT05'</span>);
+
+<span class="cmt">// Leer con filtro WHERE</span>
+<span class="var">$rows</span> = <span class="var">$reader</span>-&gt;<span class="fn">tabla</span>(<span class="str">'301G01_DAT05'</span>, <span class="str">"corr_estabgest='26300183'"</span>);</code></pre>
+    </div>
+</section>
+
+<!-- ═══════════ Sección 5 ═══════════ -->
+<section class="section" id="s5">
+    <h2>5 — Whitelist de tablas — seguridad</h2>
+    <p>Como el nombre de tabla se inyecta en una query SQL (dentro del VBScript), es crítico
+        validarlo. Se usa una doble validación:</p>
+
+    <div class="code-block">
+        <div class="code-header">tablaPermitida() — doble validación</div>
+        <pre><code><span class="kw">private function</span> <span class="fn">tablaPermitida</span>(<span class="type">string</span> <span class="var">$tabla</span>): <span class="type">bool</span>
+{
+    <span class="cmt">// 1. Búsqueda exacta en la whitelist</span>
+    <span class="kw">if</span> (<span class="fn">in_array</span>(<span class="var">$tabla</span>, <span class="kw">self</span>::<span class="var">TABLAS_PERMITIDAS</span>, <span class="kw">true</span>)) {
+        <span class="kw">return true</span>;
+    }
+
+    <span class="cmt">// 2. Patrón genérico para tablas DAT de cualquier grupo/mes</span>
+    <span class="kw">return</span> (<span class="type">bool</span>) <span class="fn">preg_match</span>(<span class="str">'/^30[1-9]G\d{2}_DAT\d{2}$/'</span>, <span class="var">$tabla</span>);
+}</code></pre>
+    </div>
+
+    <div class="callout danger">
+        <div class="callout-title">Seguridad — inyección SQL</div>
+        Sin esta whitelist, un atacante podría pasar un nombre como
+        <code>tabla]; DROP TABLE ...</code> que se ejecutaría dentro del VBScript.
+        La whitelist estricta + el regex solo permiten nombres alfanuméricos con guiones bajos.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 6 ═══════════ -->
+<section class="section" id="s6">
+    <h2>6 — Windows: VBScript + DAO 3.6</h2>
+
+    <div class="code-block">
+        <div class="code-header">leerConVbscript() — ejecución del script</div>
+        <pre><code><span class="kw">private function</span> <span class="fn">leerConVbscript</span>(<span class="type">string</span> <span class="var">$tabla</span>, <span class="type">string</span> <span class="var">$filtroWhere</span>): <span class="type">array</span>
+{
+    <span class="kw">if</span> (! <span class="fn">file_exists</span>(<span class="kw">self</span>::<span class="var">CSCRIPT32</span>)) {
+        <span class="kw">throw new</span> \<span class="cls">RuntimeException</span>(<span class="str">'No se encontró '</span>
+            . <span class="kw">self</span>::<span class="var">CSCRIPT32</span>);
+    }
+
+    <span class="var">$vbsPath</span> = <span class="fn">base_path</span>(<span class="kw">self</span>::<span class="var">VBS_SCRIPT</span>);
+    <span class="kw">if</span> (! <span class="fn">file_exists</span>(<span class="var">$vbsPath</span>)) {
+        <span class="kw">throw new</span> \<span class="cls">RuntimeException</span>(
+            <span class="str">'No se encontró el script VBScript: '</span> . <span class="var">$vbsPath</span>
+        );
+    }
+
+    <span class="var">$args</span> = [
+        <span class="fn">escapeshellarg</span>(<span class="kw">self</span>::<span class="var">CSCRIPT32</span>),
+        <span class="str">'//nologo'</span>,
+        <span class="fn">escapeshellarg</span>(<span class="var">$vbsPath</span>),
+        <span class="fn">escapeshellarg</span>(<span class="var">$this</span>-&gt;<span class="var">mdbPath</span>),
+        <span class="fn">escapeshellarg</span>(<span class="var">$tabla</span>),
+    ];
+
+    <span class="kw">if</span> (<span class="var">$filtroWhere</span> !== <span class="str">''</span>) {
+        <span class="var">$args</span>[] = <span class="fn">escapeshellarg</span>(<span class="var">$filtroWhere</span>);
+    }
+
+    <span class="var">$cmd</span>    = <span class="fn">implode</span>(<span class="str">' '</span>, <span class="var">$args</span>);
+    <span class="var">$output</span> = <span class="fn">shell_exec</span>(<span class="var">$cmd</span>);
+
+    <span class="kw">if</span> (<span class="var">$output</span> === <span class="kw">null</span> || <span class="var">$output</span> === <span class="str">''</span>) {
+        <span class="kw">return</span> [];
+    }
+
+    <span class="var">$data</span> = <span class="fn">json_decode</span>(<span class="fn">trim</span>(<span class="var">$output</span>), <span class="kw">true</span>);
+
+    <span class="kw">if</span> (<span class="fn">json_last_error</span>() !== <span class="var">JSON_ERROR_NONE</span>) {
+        <span class="kw">throw new</span> \<span class="cls">RuntimeException</span>(
+            <span class="str">'JSON inválido del VBScript: '</span> . <span class="fn">json_last_error_msg</span>()
+        );
+    }
+
+    <span class="kw">return</span> <span class="var">$data</span> ?? [];
+}</code></pre>
+    </div>
+
+    <p>Todos los argumentos se protegen con <code>escapeshellarg()</code> para prevenir
+        inyección de comandos del sistema operativo.</p>
+</section>
+
+<!-- ═══════════ Sección 7 ═══════════ -->
+<section class="section" id="s7">
+    <h2>7 — El script leer_ves.vbs</h2>
+    <p>Este VBScript actúa como puente entre PHP y el motor DAO de 32-bit:</p>
+
+    <div class="code-block">
+        <div class="code-header">resources/scripts/leer_ves.vbs</div>
+        <pre><code><span class="cmt">' Uso: cscript //nologo leer_ves.vbs "ruta.mdb" "NombreTabla" ["filtro"]</span>
+<span class="cmt">' Salida: JSON array en stdout / errores en stderr</span>
+
+<span class="kw">Dim</span> mdbPath, tableName, extraFilter
+mdbPath     = args(<span class="num">0</span>)
+tableName   = args(<span class="num">1</span>)
+extraFilter = <span class="str">""</span>
+<span class="kw">If</span> args.Count &gt; <span class="num">2</span> <span class="kw">Then</span> extraFilter = args(<span class="num">2</span>)
+
+<span class="cmt">' Abrir base de datos con DAO 3.6 (Jet 3.x / Access 97)</span>
+<span class="kw">Dim</span> dbe, db
+<span class="kw">Set</span> dbe = CreateObject(<span class="str">"DAO.DBEngine.36"</span>)
+<span class="kw">Set</span> db  = dbe.OpenDatabase(mdbPath, <span class="kw">False</span>, <span class="kw">True</span>)  <span class="cmt">' read-only</span>
+
+<span class="cmt">' Construir SQL y abrir recordset</span>
+<span class="kw">Dim</span> sql
+sql = <span class="str">"SELECT * FROM ["</span> &amp; tableName &amp; <span class="str">"]"</span>
+<span class="kw">If</span> extraFilter &lt;&gt; <span class="str">""</span> <span class="kw">Then</span> sql = sql &amp; <span class="str">" WHERE "</span> &amp; extraFilter
+
+<span class="kw">Dim</span> rs
+<span class="kw">Set</span> rs = db.OpenRecordset(sql, <span class="num">4</span>)  <span class="cmt">' dbOpenSnapshot</span>
+
+<span class="cmt">' Serializar campo a campo a JSON</span>
+<span class="kw">Dim</span> out
+out = <span class="str">"["</span>
+<span class="kw">Do While Not</span> rs.EOF
+    <span class="cmt">' Construir {"campo":"valor",...} por cada registro</span>
+    <span class="kw">For Each</span> f <span class="kw">In</span> rs.Fields
+        <span class="cmt">' Null → "null", String → escapar, Bool → true/false</span>
+        <span class="cmt">' Date → string, Number → literal</span>
+    <span class="kw">Next</span>
+    rs.MoveNext
+<span class="kw">Loop</span>
+out = out &amp; <span class="str">"]"</span>
+
+rs.Close
+db.Close
+WScript.Echo out</code></pre>
+    </div>
+
+    <p>El script produce un JSON array válido en stdout. El tipo VBScript de cada campo se mapea:</p>
+    <table class="file-table">
+        <tr><th>VarType</th><th>Tipo VB</th><th>JSON output</th></tr>
+        <tr><td>Null</td><td>—</td><td><code>null</code></td></tr>
+        <tr><td>8</td><td>vbString</td><td><code>"valor escapado"</code></td></tr>
+        <tr><td>11</td><td>vbBoolean</td><td><code>true</code> / <code>false</code></td></tr>
+        <tr><td>7</td><td>vbDate</td><td><code>"fecha como string"</code></td></tr>
+        <tr><td>Otro</td><td>Numérico</td><td><code>123</code> (sin comillas)</td></tr>
+    </table>
+
+    <div class="callout info">
+        <div class="callout-title">dbOpenSnapshot (tipo 4)</div>
+        Se usa snapshot en lugar de dynaset porque es solo lectura y más rápido. No necesitamos
+        modificar los registros del .mdb.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 8 ═══════════ -->
+<section class="section" id="s8">
+    <h2>8 — Linux: mdbtools</h2>
+    <p>En Linux (servidores de producción), se usa <code>mdb-json</code> del paquete
+        <code>mdbtools</code>:</p>
+
+    <div class="code-block">
+        <div class="code-header">leerConMdbtools() — alternativa Linux</div>
+        <pre><code><span class="kw">private function</span> <span class="fn">leerConMdbtools</span>(
+    <span class="type">string</span> <span class="var">$tabla</span>, <span class="type">string</span> <span class="var">$filtroWhere</span>
+): <span class="type">array</span> {
+    <span class="var">$cmd</span>    = <span class="str">'mdb-json '</span> . <span class="fn">escapeshellarg</span>(<span class="var">$this</span>-&gt;<span class="var">mdbPath</span>)
+            . <span class="str">' '</span> . <span class="fn">escapeshellarg</span>(<span class="var">$tabla</span>);
+    <span class="var">$output</span> = <span class="fn">shell_exec</span>(<span class="var">$cmd</span>);
+
+    <span class="kw">if</span> (<span class="var">$output</span> === <span class="kw">null</span> || <span class="var">$output</span> === <span class="str">''</span>) {
+        <span class="kw">return</span> [];
+    }
+
+    <span class="cmt">// mdb-json devuelve NDJSON (un objeto por línea)</span>
+    <span class="var">$rows</span> = [];
+    <span class="kw">foreach</span> (<span class="fn">explode</span>(<span class="str">"\n"</span>, <span class="fn">trim</span>(<span class="var">$output</span>)) <span class="kw">as</span> <span class="var">$line</span>) {
+        <span class="var">$line</span> = <span class="fn">trim</span>(<span class="var">$line</span>);
+        <span class="kw">if</span> (<span class="var">$line</span> === <span class="str">''</span>) <span class="kw">continue</span>;
+        <span class="var">$row</span> = <span class="fn">json_decode</span>(<span class="var">$line</span>, <span class="kw">true</span>);
+        <span class="kw">if</span> (<span class="fn">is_array</span>(<span class="var">$row</span>)) {
+            <span class="var">$rows</span>[] = <span class="var">$row</span>;
+        }
+    }
+
+    <span class="cmt">// mdbtools no soporta WHERE → filtrar en PHP</span>
+    <span class="kw">if</span> (<span class="var">$filtroWhere</span> !== <span class="str">''</span> &amp;&amp; ! <span class="fn">empty</span>(<span class="var">$rows</span>)) {
+        <span class="var">$rows</span> = <span class="var">$this</span>-&gt;<span class="fn">filtrarEnPhp</span>(<span class="var">$rows</span>, <span class="var">$filtroWhere</span>);
+    }
+
+    <span class="kw">return</span> <span class="var">$rows</span>;
+}</code></pre>
+    </div>
+
+    <div class="callout warning">
+        <div class="callout-title">NDJSON ≠ JSON array</div>
+        <code>mdb-json</code> emite un objeto JSON por línea (Newline Delimited JSON), no un array.
+        Por eso se parsea línea por línea con <code>explode("\n")</code> en lugar de un solo
+        <code>json_decode()</code>.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 9 ═══════════ -->
+<section class="section" id="s9">
+    <h2>9 — Filtrado en PHP para mdbtools</h2>
+    <p>Como <code>mdb-json</code> no soporta cláusula WHERE, el filtro se aplica en PHP:</p>
+
+    <div class="code-block">
+        <div class="code-header">filtrarEnPhp() — WHERE simulado</div>
+        <pre><code><span class="kw">private function</span> <span class="fn">filtrarEnPhp</span>(<span class="type">array</span> <span class="var">$rows</span>, <span class="type">string</span> <span class="var">$filtroWhere</span>): <span class="type">array</span>
+{
+    <span class="cmt">// Parsear: campo='valor' o campo=123</span>
+    <span class="fn">preg_match_all</span>(
+        <span class="str">"/(\w+)\s*=\s*(?:'([^']*)'|(\d+))/"</span>,
+        <span class="var">$filtroWhere</span>,
+        <span class="var">$matches</span>,
+        <span class="var">PREG_SET_ORDER</span>
+    );
+
+    <span class="kw">if</span> (<span class="fn">empty</span>(<span class="var">$matches</span>)) {
+        <span class="kw">return</span> <span class="var">$rows</span>;
+    }
+
+    <span class="cmt">// Construir array de condiciones</span>
+    <span class="var">$condiciones</span> = [];
+    <span class="kw">foreach</span> (<span class="var">$matches</span> <span class="kw">as</span> <span class="var">$m</span>) {
+        <span class="var">$condiciones</span>[<span class="var">$m</span>[<span class="num">1</span>]] = <span class="var">$m</span>[<span class="num">2</span>] !== <span class="str">''</span>
+            ? <span class="var">$m</span>[<span class="num">2</span>]           <span class="cmt">// string</span>
+            : (<span class="type">int</span>) <span class="var">$m</span>[<span class="num">3</span>];    <span class="cmt">// número</span>
+    }
+
+    <span class="cmt">// Filtrar: todas las condiciones deben cumplirse (AND)</span>
+    <span class="kw">return</span> <span class="fn">array_filter</span>(<span class="var">$rows</span>, <span class="kw">function</span> (<span class="var">$row</span>) <span class="kw">use</span> (<span class="var">$condiciones</span>) {
+        <span class="kw">foreach</span> (<span class="var">$condiciones</span> <span class="kw">as</span> <span class="var">$campo</span> =&gt; <span class="var">$valor</span>) {
+            <span class="kw">if</span> (! <span class="fn">isset</span>(<span class="var">$row</span>[<span class="var">$campo</span>])) <span class="kw">return false</span>;
+            <span class="kw">if</span> (<span class="fn">trim</span>((<span class="type">string</span>) <span class="var">$row</span>[<span class="var">$campo</span>]) !== (<span class="type">string</span>) <span class="var">$valor</span>)
+                <span class="kw">return false</span>;
+        }
+        <span class="kw">return true</span>;
+    });
+}</code></pre>
+    </div>
+
+    <p>Solo soporta igualdades simples con AND — suficiente para filtrar por código de
+        establecimiento (<code>corr_estabgest='26300183'</code>), que es el uso principal.</p>
+</section>
+
+<!-- ═══════════ Cierre Fase 9 ═══════════ -->
+<section class="section lesson-summary" id="s10">
+    <h2>10 — Cierre de Fase 9: Helpers y Servicios</h2>
+
+    <div class="callout tip">
+        <div class="callout-title">Fase 9 completa — 3 lecciones</div>
+        Con esta lección cerramos la <strong>Fase 9: Helpers y Servicios</strong>.
+        Hemos construido la capa de lógica de negocio que alimenta todo el sistema de reportes.
+    </div>
+
+    <table class="file-table">
+        <tr><th>Lección</th><th>Archivo</th><th>Responsabilidad</th><th>Líneas</th></tr>
+        <tr>
+            <td>42</td>
+            <td><code>CaiHelper</code></td>
+            <td>9 secciones del informe CAI (cobertura, prestaciones, censo, etc.)</td>
+            <td>558</td>
+        </tr>
+        <tr>
+            <td>43</td>
+            <td><code>CausasConsultaHelper</code></td>
+            <td>Top-10 causas de consulta externa con desglose M/F × 10 grupos</td>
+            <td>107</td>
+        </tr>
+        <tr>
+            <td>43</td>
+            <td><code>OmsHelper</code></td>
+            <td>Clasificación nutricional OMS con interpolación lineal</td>
+            <td>136</td>
+        </tr>
+        <tr>
+            <td>44</td>
+            <td><code>VesMdbReader</code></td>
+            <td>Lectura cross-platform de archivos .mdb (Access 97/Jet 3.x)</td>
+            <td>200</td>
+        </tr>
+        <tr>
+            <td>44</td>
+            <td><code>leer_ves.vbs</code></td>
+            <td>VBScript bridge a DAO.DBEngine.36 con serialización JSON</td>
+            <td>110</td>
+        </tr>
+    </table>
+
+    <h3>Patrones comunes</h3>
+    <table class="file-table">
+        <tr><th>Patrón</th><th>Uso</th></tr>
+        <tr><td>Clase estática pura</td><td>CaiHelper, CausasConsultaHelper, OmsHelper</td></tr>
+        <tr><td>Servicio instanciable</td><td>VesMdbReader (necesita estado: $mdbPath)</td></tr>
+        <tr><td>Whitelist + regex</td><td>Prevención de inyección SQL en nombres de tabla</td></tr>
+        <tr><td>Cross-platform strategy</td><td>PHP_OS_FAMILY → VBScript vs mdbtools</td></tr>
+        <tr><td>Interpolación lineal</td><td>OMS z-score entre puntos discretos</td></tr>
+        <tr><td>clone $base</td><td>Reutilización de query builders sin mutación</td></tr>
+    </table>
+
+    <p>En la <strong>Fase 10</strong> comenzaremos con los componentes Livewire públicos:
+        layouts, blog, pirámide poblacional, informe CAI interactivo y más.</p>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+    <a href="43-causas-consulta-helper.html">← 43. CausasConsultaHelper + OmsHelper</a>
+    <a href="45-layouts-componentes.html">45. Layouts y componentes Blade →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+    <p>Tutorial SICSAL — Lección 44 de 58</p>
+</footer>
+
+</body>
+</html>

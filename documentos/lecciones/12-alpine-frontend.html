@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 12 — Alpine.js, Chart.js y Frontend | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand"><span class="dot"></span> SICSAL — Lección 12</div>
+  <nav>
+    <a href="11-livewire.html">← Anterior</a>
+    <a href="00-indice.html">Índice</a>
+    <a href="13-exportar-excel-pdf.html">Siguiente →</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 12 de 16</span>
+    <h1>Alpine.js, Chart.js y Frontend</h1>
+    <p>Tailwind para estilos, Alpine para interactividad, Chart.js para gráficas — y Vite para empaquetarlo todo.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos</h2>
+    <table class="db-table">
+      <thead><tr><th>Archivo</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>vite.config.js</code></td><td>Configuración de Vite (bundler)</td></tr>
+        <tr><td><code>resources/css/app.css</code></td><td>Tailwind CSS + tema personalizado</td></tr>
+        <tr><td><code>resources/js/app.js</code></td><td>Registro global de Chart.js</td></tr>
+        <tr><td><code>resources/views/layouts/public.blade.php</code></td><td>Layout HTML principal</td></tr>
+        <tr><td><code>resources/views/livewire/poblacion.blade.php</code></td><td>Alpine + Chart.js para pirámides</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. La cadena de assets: Vite</a></li>
+      <li><a href="#s2">2. Tailwind CSS: utilidades, no clases</a></li>
+      <li><a href="#s3">3. Alpine.js: interactividad sin frameworks</a></li>
+      <li><a href="#s4">4. Chart.js: gráficas en el navegador</a></li>
+      <li><a href="#s5">5. El layout público</a></li>
+      <li><a href="#s6">6. Directivas Blade + Livewire en la vista</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> La cadena de assets: Vite</h2>
+
+    <p><strong>Vite</strong> es un empaquetador de módulos ultra-rápido. Toma tus archivos CSS y JS, los procesa (Tailwind, PostCSS) y genera archivos optimizados para producción.</p>
+
+    <div class="code-block">
+      <div class="code-header">vite.config.js</div>
+      <pre class="code-body language-js"><span class="kw">import</span> { <span class="fn">defineConfig</span> } <span class="kw">from</span> <span class="str">'vite'</span>;
+<span class="kw">import</span> <span class="var">laravel</span> <span class="kw">from</span> <span class="str">'laravel-vite-plugin'</span>;
+<span class="kw">import</span> <span class="var">tailwindcss</span> <span class="kw">from</span> <span class="str">'@tailwindcss/vite'</span>;
+
+<span class="kw">export default</span> <span class="fn">defineConfig</span>({
+    <span class="var">plugins</span>: [
+        <span class="fn">laravel</span>({
+            <span class="var">input</span>: [
+                <span class="str">'resources/css/app.css'</span>,      <span class="cmt">// Tailwind</span>
+                <span class="str">'resources/js/app.js'</span>,        <span class="cmt">// Chart.js</span>
+                <span class="str">'resources/css/filament/admin/theme.css'</span>,  <span class="cmt">// Tema Filament</span>
+            ],
+            <span class="var">refresh</span>: <span class="kw2">true</span>,  <span class="cmt">// Refresca al editar Blade</span>
+        }),
+        <span class="fn">tailwindcss</span>(),
+    ],
+});</pre>
+    </div>
+
+    <div class="flow-diagram">
+      <div class="flow-step">
+        <div class="flow-icon">📝</div>
+        <div class="flow-label">resources/css/app.css + resources/js/app.js</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">⚡</div>
+        <div class="flow-label">Vite procesa: Tailwind → CSS puro, JS → bundle</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">📦</div>
+        <div class="flow-label">public/build/ → archivos minificados con hash</div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Terminal — Comandos Vite</div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">npm run dev</span>     <span class="cmt"># Servidor de desarrollo (recarga en vivo)</span>
+<span class="prompt">$</span> <span class="cmd">npm run build</span>   <span class="cmt"># Compila para producción (minificado + hash)</span></pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> Tailwind CSS: utilidades, no clases</h2>
+
+    <p>En vez de escribir CSS como <code>.boton-azul { background: blue; }</code>, Tailwind usa clases atómicas directamente en el HTML:</p>
+
+    <div class="code-block">
+      <div class="code-header">Tailwind en acción — una tarjeta de SICSAL</div>
+      <pre class="code-body language-html"><span class="cmt">&lt;!-- Cada clase hace UNA cosa --&gt;</span>
+&lt;<span class="kw">div</span> <span class="var">class</span>=<span class="str">"rounded-xl border border-gray-200 bg-white p-6 shadow-sm"</span>&gt;
+    &lt;<span class="kw">h2</span> <span class="var">class</span>=<span class="str">"text-lg font-bold text-gray-900"</span>&gt;Pirámide&lt;/<span class="kw">h2</span>&gt;
+    &lt;<span class="kw">p</span> <span class="var">class</span>=<span class="str">"mt-1 text-sm text-gray-500"</span>&gt;Análisis demográfico&lt;/<span class="kw">p</span>&gt;
+&lt;/<span class="kw">div</span>&gt;</pre>
+    </div>
+
+    <table class="db-table">
+      <thead><tr><th>Clase Tailwind</th><th>CSS equivalente</th></tr></thead>
+      <tbody>
+        <tr><td><code>rounded-xl</code></td><td><code>border-radius: 0.75rem</code></td></tr>
+        <tr><td><code>p-6</code></td><td><code>padding: 1.5rem</code></td></tr>
+        <tr><td><code>text-lg</code></td><td><code>font-size: 1.125rem</code></td></tr>
+        <tr><td><code>font-bold</code></td><td><code>font-weight: 700</code></td></tr>
+        <tr><td><code>text-gray-900</code></td><td><code>color: #111827</code></td></tr>
+        <tr><td><code>mt-1</code></td><td><code>margin-top: 0.25rem</code></td></tr>
+        <tr><td><code>bg-teal-600</code></td><td><code>background-color: #0d9488</code></td></tr>
+      </tbody>
+    </table>
+
+    <div class="code-block">
+      <div class="code-header">resources/css/app.css — Importar Tailwind</div>
+      <pre class="code-body language-css"><span class="kw">@import</span> <span class="str">'tailwindcss'</span>;   <span class="cmt">/* Tailwind v4: importación directa */</span>
+
+<span class="kw">@source</span> <span class="str">'../views'</span>;       <span class="cmt">/* Escanear vistas Blade para clases usadas */</span>
+
+<span class="kw">@theme</span> {
+    <span class="var">--font-sans</span>: <span class="str">'Instrument Sans'</span>, <span class="var">ui-sans-serif</span>, <span class="var">system-ui</span>;
+    <span class="var">--color-accent</span>: <span class="fn">var</span>(<span class="var">--color-neutral-800</span>);
+}</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Tailwind v4 (SICSAL)</div>
+      <p>SICSAL usa Tailwind CSS 4.2 que reemplaza <code>tailwind.config.js</code> por directivas CSS (<code>@theme</code>, <code>@source</code>). El archivo de configuración ya no es necesario.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> Alpine.js: interactividad sin frameworks</h2>
+
+    <p>Alpine es un micro-framework JavaScript (~15 KB). Viene incluido con Livewire — no necesitas instalarlo. Se usa para interacciones <strong>del lado del cliente</strong> que no requieren ir al servidor.</p>
+
+    <div class="code-block">
+      <div class="code-header">Menú dropdown del navbar — Alpine.js en acción</div>
+      <pre class="code-body language-html"><span class="cmt">&lt;!-- x-data: define un componente Alpine con estado --&gt;</span>
+&lt;<span class="kw">div</span> <span class="var">x-data</span>=<span class="str">"{ open: false }"</span> <span class="var">class</span>=<span class="str">"relative"</span>&gt;
+
+    <span class="cmt">&lt;!-- @click: al hacer clic, alternar open --&gt;</span>
+    &lt;<span class="kw">button</span> <span class="var">@click</span>=<span class="str">"open = !open"</span>&gt;
+        {{ auth()-&gt;user()-&gt;name }}
+    &lt;/<span class="kw">button</span>&gt;
+
+    <span class="cmt">&lt;!-- x-show: mostrar/ocultar según la variable --&gt;</span>
+    <span class="cmt">&lt;!-- @click.outside: cerrar al hacer clic fuera --&gt;</span>
+    <span class="cmt">&lt;!-- x-cloak: ocultar hasta que Alpine inicialice --&gt;</span>
+    &lt;<span class="kw">div</span> <span class="var">x-show</span>=<span class="str">"open"</span>
+         <span class="var">@click.outside</span>=<span class="str">"open = false"</span>
+         <span class="var">x-cloak</span>
+         <span class="var">class</span>=<span class="str">"absolute right-0 mt-2 w-48 rounded-xl bg-white shadow-lg"</span>&gt;
+
+        &lt;<span class="kw">a</span> <span class="var">href</span>=<span class="str">"/admin"</span>&gt;Panel de administración&lt;/<span class="kw">a</span>&gt;
+        &lt;<span class="kw">form</span> <span class="var">method</span>=<span class="str">"POST"</span> <span class="var">action</span>=<span class="str">"{{ route('logout') }}"</span>&gt;
+            @csrf
+            &lt;<span class="kw">button</span>&gt;Cerrar sesión&lt;/<span class="kw">button</span>&gt;
+        &lt;/<span class="kw">form</span>&gt;
+    &lt;/<span class="kw">div</span>&gt;
+&lt;/<span class="kw">div</span>&gt;</pre>
+    </div>
+
+    <table class="db-table">
+      <thead><tr><th>Directiva Alpine</th><th>Qué hace</th></tr></thead>
+      <tbody>
+        <tr><td><code>x-data="{ open: false }"</code></td><td>Crea un componente con estado reactivo</td></tr>
+        <tr><td><code>x-show="open"</code></td><td>Muestra/oculta el elemento con transición</td></tr>
+        <tr><td><code>@click="open = !open"</code></td><td>Ejecuta JavaScript al hacer clic</td></tr>
+        <tr><td><code>@click.outside</code></td><td>Se dispara al hacer clic fuera del elemento</td></tr>
+        <tr><td><code>x-cloak</code></td><td>Oculta el elemento hasta que Alpine inicialice</td></tr>
+        <tr><td><code>x-init</code></td><td>Ejecuta código al inicializar el componente</td></tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Alpine vs Livewire</div>
+      <p><strong>Livewire</strong> va al servidor en cada interacción (clic → AJAX → PHP → HTML). <strong>Alpine</strong> ejecuta todo en el navegador (instantáneo). Úsalos juntos: Livewire para datos complejos, Alpine para menús, modales y animaciones.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> Chart.js: gráficas en el navegador</h2>
+
+    <div class="code-block">
+      <div class="code-header">resources/js/app.js — Registro global</div>
+      <pre class="code-body language-js"><span class="kw">import</span> { <span class="cls">Chart</span>, <span class="var">registerables</span> } <span class="kw">from</span> <span class="str">'chart.js'</span>;
+<span class="cls">Chart</span>.<span class="fn">register</span>(...<span class="var">registerables</span>);
+<span class="var">window</span>.<span class="cls">Chart</span> = <span class="cls">Chart</span>;  <span class="cmt">// Disponible globalmente</span></pre>
+    </div>
+
+    <p>La pirámide poblacional combina Alpine + Chart.js + datos de Livewire:</p>
+
+    <div class="code-block">
+      <div class="code-header">poblacion.blade.php — Pirámide con Chart.js</div>
+      <pre class="code-body language-html"><span class="cmt">&lt;!-- 1. PHP genera los datos como JSON --&gt;</span>
+&lt;<span class="kw">div</span> <span class="var">data-pir</span>=<span class="str">'@json($pir)'</span>
+     <span class="var">x-data</span>
+     <span class="var">x-init</span>=<span class="str">"$nextTick(() => {
+         const d = JSON.parse($el.dataset.pir);
+         window._crearPiramide('_ine', 'piramideIne', d.labels, d.ineM, d.ineF);
+         window._crearPiramide('_real','piramideReal',d.labels, d.realM, d.realF);
+     })"</span>&gt;
+
+    &lt;<span class="kw">canvas</span> <span class="var">id</span>=<span class="str">"piramideIne"</span> <span class="var">height</span>=<span class="str">"300"</span>&gt;&lt;/<span class="kw">canvas</span>&gt;
+    &lt;<span class="kw">canvas</span> <span class="var">id</span>=<span class="str">"piramideReal"</span> <span class="var">height</span>=<span class="str">"300"</span>&gt;&lt;/<span class="kw">canvas</span>&gt;
+&lt;/<span class="kw">div</span>&gt;
+
+<span class="cmt">&lt;!-- 2. @script = ejecutar JavaScript con contexto Livewire --&gt;</span>
+@script
+&lt;<span class="kw">script</span>&gt;
+<span class="var">window</span>.<span class="fn">_crearPiramide</span> = <span class="kw">function</span>(<span class="var">key</span>, <span class="var">canvasId</span>, <span class="var">labels</span>, <span class="var">dataM</span>, <span class="var">dataF</span>) {
+    <span class="cmt">// Destruir gráfico anterior si existe</span>
+    <span class="kw">if</span> (<span class="var">window</span>[<span class="var">key</span>]) { <span class="var">window</span>[<span class="var">key</span>].<span class="fn">destroy</span>(); }
+
+    <span class="var">window</span>[<span class="var">key</span>] = <span class="kw">new</span> <span class="cls">Chart</span>(<span class="fn">document</span>.<span class="fn">getElementById</span>(<span class="var">canvasId</span>), {
+        <span class="var">type</span>: <span class="str">'bar'</span>,
+        <span class="var">data</span>: {
+            <span class="var">labels</span>,
+            <span class="var">datasets</span>: [
+                {
+                    <span class="var">label</span>: <span class="str">'Masculino'</span>,
+                    <span class="var">data</span>: <span class="var">dataM</span>.<span class="fn">map</span>(<span class="var">v</span> => -<span class="var">v</span>),  <span class="cmt">// ← Negativos = izquierda</span>
+                    <span class="var">backgroundColor</span>: <span class="str">'rgba(59,130,246,0.7)'</span>,
+                },
+                {
+                    <span class="var">label</span>: <span class="str">'Femenino'</span>,
+                    <span class="var">data</span>: <span class="var">dataF</span>,                <span class="cmt">// ← Positivos = derecha</span>
+                    <span class="var">backgroundColor</span>: <span class="str">'rgba(236,72,153,0.7)'</span>,
+                },
+            ],
+        },
+        <span class="var">options</span>: {
+            <span class="var">indexAxis</span>: <span class="str">'y'</span>,        <span class="cmt">// Barras horizontales</span>
+            <span class="var">responsive</span>: <span class="kw2">true</span>,
+            <span class="var">scales</span>: {
+                <span class="var">x</span>: { <span class="var">stacked</span>: <span class="kw2">true</span>, <span class="var">ticks</span>: { <span class="fn">callback</span>: <span class="var">v</span> => <span class="cls">Math</span>.<span class="fn">abs</span>(<span class="var">v</span>) } },
+                <span class="var">y</span>: { <span class="var">stacked</span>: <span class="kw2">true</span>, <span class="var">reverse</span>: <span class="kw2">true</span> }
+            },
+        },
+    });
+};
+&lt;/<span class="kw">script</span>&gt;
+@endscript</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">El truco de la pirámide</div>
+      <p>Los hombres se grafican con valores <strong>negativos</strong> (<code>dataM.map(v => -v)</code>) para que las barras vayan a la izquierda. El callback <code>Math.abs(v)</code> en las etiquetas del eje X muestra el número real sin el signo negativo.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> El layout público</h2>
+
+    <div class="code-block">
+      <div class="code-header">resources/views/layouts/public.blade.php — Estructura</div>
+      <pre class="code-body language-html">&lt;!DOCTYPE html&gt;
+&lt;<span class="kw">html</span> <span class="var">lang</span>=<span class="str">"es"</span>&gt;
+&lt;<span class="kw">head</span>&gt;
+    &lt;<span class="kw">title</span>&gt;{{ $title ?? <span class="str">'SIMUES'</span> }}&lt;/<span class="kw">title</span>&gt;
+
+    <span class="cmt">&lt;!-- CDN para mapas y gráficas --&gt;</span>
+    &lt;<span class="kw">link</span> <span class="var">rel</span>=<span class="str">"stylesheet"</span> <span class="var">href</span>=<span class="str">"https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"</span>&gt;
+    &lt;<span class="kw">script</span> <span class="var">src</span>=<span class="str">"https://cdn.jsdelivr.net/npm/chart.js"</span>&gt;&lt;/<span class="kw">script</span>&gt;
+
+    <span class="cmt">&lt;!-- Vite inyecta CSS y JS compilados --&gt;</span>
+    <span class="kw">@vite</span>([<span class="str">'resources/css/app.css'</span>])
+&lt;/<span class="kw">head</span>&gt;
+&lt;<span class="kw">body</span>&gt;
+    &lt;<span class="kw">nav</span>&gt;...Navbar con Alpine.js dropdown...&lt;/<span class="kw">nav</span>&gt;
+
+    <span class="cmt">&lt;!-- $slot contiene el componente Livewire --&gt;</span>
+    &lt;<span class="kw">main</span>&gt;{{ $slot }}&lt;/<span class="kw">main</span>&gt;
+
+    &lt;<span class="kw">footer</span>&gt;...SIMUES · Red de Salud VII...&lt;/<span class="kw">footer</span>&gt;
+
+    <span class="cmt">&lt;!-- @stack: permite que vistas hijas inyecten scripts --&gt;</span>
+    <span class="kw">@stack</span>(<span class="str">'scripts'</span>)
+&lt;/<span class="kw">body</span>&gt;
+&lt;/<span class="kw">html</span>&gt;</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> Directivas Blade + Livewire en la vista</h2>
+
+    <table class="db-table">
+      <thead><tr><th>Directiva</th><th>Origen</th><th>Qué hace</th></tr></thead>
+      <tbody>
+        <tr><td><code>{{ $variable }}</code></td><td>Blade</td><td>Imprime con escape HTML (seguro contra XSS)</td></tr>
+        <tr><td><code>{!! $html !!}</code></td><td>Blade</td><td>Imprime HTML sin escape (cuidado: solo contenido confiable)</td></tr>
+        <tr><td><code>@if / @foreach</code></td><td>Blade</td><td>Control de flujo en servidor</td></tr>
+        <tr><td><code>@vite(['...'])</code></td><td>Vite</td><td>Inyecta links CSS/JS compilados</td></tr>
+        <tr><td><code>@stack('scripts')</code></td><td>Blade</td><td>Punto donde las vistas hijas agregan scripts</td></tr>
+        <tr><td><code>wire:click="metodo"</code></td><td>Livewire</td><td>Llama método PHP al hacer clic (AJAX)</td></tr>
+        <tr><td><code>wire:model="prop"</code></td><td>Livewire</td><td>Two-way binding con propiedad PHP</td></tr>
+        <tr><td><code>wire:submit="metodo"</code></td><td>Livewire</td><td>Envía formulario a PHP</td></tr>
+        <tr><td><code>$set('tab','piramide')</code></td><td>Livewire</td><td>Cambiar propiedad directamente desde Blade</td></tr>
+        <tr><td><code>@script / @endscript</code></td><td>Livewire</td><td>Bloque JS que persiste entre actualizaciones</td></tr>
+        <tr><td><code>@json($data)</code></td><td>Blade</td><td>Serializa PHP a JSON para JavaScript</td></tr>
+        <tr><td><code>x-data / x-show</code></td><td>Alpine</td><td>Estado y visibilidad en el cliente</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 12</h3>
+    <ul>
+      <li><strong>Vite</strong> empaqueta CSS (Tailwind) y JS (Chart.js) con <code>npm run dev</code> / <code>npm run build</code>.</li>
+      <li><strong>Tailwind v4</strong> usa <code>@import 'tailwindcss'</code> y <code>@theme</code> en CSS puro, sin archivo de configuración.</li>
+      <li><strong>Alpine.js</strong> agrega interactividad del cliente (dropdowns, modales) sin ir al servidor.</li>
+      <li><strong>Chart.js</strong> genera gráficas; la pirámide usa barras horizontales apiladas con valores negativos para hombres.</li>
+      <li><code>@json()</code> convierte datos PHP a JavaScript, <code>x-init</code> + <code>$nextTick</code> espera que el DOM esté listo.</li>
+      <li><code>wire:click</code> va al servidor (Livewire), <code>@click</code> ejecuta en el navegador (Alpine).</li>
+    </ul>
+  </div>
+
+  <div class="lesson-nav">
+    <a href="11-livewire.html">← Lección 11: Componentes Livewire</a>
+    <a href="13-exportar-excel-pdf.html">Lección 13: Exportar Excel y PDF →</a>
+  </div>
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 12: Frontend</span>
+    <span>Vite · Tailwind · Alpine.js · Chart.js · @vite · @script</span>
+  </div>
+</div>
+</body>
+</html>

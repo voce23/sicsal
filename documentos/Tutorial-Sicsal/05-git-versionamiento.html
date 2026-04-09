@@ -1,0 +1,440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 05 — Git: Control de Versiones | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 1 — Fundamentos</div>
+    <div class="lesson-number">Lección 05 de 58</div>
+    <h1 class="lesson-title">Git: Control de Versiones</h1>
+    <p class="lesson-subtitle">Inicializar el repositorio, entender .gitignore, hacer el primer commit y establecer buenas prácticas.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 1 archivo</span>
+      <span class="lesson-meta-item">⏱️ ~15 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Principiante</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="04-vite-tailwind.html" class="lesson-nav-btn">← Lección 04</a>
+    <a href="06-migraciones-municipios.html" class="lesson-nav-btn">Lección 06 →</a>
+  </div>
+
+  <!-- ═══ Tabla de Contenidos ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#que-es-git">¿Qué es Git?</a></li>
+      <li><a href="#inicializar-repo">Inicializar el repositorio</a></li>
+      <li><a href="#gitignore">El archivo .gitignore</a></li>
+      <li><a href="#primer-commit">Primer commit</a></li>
+      <li><a href="#comandos-basicos">Comandos básicos de Git</a></li>
+      <li><a href="#buenas-practicas">Buenas prácticas para commits</a></li>
+      <li><a href="#git-vscode">Git con VS Code</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: QUÉ ES GIT
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="que-es-git">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es Git?</h2>
+
+    <p><strong>Git</strong> es un sistema de control de versiones. Registra cada cambio que haces en tus archivos, como un historial de "guardar partida" en un videojuego.</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Sin Git</th>
+          <th>Con Git</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Rompes algo y no puedes volver atrás</td>
+          <td>Vuelves a cualquier punto anterior con <code>git checkout</code></td>
+        </tr>
+        <tr>
+          <td>"sicsal-v1", "sicsal-v2-final", "sicsal-v2-final-final"</td>
+          <td>Un solo proyecto con historial completo de cambios</td>
+        </tr>
+        <tr>
+          <td>No sabes qué cambió ni cuándo</td>
+          <td><code>git log</code> muestra quién cambió qué y por qué</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Git vs GitHub</div>
+        <strong>Git</strong> = herramienta local que registra cambios. <strong>GitHub</strong> = plataforma web para alojar repositorios remotos y colaborar. Puedes usar Git sin GitHub, pero GitHub necesita Git.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: INICIALIZAR REPO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="inicializar-repo">
+    <h2 class="section-title"><span class="number">2</span> Inicializar el repositorio</h2>
+
+    <p>Laravel ya inicializa Git cuando creas el proyecto con Composer. Verifica:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal (dentro de C:\laragon\www\sicsal)</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">git</span> status
+<span class="output">On branch main</span>
+<span class="output">nothing to commit, working tree clean</span></pre>
+    </div>
+
+    <p>Si ves "fatal: not a git repository", inicialízalo manualmente:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">git</span> init
+<span class="output">Initialized empty Git repository in C:/laragon/www/sicsal/.git/</span>
+
+<span class="cmt"># Configura tu identidad (solo la primera vez)</span>
+<span class="prompt">$</span> <span class="cmd">git</span> config user.name <span class="str">"Tu Nombre"</span>
+<span class="prompt">$</span> <span class="cmd">git</span> config user.email <span class="str">"tu@email.com"</span></pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: GITIGNORE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="gitignore">
+    <h2 class="section-title"><span class="number">3</span> El archivo .gitignore</h2>
+
+    <p>El <code class="inline">.gitignore</code> lista archivos y carpetas que Git debe <strong>ignorar</strong> (no rastrear). Laravel ya trae uno bien configurado:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">.gitignore</span>
+        <span class="code-lang">gitignore</span>
+      </div>
+      <pre class="code-body"><span class="cmt">/.phpunit.cache</span>
+<span class="cmt">/node_modules</span>
+<span class="cmt">/public/build</span>
+<span class="cmt">/public/hot</span>
+<span class="cmt">/public/storage</span>
+<span class="cmt">/storage/*.key</span>
+<span class="cmt">/storage/pail</span>
+<span class="cmt">/vendor</span>
+<span class="var">.env</span>
+<span class="var">.env.backup</span>
+<span class="var">.env.production</span>
+<span class="cmt">.phpactor.json</span>
+<span class="cmt">.phpunit.result.cache</span>
+<span class="cmt">Homestead.json</span>
+<span class="cmt">Homestead.yaml</span>
+<span class="cmt">npm-debug.log</span>
+<span class="cmt">yarn-error.log</span>
+<span class="cmt">/auth.json</span>
+<span class="cmt">/.fleet</span>
+<span class="cmt">/.idea</span>
+<span class="cmt">/.nova</span>
+<span class="cmt">/.vscode</span>
+<span class="cmt">/.zed</span></pre>
+    </div>
+
+    <h3 class="subsection-title">¿Por qué se ignoran estos archivos?</h3>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Ignorado</th>
+          <th>Razón</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>/vendor</code></td>
+          <td>Miles de archivos de terceros. Se regenera con <code>composer install</code></td>
+        </tr>
+        <tr>
+          <td><code>/node_modules</code></td>
+          <td>Dependencias npm. Se regenera con <code>npm install</code></td>
+        </tr>
+        <tr>
+          <td><code>.env</code></td>
+          <td><strong>CRÍTICO:</strong> contiene contraseñas y APP_KEY. Nunca al repo</td>
+        </tr>
+        <tr>
+          <td><code>/public/build</code></td>
+          <td>Assets compilados. Se regenera con <code>npm run build</code></td>
+        </tr>
+        <tr>
+          <td><code>/storage/*.key</code></td>
+          <td>Claves de encriptación del almacenamiento</td>
+        </tr>
+        <tr>
+          <td><code>/.vscode</code></td>
+          <td>Configuración personal del editor</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-danger">
+      <span class="callout-icon">🚨</span>
+      <div>
+        <div class="callout-title">Regla de seguridad #1</div>
+        <strong>Nunca subas .env al repositorio</strong>. Si accidentalmente lo haces, aunque lo borres después, el historial de Git lo conserva. Cualquiera que clone el repo podría ver tus contraseñas. Si pasa, cambia inmediatamente todas las credenciales.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: PRIMER COMMIT
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="primer-commit">
+    <h2 class="section-title"><span class="number">4</span> Primer commit</h2>
+
+    <p>Un <strong>commit</strong> es una "foto" del estado de tu proyecto en un momento dado. Hagamos nuestro primer commit con todo lo que llevarmos hasta ahora:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="cmt"># Ver qué archivos hay sin rastrear</span>
+<span class="prompt">$</span> <span class="cmd">git</span> status
+<span class="output">Untracked files:</span>
+<span class="output">  app/</span>
+<span class="output">  bootstrap/</span>
+<span class="output">  composer.json</span>
+<span class="output">  ...</span>
+
+<span class="cmt"># Agregar TODOS los archivos al staging</span>
+<span class="prompt">$</span> <span class="cmd">git</span> add <span class="flag">.</span>
+
+<span class="cmt"># Hacer el commit con un mensaje descriptivo</span>
+<span class="prompt">$</span> <span class="cmd">git</span> commit <span class="flag">-m</span> <span class="str">"Proyecto SICSAL inicial: Laravel 13 + Filament 5 + Livewire 4"</span>
+<span class="output">[main (root-commit) abc1234] Proyecto SICSAL inicial: Laravel 13 + Filament 5 + Livewire 4</span>
+<span class="output"> 89 files changed, 12345 insertions(+)</span></pre>
+    </div>
+
+    <p>Ahora tu proyecto tiene un punto de referencia. Si algo sale mal, puedes volver a este commit.</p>
+
+    <div class="flow-diagram">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-label">Editar archivos (working directory)</div>
+      </div>
+      <div class="flow-arrow">git add →</div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-label">Staging area (listos para commit)</div>
+      </div>
+      <div class="flow-arrow">git commit →</div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-label">Repository (historial permanente)</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: COMANDOS BÁSICOS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="comandos-basicos">
+    <h2 class="section-title"><span class="number">5</span> Comandos básicos de Git</h2>
+
+    <p>Los comandos que usarás en el día a día:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Comando</th>
+          <th>Qué hace</th>
+          <th>Cuándo usarlo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>git status</code></td>
+          <td>Muestra archivos modificados/nuevos</td>
+          <td>Antes de cada commit</td>
+        </tr>
+        <tr>
+          <td><code>git add .</code></td>
+          <td>Agrega todos los cambios al staging</td>
+          <td>Cuando estás listo para hacer commit</td>
+        </tr>
+        <tr>
+          <td><code>git add archivo.php</code></td>
+          <td>Agrega un archivo específico</td>
+          <td>Para commits selectivos</td>
+        </tr>
+        <tr>
+          <td><code>git commit -m "msg"</code></td>
+          <td>Crea un commit con mensaje</td>
+          <td>Al final de cada lección</td>
+        </tr>
+        <tr>
+          <td><code>git log --oneline</code></td>
+          <td>Historial resumido</td>
+          <td>Para ver commits anteriores</td>
+        </tr>
+        <tr>
+          <td><code>git diff</code></td>
+          <td>Muestra los cambios no staged</td>
+          <td>Para revisar qué cambiaste</td>
+        </tr>
+        <tr>
+          <td><code>git checkout -- archivo</code></td>
+          <td>Descarta cambios de un archivo</td>
+          <td>Cuando rompes algo y quieres revertir</td>
+        </tr>
+        <tr>
+          <td><code>git stash</code></td>
+          <td>Guarda cambios temporalmente</td>
+          <td>Para cambiar de tarea sin hacer commit</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: BUENAS PRÁCTICAS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="buenas-practicas">
+    <h2 class="section-title"><span class="number">6</span> Buenas prácticas para commits</h2>
+
+    <p>T recomiendo hacer un commit al final de cada lección. Ejemplos de mensajes claros:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Ejemplos de mensajes de commit</span>
+        <span class="code-lang">git</span>
+      </div>
+      <pre class="code-body bash"><span class="cmt"># ✅ Buenos mensajes - describen QUÉ se hizo</span>
+<span class="str">"Crear migraciones: municipios, centros_salud, comunidades"</span>
+<span class="str">"Agregar modelo Persona con scopes y accessors"</span>
+<span class="str">"Configurar Spatie Permission: roles y permisos"</span>
+<span class="str">"Crear PersonaResource con formulario y tabla"</span>
+
+<span class="cmt"># ❌ Malos mensajes - no dicen nada útil</span>
+<span class="str">"cambios"</span>
+<span class="str">"fix"</span>
+<span class="str">"asdf"</span>
+<span class="str">"WIP"</span></pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Regla del buen commit</div>
+        Un buen mensaje responde: <strong>"Si aplico este commit, va a..."</strong> + tu mensaje. Ejemplo: "Si aplico este commit, va a <em>crear migraciones para municipios y centros de salud</em>".
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: GIT CON VS CODE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="git-vscode">
+    <h2 class="section-title"><span class="number">7</span> Git con VS Code</h2>
+
+    <p>VS Code tiene Git integrado. No necesitas la terminal para todo:</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-num">1</div>
+        <div class="step-body">
+          <strong>Ver cambios:</strong> Haz clic en el icono de Git en la barra lateral izquierda (rama con puntos). Verás la lista de archivos modificados.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">2</div>
+        <div class="step-body">
+          <strong>Stage (add):</strong> Pasa el mouse sobre un archivo y haz clic en el <strong>+</strong> para agregarlo al staging.
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">3</div>
+        <div class="step-body">
+          <strong>Commit:</strong> Escribe el mensaje en el campo superior y presiona <strong>Ctrl+Enter</strong> (o el botón ✓).
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-num">4</div>
+        <div class="step-body">
+          <strong>Ver diff:</strong> Haz clic en un archivo modificado para ver las diferencias lado a lado (rojo = eliminado, verde = agregado).
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Atajos útiles</div>
+        <strong>Ctrl+Shift+G</strong> — Abrir panel Git<br>
+        <strong>Ctrl+Shift+`</strong> — Abrir terminal integrada<br>
+        Los indicadores en la barra inferior muestran la rama actual y el número de cambios pendientes.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 05</h3>
+    <ul>
+      <li><strong>Git</strong> registra cada cambio como un historial de "guardar partida"</li>
+      <li><strong>.gitignore</strong> evita subir vendor/, node_modules/ y .env al repositorio</li>
+      <li>Hiciste tu primer <strong>commit</strong> con todo el proyecto base</li>
+      <li>Flujo: editar → <code class="inline">git add .</code> → <code class="inline">git commit -m "mensaje"</code></li>
+      <li>Mensajes de commit descriptivos: qué se hizo, no "fix" o "cambios"</li>
+      <li>VS Code tiene Git integrado con interfaz gráfica</li>
+      <li>Haz un commit al final de cada lección del tutorial</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="04-vite-tailwind.html" class="lesson-nav-btn">← Lección 04: Vite, Tailwind y Assets</a>
+    <a href="06-migraciones-municipios.html" class="lesson-nav-btn">Lección 06: Migraciones — Municipios y Centros →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 05 de 58</span>
+    <span>Siguiente: Migraciones: Municipios y Centros de Salud</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

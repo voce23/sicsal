@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 45 · Layouts, Componentes Blade y Settings — Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL · Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+  <span class="badge">Fase 10 — Livewire Público</span>
+  <h1>Lección 45 · Layouts, Componentes Blade y Settings</h1>
+  <p class="subtitle">La arquitectura visual de SICSAL: layouts principal/admin/auth, componentes reutilizables, selector de centro y páginas de configuración de usuario.</p>
+  <p class="meta">Lección 45 de 58 · Tiempo estimado: 30 min</p>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="44-ves-mdb-reader.html">← Lección 44 · VesMdbReader</a>
+  <a href="46-blog-postview.html">Lección 46 · Blog y PostView →</a>
+</nav>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">Visión general del sistema de layouts</a></li>
+    <li><a href="#s2">Layout público — public.blade.php</a></li>
+    <li><a href="#s3">Layout admin — app.blade.php → sidebar</a></li>
+    <li><a href="#s4">Layout auth — auth.blade.php → simple/card/split</a></li>
+    <li><a href="#s5">Componentes de marca — app-logo y app-logo-icon</a></li>
+    <li><a href="#s6">Centro Selector — el componente superadmin</a></li>
+    <li><a href="#s7">Componentes de UI — menú, mensajes, patrones</a></li>
+    <li><a href="#s8">Rutas de Settings — routes/settings.php</a></li>
+    <li><a href="#s9">Páginas de configuración con Volt</a></li>
+    <li><a href="#s10">El patrón de delegación en cascada</a></li>
+  </ol>
+</nav>
+
+<!-- ───── Secciones ───── -->
+
+<!-- ───── S1 ───── -->
+<section id="s1">
+  <h2>1 · Visión general del sistema de layouts</h2>
+
+  <p>SICSAL tiene <strong>tres dominios visuales</strong> completamente separados, cada uno con su layout raíz:</p>
+
+  <table>
+    <thead>
+      <tr><th>Dominio</th><th>Layout raíz</th><th>Delega a</th><th>Uso</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Público</td><td><code>layouts/public.blade.php</code></td><td>—</td><td>Blog, Población, C.A.I., Causas Consulta</td></tr>
+      <tr><td>Admin (Filament)</td><td><code>layouts/app.blade.php</code></td><td><code>app/sidebar</code></td><td>Panel de administración</td></tr>
+      <tr><td>Auth</td><td><code>layouts/auth.blade.php</code></td><td><code>auth/simple</code></td><td>Login, Register, Forgot Password</td></tr>
+    </tbody>
+  </table>
+
+  <p>Los layouts de admin y auth usan un patrón de <strong>delegación de un solo nivel</strong>: el layout raíz es un wrapper de 3-5 líneas que simplemente incluye un sub-layout con <code>@include</code> o componente Flux. Esto permite cambiar la variante visual (sidebar↔header, simple↔card↔split) sin tocar las vistas.</p>
+
+  <div class="callout tip">
+    <strong>Flux UI</strong>: Los layouts de admin y auth usan <a href="https://fluxui.dev" target="_blank">Flux</a>, una librería de componentes Blade para Laravel. Los <code>&lt;flux:sidebar&gt;</code>, <code>&lt;flux:header&gt;</code>, <code>&lt;flux:navlist&gt;</code> que verás son componentes Flux.
+  </div>
+</section>
+
+<!-- ───── S2 ───── -->
+<section id="s2">
+  <h2>2 · Layout público — public.blade.php</h2>
+
+  <p>El layout público es el más extenso (~115 líneas) porque define la estructura HTML completa con navbar, footer y CDNs. Es el shell para todas las páginas que ven los usuarios logueados en la interfaz pública.</p>
+
+  <h3>Estructura general</h3>
+  <pre><code><span class="cmt">&lt;!-- resources/views/components/layouts/public.blade.php --&gt;</span>
+<span class="kw">&lt;!DOCTYPE</span> <span class="attr">html</span><span class="kw">&gt;</span>
+<span class="kw">&lt;html</span> <span class="attr">lang</span>=<span class="str">"es"</span> <span class="attr">class</span>=<span class="str">"scroll-smooth"</span><span class="kw">&gt;</span>
+<span class="kw">&lt;head&gt;</span>
+    <span class="kw">&lt;meta</span> <span class="attr">charset</span>=<span class="str">"UTF-8"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;title&gt;</span>SIMUES<span class="kw">&lt;/title&gt;</span>
+    <span class="kw">&lt;link</span> <span class="attr">rel</span>=<span class="str">"icon"</span> <span class="attr">href</span>=<span class="str">"data:image/svg+xml,&lt;svg ...&gt;🏥&lt;/svg&gt;"</span><span class="kw">&gt;</span>
+
+    <span class="cmt">&lt;!-- CDNs externos --&gt;</span>
+    <span class="kw">&lt;link</span> ... <span class="str">"leaflet.css"</span><span class="kw">&gt;</span>           <span class="cmt">&lt;!-- Mapas --&gt;</span>
+
+    @<span class="fn">vite</span>([<span class="str">'resources/css/app.css'</span>, <span class="str">'resources/js/app.js'</span>])
+
+    <span class="cmt">&lt;!-- Fix Leaflet tiles con Tailwind v4 preflight --&gt;</span>
+    <span class="kw">&lt;style&gt;</span>
+      [x-cloak] { display: none !important; }
+      .leaflet-container img { max-width: none !important; max-height: none !important; }
+    <span class="kw">&lt;/style&gt;</span>
+
+    <span class="cmt">&lt;!-- Alpine.js — interactividad del dropdown y menú móvil --&gt;</span>
+    <span class="kw">&lt;script</span> <span class="attr">defer</span> <span class="attr">src</span>=<span class="str">"https://cdn.jsdelivr.net/npm/alpinejs@3/dist/cdn.min.js"</span><span class="kw">&gt;&lt;/script&gt;</span>
+<span class="kw">&lt;/head&gt;</span></code></pre>
+
+  <h3>Navbar con autenticación condicional</h3>
+
+  <div class="callout warning">
+    <strong>Alpine.js es necesario</strong>: El layout público usa directivas Alpine (<code>x-data</code>, <code>x-show</code>, <code>@click.outside</code>) para el dropdown de usuario y el menú hamburguesa móvil. Sin cargar Alpine.js, el dropdown queda siempre visible y no se puede cerrar. La regla <code>[x-cloak]</code> oculta los elementos hasta que Alpine inicialice, y el override <code>.leaflet-container img</code> evita que el preflight de Tailwind v4 (<code>img { max-width:100% }</code>) rompa los tiles del mapa Leaflet.
+  </div>
+
+  <pre><code><span class="cmt">&lt;!-- Navbar sticky teal --&gt;</span>
+<span class="kw">&lt;nav</span> <span class="attr">class</span>=<span class="str">"sticky top-0 z-50 bg-teal-600 shadow-lg"</span><span class="kw">&gt;</span>
+  <span class="cmt">&lt;!-- Logo "S" + SIMUES branding --&gt;</span>
+  <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"/"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;span</span> <span class="attr">class</span>=<span class="str">"bg-white text-teal-700 rounded-lg font-black"</span><span class="kw">&gt;</span>S<span class="kw">&lt;/span&gt;</span>
+    SIMUES
+  <span class="kw">&lt;/a&gt;</span>
+
+  <span class="cmt">&lt;!-- Links visibles SOLO para usuarios autenticados --&gt;</span>
+  @<span class="fn">auth</span>
+    <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('comunidades-poblacion') }}"</span><span class="kw">&gt;</span>Comunidades<span class="kw">&lt;/a&gt;</span>
+    <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('poblacion') }}"</span><span class="kw">&gt;</span>Población<span class="kw">&lt;/a&gt;</span>
+    <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('informe-cai') }}"</span><span class="kw">&gt;</span>C.A.I.<span class="kw">&lt;/a&gt;</span>
+    <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('causas-consulta') }}"</span><span class="kw">&gt;</span>Causas Consulta<span class="kw">&lt;/a&gt;</span>
+    <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('blog') }}"</span><span class="kw">&gt;</span>Blog<span class="kw">&lt;/a&gt;</span>
+  @<span class="fn">endauth</span></code></pre>
+
+  <h3>Menú de usuario con Alpine.js</h3>
+  <pre><code><span class="cmt">&lt;!-- Dropdown de usuario (Alpine.js) --&gt;</span>
+@<span class="fn">auth</span>
+<span class="kw">&lt;div</span> <span class="attr">x-data</span>=<span class="str">"{ drop: false }"</span> @<span class="attr">keydown.escape.window</span>=<span class="str">"drop = false"</span><span class="kw">&gt;</span>
+  <span class="kw">&lt;button</span> @<span class="attr">click</span>=<span class="str">"drop = !drop"</span><span class="kw">&gt;</span>
+    <span class="cmt">&lt;!-- Avatar con inicial del nombre --&gt;</span>
+    {{ <span class="fn">substr</span>(<span class="fn">auth</span>()-><span class="fn">user</span>()->name, <span class="num">0</span>, <span class="num">1</span>) }}
+  <span class="kw">&lt;/button&gt;</span>
+
+  <span class="kw">&lt;div</span> <span class="attr">x-show</span>=<span class="str">"drop"</span> @<span class="attr">click.outside</span>=<span class="str">"drop = false"</span> <span class="attr">x-cloak</span><span class="kw">&gt;</span>
+    <span class="cmt">&lt;!-- Link al panel admin (solo con roles) --&gt;</span>
+    @<span class="fn">if</span>(<span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="fn">hasAnyRole</span>([<span class="str">'superadmin'</span>,<span class="str">'admin'</span>,<span class="str">'registrador'</span>]))
+      <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"/admin"</span><span class="kw">&gt;</span>Panel Administración<span class="kw">&lt;/a&gt;</span>
+    @<span class="fn">endif</span>
+
+    <span class="cmt">&lt;!-- Logout con formulario POST --&gt;</span>
+    <span class="kw">&lt;form</span> <span class="attr">method</span>=<span class="str">"POST"</span> <span class="attr">action</span>=<span class="str">"{{ route('logout') }}"</span><span class="kw">&gt;</span>
+      @<span class="fn">csrf</span>
+      <span class="kw">&lt;button</span> <span class="attr">type</span>=<span class="str">"submit"</span><span class="kw">&gt;</span>Cerrar sesión<span class="kw">&lt;/button&gt;</span>
+    <span class="kw">&lt;/form&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span>
+@<span class="fn">else</span>
+  <span class="cmt">&lt;!-- Invitados: solo Blog / Login / Registrarse --&gt;</span>
+@<span class="fn">endauth</span></code></pre>
+
+  <h3>Footer y scripts</h3>
+  <pre><code><span class="cmt">&lt;!-- Footer con branding institucional --&gt;</span>
+<span class="kw">&lt;footer</span> <span class="attr">class</span>=<span class="str">"bg-teal-800 text-teal-100"</span><span class="kw">&gt;</span>
+  SIMUES — Red de Salud VII Capinota — SEDES Cochabamba
+<span class="kw">&lt;/footer&gt;</span>
+
+<span class="cmt">&lt;!-- Leaflet JS + scripts apilados por cada página --&gt;</span>
+<span class="kw">&lt;script</span> <span class="attr">src</span>=<span class="str">"leaflet.js"</span><span class="kw">&gt;&lt;/script&gt;</span>
+@<span class="fn">stack</span>(<span class="str">'scripts'</span>)  <span class="cmt">&lt;!-- Las vistas hijas hacen @push('scripts') --&gt;</span></code></pre>
+
+  <div class="callout info">
+    <strong>@stack('scripts')</strong> permite que cada página Livewire inyecte JS específico (Chart.js para pirámide poblacional, Leaflet para mapas) sin contaminar el layout base.
+  </div>
+</section>
+
+<!-- ───── S3 ───── -->
+<section id="s3">
+  <h2>3 · Layout admin — app.blade.php → sidebar</h2>
+
+  <p>El layout del panel admin usa delegación de un nivel. El archivo raíz es minimal:</p>
+
+  <pre><code><span class="cmt">&lt;!-- resources/views/components/layouts/app.blade.php (5 líneas) --&gt;</span>
+<span class="kw">&lt;x-layouts.app.sidebar&gt;</span>
+    {{ <span class="var">$slot</span> }}
+<span class="kw">&lt;/x-layouts.app.sidebar&gt;</span></code></pre>
+
+  <p>Toda la estructura real está en <code>app/sidebar.blade.php</code> (~100 líneas):</p>
+
+  <pre><code><span class="cmt">&lt;!-- resources/views/components/layouts/app/sidebar.blade.php --&gt;</span>
+<span class="kw">&lt;flux:sidebar</span> <span class="attr">sticky</span> <span class="attr">stashable</span> <span class="attr">class</span>=<span class="str">"border-r ..."</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;flux:sidebar.toggle</span> <span class="attr">class</span>=<span class="str">"lg:hidden"</span> <span class="kw">/&gt;</span>
+
+    <span class="cmt">&lt;!-- Logo de la app --&gt;</span>
+    <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('dashboard') }}"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;x-app-logo /&gt;</span>
+    <span class="kw">&lt;/a&gt;</span>
+
+    <span class="cmt">&lt;!-- Navegación principal --&gt;</span>
+    <span class="kw">&lt;flux:navlist</span> <span class="attr">variant</span>=<span class="str">"outline"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;flux:navlist.group</span> <span class="attr">heading</span>=<span class="str">"Plataforma"</span> <span class="attr">class</span>=<span class="str">"grid"</span><span class="kw">&gt;</span>
+            <span class="kw">&lt;flux:navlist.item</span> <span class="attr">icon</span>=<span class="str">"home"</span>
+                <span class="attr">href</span>=<span class="str">"{{ route('dashboard') }}"</span><span class="kw">&gt;</span>
+                Dashboard
+            <span class="kw">&lt;/flux:navlist.item&gt;</span>
+        <span class="kw">&lt;/flux:navlist.group&gt;</span>
+    <span class="kw">&lt;/flux:navlist&gt;</span>
+
+    <span class="cmt">&lt;!-- Spacer empuja el menú de usuario al fondo --&gt;</span>
+    <span class="kw">&lt;flux:spacer /&gt;</span>
+
+    <span class="cmt">&lt;!-- Centro selector (solo superadmin) --&gt;</span>
+    <span class="kw">&lt;x-centro-selector /&gt;</span>
+
+    <span class="cmt">&lt;!-- Menú de usuario desktop --&gt;</span>
+    <span class="kw">&lt;x-desktop-user-menu /&gt;</span>
+<span class="kw">&lt;/flux:sidebar&gt;</span>
+
+<span class="cmt">&lt;!-- Header mobile (visible en pantallas pequeñas) --&gt;</span>
+<span class="kw">&lt;flux:header</span> <span class="attr">class</span>=<span class="str">"lg:hidden"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;flux:sidebar.toggle /&gt;</span>
+    <span class="kw">&lt;flux:spacer /&gt;</span>
+    <span class="kw">&lt;x-desktop-user-menu /&gt;</span>
+<span class="kw">&lt;/flux:header&gt;</span>
+
+<span class="cmt">&lt;!-- Contenido principal --&gt;</span>
+<span class="kw">&lt;flux:main&gt;</span>
+    {{ <span class="var">$slot</span> }}
+<span class="kw">&lt;/flux:main&gt;</span></code></pre>
+
+  <p>La variante alternativa <code>app/header.blade.php</code> (~86 líneas) usa <code>&lt;flux:header&gt;</code> + <code>&lt;flux:navbar&gt;</code> en vez del sidebar, con un menú horizontal. SICSAL usa la variante sidebar por defecto.</p>
+
+  <div class="callout tip">
+    <strong>Cambiar de sidebar a header</strong>: Solo hay que editar <code>layouts/app.blade.php</code> para que apunte a <code>&lt;x-layouts.app.header&gt;</code> en lugar de <code>&lt;x-layouts.app.sidebar&gt;</code>. Ninguna vista hija cambia.
+  </div>
+</section>
+
+<!-- ───── S4 ───── -->
+<section id="s4">
+  <h2>4 · Layout auth — auth.blade.php → simple/card/split</h2>
+
+  <p>El layout de autenticación sigue el mismo patrón de delegación:</p>
+
+  <pre><code><span class="cmt">&lt;!-- resources/views/components/layouts/auth.blade.php (3 líneas) --&gt;</span>
+<span class="kw">&lt;x-layouts.auth.simple&gt;</span>
+    {{ <span class="var">$slot</span> }}
+<span class="kw">&lt;/x-layouts.auth.simple&gt;</span></code></pre>
+
+  <p>Hay <strong>tres variantes</strong> de auth layout disponibles:</p>
+
+  <table>
+    <thead>
+      <tr><th>Variante</th><th>Descripción</th><th>Componentes clave</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><code>auth/simple</code></td>
+        <td>Formulario centrado, fondo limpio</td>
+        <td><code>&lt;x-auth-header&gt;</code>, logo, slot</td>
+      </tr>
+      <tr>
+        <td><code>auth/card</code></td>
+        <td>Formulario dentro de tarjeta con sombra</td>
+        <td><code>&lt;flux:card&gt;</code>, header, <code>&lt;x-app-logo-icon&gt;</code></td>
+      </tr>
+      <tr>
+        <td><code>auth/split</code></td>
+        <td>Pantalla dividida: formulario izquierda, imagen/patrón derecha</td>
+        <td>Grid 2 columnas, <code>&lt;x-placeholder-pattern&gt;</code></td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>Variante simple (activa)</h3>
+  <pre><code><span class="cmt">&lt;!-- layouts/auth/simple.blade.php --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"flex min-h-screen flex-col items-center
+             justify-center bg-gray-50"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"w-full sm:max-w-md"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;x-auth-header</span>
+            <span class="attr">:title</span>=<span class="str">"$title ?? 'Iniciar sesión'"</span>
+            <span class="attr">:description</span>=<span class="str">"$description ?? ''"</span> <span class="kw">/&gt;</span>
+
+        {{ <span class="var">$slot</span> }}
+    <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <h3>Variante split (alternativa)</h3>
+  <pre><code><span class="cmt">&lt;!-- layouts/auth/split.blade.php --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"grid lg:grid-cols-2 min-h-screen"</span><span class="kw">&gt;</span>
+    <span class="cmt">&lt;!-- Columna izquierda: formulario --&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"flex flex-col items-center justify-center"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;x-auth-header</span> ... <span class="kw">/&gt;</span>
+        {{ <span class="var">$slot</span> }}
+    <span class="kw">&lt;/div&gt;</span>
+    <span class="cmt">&lt;!-- Columna derecha: patrón decorativo --&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"hidden lg:flex items-center justify-center
+                 bg-gray-100"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;x-placeholder-pattern /&gt;</span>
+    <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <div class="callout info">
+    <strong>SICSAL no tiene registro público</strong>: Aunque existe la ruta <code>/register</code>, la creación de usuarios siempre es por admin/superadmin. El layout auth existe para login, reset de contraseña y verificación de email.
+  </div>
+</section>
+
+<!-- ───── S5 ───── -->
+<section id="s5">
+  <h2>5 · Componentes de marca — app-logo y app-logo-icon</h2>
+
+  <h3>app-logo.blade.php</h3>
+  <pre><code><span class="cmt">&lt;!-- resources/views/components/app-logo.blade.php --&gt;</span>
+<span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('dashboard') }}"</span> <span class="attr">class</span>=<span class="str">"flex items-center gap-2"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;x-app-logo-icon</span> <span class="attr">class</span>=<span class="str">"size-7"</span> <span class="kw">/&gt;</span>
+    <span class="kw">&lt;span</span> <span class="attr">class</span>=<span class="str">"font-semibold text-lg"</span><span class="kw">&gt;</span>
+        SIMUES
+    <span class="kw">&lt;/span&gt;</span>
+<span class="kw">&lt;/a&gt;</span></code></pre>
+
+  <h3>app-logo-icon.blade.php</h3>
+  <pre><code><span class="cmt">&lt;!-- SVG personalizado de SIMUES --&gt;</span>
+<span class="kw">&lt;svg</span> {{ <span class="var">$attributes</span> }} <span class="attr">viewBox</span>=<span class="str">"0 0 40 42"</span><span class="kw">&gt;</span>
+    <span class="cmt">&lt;!-- Paths SVG del ícono de la aplicación --&gt;</span>
+    <span class="kw">&lt;path</span> <span class="attr">d</span>=<span class="str">"..."</span> <span class="attr">fill</span>=<span class="str">"currentColor"</span> <span class="kw">/&gt;</span>
+<span class="kw">&lt;/svg&gt;</span></code></pre>
+
+  <p>El componente <code>&lt;x-app-logo-icon&gt;</code> usa <code>{{ $attributes }}</code> para que el padre pueda pasar clases y estilos. Esto es <strong>attribute forwarding</strong> de Blade — cualquier atributo que pases al componente se inyecta en el SVG raíz.</p>
+</section>
+
+<!-- ───── S6 ───── -->
+<section id="s6">
+  <h2>6 · Centro Selector — el componente superadmin</h2>
+
+  <p>El componente más importante para el control de acceso visual. Solo aparece para el <strong>superadmin</strong> y permite cambiar de centro de salud en tiempo real:</p>
+
+  <pre><code><span class="cmt">&lt;!-- resources/views/components/centro-selector.blade.php --&gt;</span>
+@<span class="fn">if</span>(<span class="fn">auth</span>()-><span class="fn">user</span>()?-><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>))
+  <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"px-3 py-2"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;label</span> <span class="attr">class</span>=<span class="str">"block text-xs font-medium text-amber-600
+                   uppercase tracking-wider mb-1"</span><span class="kw">&gt;</span>
+      Centro de Salud
+    <span class="kw">&lt;/label&gt;</span>
+
+    <span class="kw">&lt;select</span>
+      <span class="attr">wire:model.live</span>=<span class="str">"centroSaludId"</span>
+      <span class="attr">class</span>=<span class="str">"w-full rounded-md border-amber-300
+             bg-amber-50 text-amber-900 text-sm
+             focus:border-amber-500 focus:ring-amber-500"</span><span class="kw">&gt;</span>
+
+      @<span class="fn">foreach</span>(<span class="var">$this</span>-><span class="var">centrosDisponibles</span> <span class="kw">as</span> <span class="var">$centro</span>)
+        <span class="kw">&lt;option</span> <span class="attr">value</span>=<span class="str">"{{ $centro->id }}"</span><span class="kw">&gt;</span>
+          {{ <span class="var">$centro</span>-><span class="var">nombre</span> }}
+        <span class="kw">&lt;/option&gt;</span>
+      @<span class="fn">endforeach</span>
+
+    <span class="kw">&lt;/select&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+@<span class="fn">endif</span></code></pre>
+
+  <h3>¿Cómo funciona?</h3>
+  <ol>
+    <li><strong>Visibilidad</strong>: <code>@if(auth()->user()?->hasRole('superadmin'))</code> — solo superadmin ve el selector.</li>
+    <li><strong>Binding</strong>: <code>wire:model.live="centroSaludId"</code> — enlace bidireccional con Livewire. Cuando cambia el valor, Livewire actualiza la propiedad <code>$centroSaludId</code> en el componente padre.</li>
+    <li><strong>Opciones</strong>: <code>$this->centrosDisponibles</code> viene del trait <code>HasCentroSelector</code> que vimos en la Lección 19.</li>
+    <li><strong>Estilo amber</strong>: Diferenciación visual intencional. El amarillo/amber indica "modo superadmin" — una pista visual de que estás viendo datos de un centro ajeno.</li>
+  </ol>
+
+  <div class="callout warning">
+    <strong>Seguridad</strong>: El selector es SOLO visual. La validación real de permisos está en los modelos (scopes <code>centro_salud_id</code>), las policies y el trait <code>HasCentroSelector</code>. Nunca confíes solo en ocultar un elemento HTML.
+  </div>
+</section>
+
+<!-- ───── S7 ───── -->
+<section id="s7">
+  <h2>7 · Componentes de UI — menú, mensajes, patrones</h2>
+
+  <h3>desktop-user-menu.blade.php</h3>
+  <p>Menú desplegable del panel admin usando Flux:</p>
+
+  <pre><code><span class="cmt">&lt;!-- resources/views/components/desktop-user-menu.blade.php --&gt;</span>
+<span class="kw">&lt;flux:dropdown</span> <span class="attr">position</span>=<span class="str">"bottom"</span> <span class="attr">align</span>=<span class="str">"end"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;flux:profile</span>
+        <span class="attr">:name</span>=<span class="str">"auth()->user()->name"</span>
+        <span class="attr">:initials</span>=<span class="str">"auth()->user()->initials()"</span>
+        <span class="attr">icon-trailing</span>=<span class="str">"chevron-down"</span> <span class="kw">/&gt;</span>
+
+    <span class="kw">&lt;flux:menu&gt;</span>
+        <span class="kw">&lt;flux:menu.radio.group&gt;</span>
+            <span class="cmt">&lt;!-- Opción de apariencia (claro/oscuro) --&gt;</span>
+            <span class="kw">&lt;flux:menu.radio</span> <span class="attr">value</span>=<span class="str">"light"</span><span class="kw">&gt;</span>Claro<span class="kw">&lt;/flux:menu.radio&gt;</span>
+            <span class="kw">&lt;flux:menu.radio</span> <span class="attr">value</span>=<span class="str">"dark"</span><span class="kw">&gt;</span>Oscuro<span class="kw">&lt;/flux:menu.radio&gt;</span>
+            <span class="kw">&lt;flux:menu.radio</span> <span class="attr">value</span>=<span class="str">"system"</span><span class="kw">&gt;</span>Sistema<span class="kw">&lt;/flux:menu.radio&gt;</span>
+        <span class="kw">&lt;/flux:menu.radio.group&gt;</span>
+
+        <span class="kw">&lt;flux:menu.separator /&gt;</span>
+
+        <span class="kw">&lt;flux:menu.item</span> <span class="attr">href</span>=<span class="str">"{{ route('settings.profile') }}"</span>
+                       <span class="attr">icon</span>=<span class="str">"cog"</span><span class="kw">&gt;</span>Settings<span class="kw">&lt;/flux:menu.item&gt;</span>
+
+        <span class="kw">&lt;flux:menu.item</span> <span class="attr">wire:click</span>=<span class="str">"logout"</span>
+                       <span class="attr">icon</span>=<span class="str">"arrow-right-start-on-rectangle"</span><span class="kw">&gt;</span>
+            Cerrar Sesión
+        <span class="kw">&lt;/flux:menu.item&gt;</span>
+    <span class="kw">&lt;/flux:menu&gt;</span>
+<span class="kw">&lt;/flux:dropdown&gt;</span></code></pre>
+
+  <h3>action-message.blade.php</h3>
+  <p>Mensaje de confirmación temporal con Alpine.js:</p>
+
+  <pre><code><span class="cmt">&lt;!-- Mensaje tipo "Guardado!" que aparece y desaparece --&gt;</span>
+<span class="kw">&lt;div</span>
+    <span class="attr">x-data</span>=<span class="str">"{ shown: false, timeout: null }"</span>
+    <span class="attr">x-init</span>=<span class="str">"@this.on('{{ $on }}', () => {
+        clearTimeout(timeout);
+        shown = true;
+        timeout = setTimeout(() => shown = false, 2000);
+    })"</span>
+    <span class="attr">x-show</span>=<span class="str">"shown"</span>
+    <span class="attr">x-transition</span><span class="kw">&gt;</span>
+
+    <span class="kw">&lt;span</span> <span class="attr">class</span>=<span class="str">"text-sm text-green-600"</span><span class="kw">&gt;</span>
+        {{ <span class="var">$slot</span>-><span class="fn">isEmpty</span>() ? <span class="str">'Guardado.'</span> : <span class="var">$slot</span> }}
+    <span class="kw">&lt;/span&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <p>Escucha un evento Livewire (<code>$on</code>), muestra el texto y lo oculta después de 2 segundos. Patrón ideal para feedback de formularios.</p>
+
+  <h3>auth-header.blade.php</h3>
+  <pre><code><span class="cmt">&lt;!-- Cabecera de páginas auth: logo + título + descripción --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"flex flex-col items-center gap-2 text-center"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('dashboard') }}"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;x-app-logo-icon</span> <span class="attr">class</span>=<span class="str">"size-10"</span> <span class="kw">/&gt;</span>
+    <span class="kw">&lt;/a&gt;</span>
+    <span class="kw">&lt;h1</span> <span class="attr">class</span>=<span class="str">"text-xl font-bold"</span><span class="kw">&gt;</span>{{ <span class="var">$title</span> }}<span class="kw">&lt;/h1&gt;</span>
+    <span class="kw">&lt;p</span> <span class="attr">class</span>=<span class="str">"text-muted-foreground"</span><span class="kw">&gt;</span>{{ <span class="var">$description</span> }}<span class="kw">&lt;/p&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <h3>placeholder-pattern.blade.php</h3>
+  <p>Un SVG decorativo con patrón de puntos, usado como fondo visual en el layout <code>auth/split</code>. Es puramente estético — ocupa la mitad derecha de la pantalla en la variante split.</p>
+</section>
+
+<!-- ───── S8 ───── -->
+<section id="s8">
+  <h2>8 · Rutas de Settings — routes/settings.php</h2>
+
+  <p>Las páginas de configuración de usuario tienen su propio archivo de rutas:</p>
+
+  <pre><code><span class="cmt">// routes/settings.php</span>
+<span class="kw">use</span> <span class="cls">Illuminate\Support\Facades\Route</span>;
+<span class="kw">use</span> <span class="cls">Livewire\Volt\Volt</span>;
+
+<span class="cls">Route</span>::<span class="fn">middleware</span>([<span class="str">'auth'</span>])-><span class="fn">group</span>(<span class="kw">function</span> () {
+    <span class="cls">Route</span>::<span class="fn">redirect</span>(<span class="str">'/settings'</span>, <span class="str">'/settings/profile'</span>);
+
+    <span class="cls">Volt</span>::<span class="fn">route</span>(<span class="str">'/settings/profile'</span>,  <span class="str">'settings.profile'</span>)
+         -><span class="fn">name</span>(<span class="str">'settings.profile'</span>);
+
+    <span class="cls">Volt</span>::<span class="fn">route</span>(<span class="str">'/settings/security'</span>, <span class="str">'settings.security'</span>)
+         -><span class="fn">name</span>(<span class="str">'settings.security'</span>);
+
+    <span class="cls">Volt</span>::<span class="fn">route</span>(<span class="str">'/settings/appearance'</span>, <span class="str">'settings.appearance'</span>)
+         -><span class="fn">name</span>(<span class="str">'settings.appearance'</span>);
+});</code></pre>
+
+  <h3>Puntos clave</h3>
+  <ul>
+    <li><strong><code>Volt::route()</code></strong>: Registra rutas que apuntan directamente a componentes Volt (single-file Livewire) sin necesidad de un controlador.</li>
+    <li><strong>Middleware <code>auth</code></strong>: Todas las settings requieren autenticación.</li>
+    <li><strong>Redirect <code>/settings</code> → <code>/settings/profile</code></strong>: La URL base redirige a la primera pestaña.</li>
+  </ul>
+</section>
+
+<!-- ───── S9 ───── -->
+<section id="s9">
+  <h2>9 · Páginas de configuración con Volt</h2>
+
+  <p>Las páginas de settings usan <strong>Volt</strong>, que permite combinar lógica PHP y vista Blade en un solo archivo <code>.blade.php</code>.</p>
+
+  <h3>Layout de settings (la barra lateral)</h3>
+  <pre><code><span class="cmt">&lt;!-- resources/views/pages/settings/layout.blade.php --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"flex flex-col lg:flex-row gap-8"</span><span class="kw">&gt;</span>
+    <span class="cmt">&lt;!-- Navegación lateral de settings --&gt;</span>
+    <span class="kw">&lt;flux:navlist</span> <span class="attr">class</span>=<span class="str">"lg:w-48"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;flux:navlist.item</span> <span class="attr">href</span>=<span class="str">"{{ route('settings.profile') }}"</span>
+            <span class="attr">:current</span>=<span class="str">"request()->routeIs('settings.profile')"</span>
+            <span class="attr">icon</span>=<span class="str">"user"</span> <span class="attr">wire:navigate</span><span class="kw">&gt;</span>
+            Perfil
+        <span class="kw">&lt;/flux:navlist.item&gt;</span>
+
+        <span class="kw">&lt;flux:navlist.item</span> <span class="attr">href</span>=<span class="str">"{{ route('settings.security') }}"</span>
+            <span class="attr">:current</span>=<span class="str">"request()->routeIs('settings.security')"</span>
+            <span class="attr">icon</span>=<span class="str">"lock-closed"</span> <span class="attr">wire:navigate</span><span class="kw">&gt;</span>
+            Seguridad
+        <span class="kw">&lt;/flux:navlist.item&gt;</span>
+
+        <span class="kw">&lt;flux:navlist.item</span> <span class="attr">href</span>=<span class="str">"{{ route('settings.appearance') }}"</span>
+            <span class="attr">:current</span>=<span class="str">"request()->routeIs('settings.appearance')"</span>
+            <span class="attr">icon</span>=<span class="str">"swatch"</span> <span class="attr">wire:navigate</span><span class="kw">&gt;</span>
+            Apariencia
+        <span class="kw">&lt;/flux:navlist.item&gt;</span>
+    <span class="kw">&lt;/flux:navlist&gt;</span>
+
+    <span class="cmt">&lt;!-- Contenido de la página actual --&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"flex-1"</span><span class="kw">&gt;</span>
+        {{ <span class="var">$slot</span> }}
+    <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <h3>Perfil (settings/profile.blade.php) — Volt</h3>
+  <pre><code><span class="cmt">&lt;!-- Ejemplo de componente Volt: PHP + Blade en un archivo --&gt;</span>
+<span class="kw">&lt;?php</span>
+<span class="kw">use</span> <span class="cls">Livewire\Volt\Component</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Validation\Rule</span>;
+<span class="kw">use</span> <span class="cls">App\Models\User</span>;
+
+<span class="kw">new class</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$name</span> = <span class="str">''</span>;
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$email</span> = <span class="str">''</span>;
+
+    <span class="kw">public function</span> <span class="fn">mount</span>(): <span class="type">void</span>
+    {
+        <span class="var">$this</span>-><span class="var">name</span>  = <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">name</span>;
+        <span class="var">$this</span>-><span class="var">email</span> = <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">email</span>;
+    }
+
+    <span class="kw">public function</span> <span class="fn">updateProfileInformation</span>(): <span class="type">void</span>
+    {
+        <span class="var">$validated</span> = <span class="var">$this</span>-><span class="fn">validate</span>([
+            <span class="str">'name'</span>  => [<span class="str">'required'</span>, <span class="str">'string'</span>, <span class="str">'max:255'</span>],
+            <span class="str">'email'</span> => [<span class="str">'required'</span>, <span class="str">'email'</span>, <span class="str">'max:255'</span>,
+                        <span class="cls">Rule</span>::<span class="fn">unique</span>(<span class="cls">User</span>::<span class="kw">class</span>)
+                            -><span class="fn">ignore</span>(<span class="fn">auth</span>()-><span class="fn">id</span>())],
+        ]);
+
+        <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="fn">fill</span>(<span class="var">$validated</span>);
+
+        <span class="kw">if</span> (<span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="fn">isDirty</span>(<span class="str">'email'</span>)) {
+            <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">email_verified_at</span> = <span class="kw">null</span>;
+        }
+
+        <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="fn">save</span>();
+
+        <span class="var">$this</span>-><span class="fn">dispatch</span>(<span class="str">'profile-updated'</span>);
+    }
+};
+<span class="kw">?&gt;</span>
+
+<span class="cmt">&lt;!-- Parte Blade del mismo archivo --&gt;</span>
+<span class="kw">&lt;section&gt;</span>
+    @<span class="fn">include</span>(<span class="str">'pages.settings.layout'</span>)
+    <span class="kw">&lt;form</span> <span class="attr">wire:submit</span>=<span class="str">"updateProfileInformation"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;flux:input</span> <span class="attr">wire:model</span>=<span class="str">"name"</span> <span class="attr">label</span>=<span class="str">"Nombre"</span> <span class="kw">/&gt;</span>
+        <span class="kw">&lt;flux:input</span> <span class="attr">wire:model</span>=<span class="str">"email"</span> <span class="attr">label</span>=<span class="str">"Email"</span> <span class="kw">/&gt;</span>
+
+        <span class="kw">&lt;flux:button</span> <span class="attr">type</span>=<span class="str">"submit"</span><span class="kw">&gt;</span>Guardar<span class="kw">&lt;/flux:button&gt;</span>
+
+        <span class="kw">&lt;x-action-message</span> <span class="attr">on</span>=<span class="str">"profile-updated"</span><span class="kw">&gt;</span>
+            Guardado.
+        <span class="kw">&lt;/x-action-message&gt;</span>
+    <span class="kw">&lt;/form&gt;</span>
+<span class="kw">&lt;/section&gt;</span></code></pre>
+
+  <h3>Seguridad (settings/security.blade.php)</h3>
+  <p>Permite cambiar la contraseña. Usa <code>Hash::check()</code> para validar la contraseña actual antes de aceptar la nueva:</p>
+
+  <pre><code><span class="kw">public function</span> <span class="fn">updatePassword</span>(): <span class="type">void</span>
+{
+    <span class="var">$validated</span> = <span class="var">$this</span>-><span class="fn">validate</span>([
+        <span class="str">'current_password'</span> => [<span class="str">'required'</span>, <span class="str">'current_password'</span>],
+        <span class="str">'password'</span>         => [<span class="str">'required'</span>, <span class="str">'confirmed'</span>,
+                              <span class="cls">Rules\Password</span>::<span class="fn">defaults</span>()],
+    ]);
+
+    <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="fn">update</span>([
+        <span class="str">'password'</span> => <span class="cls">Hash</span>::<span class="fn">make</span>(<span class="var">$validated</span>[<span class="str">'password'</span>]),
+    ]);
+}</code></pre>
+
+  <h3>Apariencia (settings/appearance.blade.php)</h3>
+  <p>Usa JavaScript puro (<code>&lt;script&gt;</code> en la página) para alternar entre tema claro, oscuro y sistema. No tiene lógica PHP — es 100% cliente.</p>
+
+  <h3>Eliminar cuenta</h3>
+  <p>El formulario <code>delete-user-form</code> requiere confirmación de contraseña antes de eliminar la cuenta del usuario.</p>
+
+  <div class="callout warning">
+    <strong>Volt = PHP inline</strong>: En archivos Volt, la clase PHP se define con <code>new class extends Component { ... }</code> al inicio del <code>.blade.php</code>. No hay archivo PHP separado. Es ideal para páginas pequeñas con lógica simple como settings.
+  </div>
+</section>
+
+<!-- ───── S10 ───── -->
+<section id="s10">
+  <h2>10 · El patrón de delegación en cascada</h2>
+
+  <p>Resumen del patrón arquitectónico que conecta todos los layouts:</p>
+
+  <pre><code><span class="cmt">Dominio Público</span>
+┌──────────────────────────────────────────────┐
+│  <span class="cls">layouts/public.blade.php</span>  (115 líneas)     │
+│  ├── Navbar sticky teal + @auth condicional  │
+│  ├── {{ <span class="var">$slot</span> }}  ← Livewire pages            │
+│  ├── Footer SIMUES                           │
+│  └── @stack('scripts')                       │
+└──────────────────────────────────────────────┘
+
+<span class="cmt">Dominio Admin</span>
+┌──────────────────────┐     ┌─────────────────────────┐
+│  <span class="cls">layouts/app.blade</span>   │────▶│  <span class="cls">app/sidebar.blade</span>      │
+│  (5 líneas)          │     │  ├── flux:sidebar        │
+│  Delega a sidebar    │     │  ├── x-centro-selector   │
+└──────────────────────┘     │  ├── x-desktop-user-menu │
+       <span class="cmt">Alternativa:</span>          │  └── flux:main → $slot   │
+  <span class="cls">app/header.blade</span>           └─────────────────────────┘
+  (86 líneas, navbar)
+
+<span class="cmt">Dominio Auth</span>
+┌──────────────────────┐     ┌──────────────────────┐
+│  <span class="cls">layouts/auth.blade</span>  │────▶│  <span class="cls">auth/simple.blade</span>   │
+│  (3 líneas)          │     │  Formulario centrado  │
+│  Delega a simple     │     └──────────────────────┘
+└──────────────────────┘     <span class="cmt">Alternativas:</span>
+                              <span class="cls">auth/card.blade</span>   (con tarjeta)
+                              <span class="cls">auth/split.blade</span>  (pantalla dividida)</code></pre>
+
+  <h3>¿Por qué este patrón?</h3>
+  <ul>
+    <li><strong>Intercambiabilidad</strong>: Cambiar sidebar↔header o simple↔card↔split requiere editar UNA línea en el layout raíz.</li>
+    <li><strong>Separación de responsabilidades</strong>: El layout público maneja CDNs y navbar pública; el admin maneja Flux y permisos; el auth es minimal.</li>
+    <li><strong>Componentes compartidos</strong>: <code>&lt;x-app-logo&gt;</code>, <code>&lt;x-centro-selector&gt;</code> y <code>&lt;x-desktop-user-menu&gt;</code> se usan en múltiples layouts sin duplicación.</li>
+    <li><strong>Stacks para JS</strong>: <code>@stack('scripts')</code> en el layout público permite que cada página inyecte solo el JavaScript que necesita.</li>
+  </ul>
+</section>
+
+<!-- ───── Resumen ───── -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li>SICSAL tiene 3 dominios visuales: <strong>público</strong> (teal, navbar, CDNs), <strong>admin</strong> (Flux sidebar) y <strong>auth</strong> (minimalista).</li>
+    <li>Los layouts admin y auth usan <strong>delegación de un nivel</strong> — el raíz es un wrapper de 3-5 líneas que incluye una variante intercambiable.</li>
+    <li>El <strong>layout público</strong> es el más completo: navbar con <code>@auth</code> condicional, dropdown Alpine.js, footer institucional, <code>@stack('scripts')</code>.</li>
+    <li>El <strong>centro-selector</strong> es exclusivo del superadmin, con <code>wire:model.live</code> y estilo amber diferenciado.</li>
+    <li>Las <strong>settings pages</strong> usan Volt (PHP + Blade en un archivo) con rutas <code>Volt::route()</code> — perfil, seguridad, apariencia y eliminar cuenta.</li>
+    <li>El componente <code>action-message</code> demuestra la integración Alpine.js + Livewire para feedback temporal.</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Próxima lección</strong>: En la Lección 46 exploraremos el <strong>Blog y PostView</strong> — los primeros componentes Livewire que renderizan contenido público con markdown, comentarios y paginación.
+  </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="44-ves-mdb-reader.html">← Lección 44 · VesMdbReader</a>
+  <a href="46-blog-postview.html">Lección 46 · Blog y PostView →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+  Tutorial SICSAL · <span id="year"></span>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</footer>
+
+</body>
+</html>

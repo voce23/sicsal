@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lección 55 — Commands: ImportarVes e ImportarSnis | Tutorial SICSAL</title>
+<link rel="stylesheet" href="css/leccion.css">
+<link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <a href="00-indice.html" class="topbar-brand">📚 Tutorial SICSAL</a>
+  <span class="topbar-sep">|</span>
+  <span class="topbar-page">Lección 55 de 58</span>
+</div>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="hero-badge">Fase 12 — Commands e Importación</div>
+  <h1>Commands: ImportarVes e ImportarSnis</h1>
+  <p class="hero-subtitle">Extracción de archivos <code>.ves</code> (Cabinet/Access 97) y lectura directa del SNIS instalado — dos rutas para poblar SIMUES con datos del formulario 301.</p>
+  <div class="hero-meta">
+    <span>⏱️ 35 min</span>
+    <span>📦 app/Console/Commands/</span>
+    <span>🔗 VesMdbReader · PDO ODBC · updateOrInsert</span>
+  </div>
+</section>
+
+<!-- ═══ NAV ═══ -->
+<nav class="lesson-nav">
+  <a href="54-presentacion-pptx.html">← 54. Presentación PPTX</a>
+  <a href="56-commands-varios.html">56. Commands Varios →</a>
+</nav>
+
+<!-- ═══ TOC ═══ -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">Visión general: dos fuentes, un destino</a></li>
+    <li><a href="#s2">El formato <code>codsubvar</code> del SNIS</a></li>
+    <li><a href="#s3">ImportarVes — firma y opciones</a></li>
+    <li><a href="#s4">Los 15 mapas de constantes</a></li>
+    <li><a href="#s5">Extracción del .ves (Cabinet → MDB)</a></li>
+    <li><a href="#s6">Metadatos y mapeo de centros</a></li>
+    <li><a href="#s7">Flujo principal y transacción</a></li>
+    <li><a href="#s8">Importadores por grupo (G01–G38)</a></li>
+    <li><a href="#s9">ImportarSnis — conexión ODBC a Access</a></li>
+    <li><a href="#s10">Diferencias respecto a ImportarVes</a></li>
+    <li><a href="#s11">Patrón updateOrInsert idempotente</a></li>
+    <li><a href="#s12">Ejecución y verificación</a></li>
+  </ol>
+</nav>
+
+<!-- ═══ CONTENIDO ═══ -->
+
+<!-- ────── § 1 ────── -->
+<section class="section" id="s1">
+  <h2>1 · Visión general: dos fuentes, un destino</h2>
+
+  <p>El SNIS (Sistema Nacional de Información en Salud) genera datos mensuales en dos formatos que SICSAL puede importar:</p>
+
+  <table class="table-ui">
+    <thead>
+      <tr><th>Fuente</th><th>Formato</th><th>Comando</th><th>Líneas</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Backup mensual (<code>.ves</code>)</td>
+        <td>Cabinet → Access 97 (Jet 3.x)</td>
+        <td><code>snis:importar-ves</code></td>
+        <td>762</td>
+      </tr>
+      <tr>
+        <td>SNIS instalado (carpeta local)</td>
+        <td>Access .mdb vía ODBC</td>
+        <td><code>snis:importar</code></td>
+        <td>645</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>Ambos comandos comparten la misma lógica de mapeo <strong>codsubvar → campos SIMUES</strong> y escriben en las mismas 12+ tablas de prestaciones.</p>
+</section>
+
+<!-- ────── § 2 ────── -->
+<section class="section" id="s2">
+  <h2>2 · El formato <code>codsubvar</code> del SNIS</h2>
+
+  <p>Cada dato del formulario 301 se identifica por un código de 9 dígitos:</p>
+
+  <pre class="code-block"><span class="cmt">// Formato codsubvar: FFFF GG VV SS</span>
+<span class="cmt">//   FFFF = código formulario (3010, 3011, etc.)</span>
+<span class="cmt">//   GG   = grupo (G01..G38)</span>
+<span class="cmt">//   VV   = variable (fila del formulario)</span>
+<span class="cmt">//   SS   = subvariable (columna: grupo etáreo, tipo, dentro/fuera)</span>
+
+<span class="cmt">// Ejemplo: 301010812</span>
+<span class="cmt">//   3010 = formulario 301</span>
+<span class="cmt">//   01   = G01 (Consulta Externa)</span>
+<span class="cmt">//   08   = variable 08 (mayor_60)</span>
+<span class="cmt">//   12   = subvariable 12 (menor_6m)</span></pre>
+
+  <p>Cada fila del MDB tiene columnas <code>V</code> (varones) y <code>M</code> (mujeres). Los importadores extraen <strong>VV</strong> y <strong>SS</strong> con <code>substr()</code> y los cruzan contra arrays de constantes.</p>
+
+  <pre class="code-block"><span class="cmt">// Extracción del codsubvar (ambos commands)</span>
+<span class="var">$cs</span>  = <span class="fn">trim</span>(<span class="var">$row</span>[<span class="str">'codsubvar'</span>] ?? <span class="str">''</span>);
+<span class="var">$var</span> = <span class="fn">substr</span>(<span class="var">$cs</span>, <span class="num">5</span>, <span class="num">2</span>);  <span class="cmt">// posiciones 5-6 → VV</span>
+<span class="var">$sub</span> = <span class="fn">substr</span>(<span class="var">$cs</span>, <span class="num">7</span>, <span class="num">2</span>);  <span class="cmt">// posiciones 7-8 → SS</span></pre>
+</section>
+
+<!-- ────── § 3 ────── -->
+<section class="section" id="s3">
+  <h2>3 · ImportarVes — firma y opciones</h2>
+
+  <pre class="code-block"><span class="kw">class</span> <span class="cls">ImportarVes</span> <span class="kw">extends</span> <span class="cls">Command</span>
+{
+    <span class="kw">protected</span> <span class="var">$signature</span> = <span class="str">'snis:importar-ves
+        {--archivo=  : Ruta completa al archivo .ves}
+        {--limpiar   : Eliminar datos existentes del mes antes de importar}
+        {--solo-centro= : Importar solo un centro (código SNIS, ej: 300183)}'</span>;
+
+    <span class="kw">protected</span> <span class="var">$description</span> = <span class="str">'Importa un archivo .ves del SNIS (backup mensual consolidado) al SIMUES'</span>;
+}</pre>
+
+  <div class="callout callout-info">
+    <strong>¿Qué es un .ves?</strong> — Es un archivo <strong>Cabinet (.cab)</strong> de Windows que contiene <code>auditoria.text</code> (hash MD5) y <code>transfer.sql</code> (un archivo Access 97 / Jet 3.x renombrado). Se extrae con <code>expand.exe</code> en Windows o <code>cabextract</code> en Linux.
+  </div>
+
+  <p>El comando usa tres opciones:</p>
+
+  <table class="table-ui">
+    <thead>
+      <tr><th>Opción</th><th>Requerida</th><th>Descripción</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>--archivo</code></td><td>Sí</td><td>Ruta al archivo .ves</td></tr>
+      <tr><td><code>--limpiar</code></td><td>No</td><td>Elimina datos previos del mismo mes/año antes de importar</td></tr>
+      <tr><td><code>--solo-centro</code></td><td>No</td><td>Filtra importación a un solo centro por código SNIS</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ────── § 4 ────── -->
+<section class="section" id="s4">
+  <h2>4 · Los 15 mapas de constantes</h2>
+
+  <p>Ambos commands definen arrays <code>private const</code> que mapean códigos numéricos del SNIS a enums/campos de SIMUES. Son <strong>15 mapas</strong> organizados por grupo del formulario 301:</p>
+
+  <pre class="code-block"><span class="cmt">// ── G01: CONSULTA EXTERNA ──</span>
+<span class="kw">private const</span> <span class="var">CE_GRUPO</span> = [
+    <span class="str">'08'</span> <span class="op">=></span> <span class="str">'mayor_60'</span>,   <span class="str">'09'</span> <span class="op">=></span> <span class="str">'5_9'</span>,
+    <span class="str">'12'</span> <span class="op">=></span> <span class="str">'menor_6m'</span>,  <span class="str">'13'</span> <span class="op">=></span> <span class="str">'6m_menor_1'</span>,
+    <span class="str">'14'</span> <span class="op">=></span> <span class="str">'1_4'</span>,        <span class="str">'15'</span> <span class="op">=></span> <span class="str">'10_14'</span>,
+    <span class="str">'16'</span> <span class="op">=></span> <span class="str">'15_19'</span>,      <span class="str">'17'</span> <span class="op">=></span> <span class="str">'20_39'</span>,
+    <span class="str">'18'</span> <span class="op">=></span> <span class="str">'40_49'</span>,      <span class="str">'19'</span> <span class="op">=></span> <span class="str">'50_59'</span>,
+];
+
+<span class="kw">private const</span> <span class="var">CE_TIPO</span> = [
+    <span class="str">'01'</span> <span class="op">=></span> <span class="str">'nueva'</span>,
+    <span class="str">'02'</span> <span class="op">=></span> <span class="str">'repetida'</span>,
+    <span class="str">'03'</span> <span class="op">=></span> <span class="str">'primera'</span>,
+];</pre>
+
+  <table class="table-ui">
+    <thead>
+      <tr><th>Grupo</th><th>Constante(s)</th><th>Tabla destino</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>G01</td><td><code>CE_GRUPO</code>, <code>CE_TIPO</code></td><td>prest_consulta_externa</td></tr>
+      <tr><td>G02</td><td><code>REF_TIPO</code></td><td>prest_referencias</td></tr>
+      <tr><td>G03</td><td><code>ODONTO_PROC</code>, <code>ODONTO_GRUPO</code></td><td>prest_odontologia</td></tr>
+      <tr><td>G04</td><td><code>PRENATAL_TIPO</code>, <code>PRENATAL_GRUPO</code></td><td>prest_prenatales</td></tr>
+      <tr><td>G05</td><td><code>ANTICON_MAP</code>, <code>ANTICON_GRUPO</code></td><td>prest_anticoncepcion</td></tr>
+      <tr><td>G06</td><td><code>CREC_GRUPO</code></td><td>prest_crecimiento</td></tr>
+      <tr><td>G07</td><td><code>ENF_TIPO</code></td><td>prest_enfermeria</td></tr>
+      <tr><td>G08</td><td><code>MICRO_TIPO</code> (29 entries)</td><td>prest_micronutrientes</td></tr>
+      <tr><td>G09</td><td><code>ACT_TIPO</code></td><td>prest_actividades_comunidad</td></tr>
+      <tr><td>G12</td><td><code>INT_TIPO</code></td><td>prest_internaciones</td></tr>
+      <tr><td>G18</td><td><code>RN_TIPO</code></td><td>prest_recien_nacidos</td></tr>
+      <tr><td>G37</td><td><code>VAC_MENORES5_TIPO</code>, <code>VAC_MENORES5_COL</code></td><td>prest_vacunas</td></tr>
+      <tr><td>G38</td><td><code>VAC_OTRAS_TIPO</code>, <code>VAC_OTRAS_COL</code></td><td>prest_vacunas</td></tr>
+    </tbody>
+  </table>
+
+  <p>Algunos mapas tienen <strong>particularidades</strong>:</p>
+
+  <pre class="code-block"><span class="cmt">// G05: ANTICON_MAP devuelve [método, tipo_usuaria] (no un string simple)</span>
+<span class="kw">private const</span> <span class="var">ANTICON_MAP</span> = [
+    <span class="str">'20'</span> <span class="op">=></span> [<span class="str">'DIU'</span>,                   <span class="str">'nueva'</span>],
+    <span class="str">'21'</span> <span class="op">=></span> [<span class="str">'DIU'</span>,                   <span class="str">'continua'</span>],
+    <span class="str">'23'</span> <span class="op">=></span> [<span class="str">'inyectable_trimestral'</span>, <span class="str">'nueva'</span>],
+    <span class="cmt">// ... 15 métodos anticonceptivos</span>
+];
+
+<span class="cmt">// G37/G38: VAC_COL devuelve [grupo_etáreo, isDentro (bool)]</span>
+<span class="kw">private const</span> <span class="var">VAC_MENORES5_COL</span> = [
+    <span class="str">'01'</span> <span class="op">=></span> [<span class="str">'menor_1'</span>,  <span class="kw2">true</span>],   <span class="cmt">// impar = dentro</span>
+    <span class="str">'02'</span> <span class="op">=></span> [<span class="str">'menor_1'</span>,  <span class="kw2">false</span>],  <span class="cmt">// par = fuera</span>
+    <span class="str">'03'</span> <span class="op">=></span> [<span class="str">'12_23m'</span>,   <span class="kw2">true</span>],
+    <span class="cmt">// ...</span>
+];
+
+<span class="cmt">// G12: Internaciones — varios VV suman al mismo indicador</span>
+<span class="kw">private const</span> <span class="var">INT_TIPO</span> = [
+    <span class="str">'04'</span> <span class="op">=></span> <span class="str">'fallecidos'</span>,           <span class="cmt">// &lt;48h</span>
+    <span class="str">'05'</span> <span class="op">=></span> <span class="str">'fallecidos'</span>,           <span class="cmt">// ≥48h → mismo enum</span>
+    <span class="str">'07'</span> <span class="op">=></span> <span class="str">'dias_cama_ocupada'</span>,    <span class="cmt">// maternidad</span>
+    <span class="str">'08'</span> <span class="op">=></span> <span class="str">'dias_cama_ocupada'</span>,    <span class="cmt">// otros → suma</span>
+];</pre>
+</section>
+
+<!-- ────── § 5 ────── -->
+<section class="section" id="s5">
+  <h2>5 · Extracción del .ves (Cabinet → MDB)</h2>
+
+  <p>El método <code>extraerVes()</code> desempaqueta el archivo Cabinet a un directorio temporal:</p>
+
+  <pre class="code-block"><span class="kw">public function</span> <span class="fn">extraerVes</span>(<span class="type">string</span> <span class="var">$vesPath</span>): <span class="type">string</span>|<span class="kw2">false</span>
+{
+    <span class="var">$tmpDir</span> = <span class="fn">sys_get_temp_dir</span>() . <span class="str">DIRECTORY_SEPARATOR</span>
+            . <span class="str">'sicsal_ves_'</span> . <span class="fn">uniqid</span>();
+    <span class="fn">mkdir</span>(<span class="var">$tmpDir</span>, <span class="num">0700</span>, <span class="kw2">true</span>);
+    <span class="var">$mdbDest</span> = <span class="var">$tmpDir</span> . <span class="str">DIRECTORY_SEPARATOR</span> . <span class="str">'transfer.mdb'</span>;
+
+    <span class="kw">if</span> (<span class="var">PHP_OS_FAMILY</span> === <span class="str">'Windows'</span>) {
+        <span class="cmt">// Windows: usa el binario nativo expand.exe</span>
+        <span class="var">$cmd</span> = <span class="fn">sprintf</span>(
+            <span class="str">'"%s" "%s" -F:* "%s"'</span>,
+            <span class="str">'C:\\Windows\\System32\\expand.exe'</span>,
+            <span class="var">$vesPath</span>, <span class="var">$tmpDir</span>
+        );
+        <span class="fn">exec</span>(<span class="var">$cmd</span>, <span class="var">$output</span>, <span class="var">$code</span>);
+    } <span class="kw">else</span> {
+        <span class="cmt">// Linux: cabextract (apt install cabextract)</span>
+        <span class="var">$cmd</span> = <span class="fn">sprintf</span>(<span class="str">'cabextract -d %s %s 2>&amp;1'</span>,
+            <span class="fn">escapeshellarg</span>(<span class="var">$tmpDir</span>),
+            <span class="fn">escapeshellarg</span>(<span class="var">$vesPath</span>)
+        );
+        <span class="fn">exec</span>(<span class="var">$cmd</span>, <span class="var">$output</span>, <span class="var">$code</span>);
+    }
+
+    <span class="cmt">// El Cabinet contiene transfer.sql (realmente un .mdb)</span>
+    <span class="fn">rename</span>(<span class="var">$tmpDir</span> . <span class="str">'/transfer.sql'</span>, <span class="var">$mdbDest</span>);
+
+    <span class="kw">return</span> <span class="var">$mdbDest</span>;
+}</pre>
+
+  <div class="callout callout-warning">
+    <strong>Seguridad</strong> — El directorio temporal usa permisos <code>0700</code> y se elimina en el bloque <code>finally</code> con <code>@unlink($mdbPath)</code>. En Linux se usa <code>escapeshellarg()</code> para prevenir inyección de comandos.
+  </div>
+</section>
+
+<!-- ────── § 6 ────── -->
+<section class="section" id="s6">
+  <h2>6 · Metadatos y mapeo de centros</h2>
+
+  <p>Una vez extraído el MDB, se leen los metadatos del archivo:</p>
+
+  <pre class="code-block"><span class="kw">private function</span> <span class="fn">leerMetadatos</span>(): <span class="type">array</span>|<span class="kw2">false</span>
+{
+    <span class="var">$r</span> = <span class="kw">self</span>::<span class="var">SUFIJO_REF</span>;  <span class="cmt">// '2005'</span>
+
+    <span class="cmt">// Municipio desde tabla de referencia</span>
+    <span class="var">$munis</span> = <span class="var">$this</span><span class="op">-></span><span class="var">reader</span><span class="op">-></span><span class="fn">tabla</span>(<span class="str">"municipio{$r}"</span>);
+    <span class="var">$municipio</span> = <span class="fn">trim</span>(<span class="var">$munis</span>[<span class="num">0</span>][<span class="str">'nommunicip'</span>] ?? <span class="str">'Desconocido'</span>);
+
+    <span class="cmt">// Año desde EstabGest2005 → idgestion</span>
+    <span class="var">$estab</span> = <span class="var">$this</span><span class="op">-></span><span class="var">reader</span><span class="op">-></span><span class="fn">tabla</span>(<span class="str">'EstabGest'</span> . <span class="var">$r</span>);
+    <span class="var">$anio</span>  = (<span class="type">int</span>) (<span class="var">$estab</span>[<span class="num">0</span>][<span class="str">'idgestion'</span>] ?? <span class="num">0</span>);
+
+    <span class="cmt">// Si idgestion tiene formato YYYYMMDD, extraer solo año</span>
+    <span class="kw">if</span> (<span class="var">$anio</span> <span class="op">></span> <span class="num">9999</span>) {
+        <span class="var">$anio</span> = (<span class="type">int</span>) <span class="fn">substr</span>((<span class="type">string</span>) <span class="var">$anio</span>, <span class="num">0</span>, <span class="num">4</span>);
+    }
+
+    <span class="cmt">// Mes desde la cabecera del formulario 301</span>
+    <span class="var">$cab</span> = <span class="var">$this</span><span class="op">-></span><span class="var">reader</span><span class="op">-></span><span class="fn">tabla</span>(<span class="str">'301_CAB'</span> . <span class="kw">self</span>::<span class="var">SUFIJO_FORM</span>);
+    <span class="var">$mes</span> = (<span class="type">int</span>) (<span class="var">$cab</span>[<span class="num">0</span>][<span class="str">'mes'</span>] ?? <span class="num">0</span>);
+
+    <span class="kw">return</span> <span class="fn">compact</span>(<span class="str">'anio'</span>, <span class="str">'mes'</span>, <span class="str">'municipio'</span>);
+}</pre>
+
+  <p>El mapeo de centros cruza las tablas del .ves con los centros configurados en SIMUES:</p>
+
+  <pre class="code-block"><span class="kw">private function</span> <span class="fn">mapearCentros</span>(<span class="type">int</span> <span class="var">$anio</span>): <span class="type">array</span>
+{
+    <span class="cmt">// Centros SIMUES con código SNIS configurado</span>
+    <span class="var">$centrosSicsal</span> = <span class="cls">CentroSalud</span>::<span class="fn">whereNotNull</span>(<span class="str">'codigo_snis'</span>)
+        <span class="op">-></span><span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw2">true</span>)
+        <span class="op">-></span><span class="fn">pluck</span>(<span class="str">'id'</span>, <span class="str">'codigo_snis'</span>)<span class="op">-></span><span class="fn">toArray</span>();
+
+    <span class="cmt">// Establecimientos presentes en el .ves</span>
+    <span class="var">$establecimientos</span> = <span class="var">$this</span><span class="op">-></span><span class="var">reader</span><span class="op">-></span><span class="fn">tabla</span>(<span class="str">'EstabGest'</span> . <span class="kw">self</span>::<span class="var">SUFIJO_REF</span>);
+
+    <span class="cmt">// El corr_estabgest = últimos 2 dígitos del año + código SNIS</span>
+    <span class="var">$prefijo</span> = <span class="fn">substr</span>((<span class="type">string</span>) <span class="var">$anio</span>, <span class="num">-2</span>);
+    <span class="var">$map</span> = [];
+    <span class="kw">foreach</span> (<span class="var">$centrosSicsal</span> <span class="kw">as</span> <span class="var">$codigoSnis</span> <span class="op">=></span> <span class="var">$centroId</span>) {
+        <span class="var">$corrEstabgest</span> = <span class="var">$prefijo</span> . <span class="var">$codigoSnis</span>;
+        <span class="kw">if</span> (isset(<span class="var">$enVes</span>[<span class="var">$codigoSnis</span>])) {
+            <span class="var">$map</span>[<span class="var">$corrEstabgest</span>] = <span class="var">$centroId</span>;
+        }
+    }
+    <span class="kw">return</span> <span class="var">$map</span>;
+}</pre>
+
+  <div class="callout callout-info">
+    <strong>Prefijo <code>corr_estabgest</code></strong> — El SNIS usa un identificador compuesto: los últimos 2 dígitos del año + el código del establecimiento. Ejemplo: año 2026 + código 300183 → <code>26300183</code>.
+  </div>
+</section>
+
+<!-- ────── § 7 ────── -->
+<section class="section" id="s7">
+  <h2>7 · Flujo principal y transacción</h2>
+
+  <p>El método <code>handle()</code> sigue un flujo de 5 pasos envuelto en una transacción:</p>
+
+  <pre class="code-block"><span class="kw">public function</span> <span class="fn">handle</span>(): <span class="type">int</span>
+{
+    <span class="cmt">// 1. Extraer .ves → MDB temporal</span>
+    <span class="var">$mdbPath</span> = <span class="var">$this</span><span class="op">-></span><span class="fn">extraerVes</span>(<span class="var">$archivoVes</span>);
+
+    <span class="cmt">// 2. Leer metadatos (año, mes, municipio)</span>
+    <span class="var">$this</span><span class="op">-></span><span class="var">reader</span> = <span class="kw">new</span> <span class="cls">VesMdbReader</span>(<span class="var">$mdbPath</span>);
+    <span class="var">$metadatos</span> = <span class="var">$this</span><span class="op">-></span><span class="fn">leerMetadatos</span>();
+
+    <span class="cmt">// 3. Mapear centros SNIS → SIMUES</span>
+    <span class="var">$centrosMap</span> = <span class="var">$this</span><span class="op">-></span><span class="fn">mapearCentros</span>(<span class="var">$metadatos</span>[<span class="str">'anio'</span>]);
+
+    <span class="cmt">// 4. Limpiar datos previos (si --limpiar)</span>
+    <span class="kw">if</span> (<span class="var">$this</span><span class="op">-></span><span class="fn">option</span>(<span class="str">'limpiar'</span>)) {
+        <span class="var">$this</span><span class="op">-></span><span class="fn">limpiarDatos</span>(<span class="fn">array_values</span>(<span class="var">$centrosMap</span>), <span class="var">$anio</span>, <span class="var">$mes</span>);
+    }
+
+    <span class="cmt">// 5. Importar dentro de transacción</span>
+    <span class="cls">DB</span>::<span class="fn">beginTransaction</span>();
+    <span class="kw">try</span> {
+        <span class="kw">foreach</span> (<span class="var">$centrosMap</span> <span class="kw">as</span> <span class="var">$snisCorr</span> <span class="op">=></span> <span class="var">$centroId</span>) {
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'consulta_externa'</span>]  <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG01</span>(<span class="var">$snisCorr</span>, <span class="var">$mes</span>, <span class="var">$centroId</span>, <span class="var">$anio</span>);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'referencias'</span>]       <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG02</span>(...);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'odontologia'</span>]       <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG03</span>(...);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'prenatales'</span>]        <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG04</span>(...);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'anticoncepcion'</span>]    <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG05</span>(...);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'crecimiento'</span>]       <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG06</span>(...);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'enfermeria'</span>]        <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG07</span>(...);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'micronutrientes'</span>]   <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG08</span>(...);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'actividades'</span>]       <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG09</span>(...);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'vacunas'</span>]           <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG37</span>(...);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'vacunas'</span>]           <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG38</span>(...);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'internaciones'</span>]     <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG12</span>(...);
+            <span class="var">$this</span><span class="op">-></span><span class="var">stats</span>[<span class="str">'recien_nacidos'</span>]    <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">importarG18</span>(...);
+        }
+        <span class="cls">DB</span>::<span class="fn">commit</span>();
+    } <span class="kw">catch</span> (<span class="cls">\Throwable</span> <span class="var">$e</span>) {
+        <span class="cls">DB</span>::<span class="fn">rollBack</span>();
+        <span class="var">$this</span><span class="op">-></span><span class="fn">error</span>(<span class="str">'Error: '</span> . <span class="var">$e</span><span class="op">-></span><span class="fn">getMessage</span>());
+        <span class="kw">return</span> <span class="kw">self</span>::<span class="var">FAILURE</span>;
+    } <span class="kw">finally</span> {
+        @<span class="fn">unlink</span>(<span class="var">$mdbPath</span>);  <span class="cmt">// limpiar MDB temporal</span>
+    }
+
+    <span class="cmt">// Mostrar resumen</span>
+    <span class="var">$this</span><span class="op">-></span><span class="fn">table</span>([<span class="str">'Tipo de dato'</span>, <span class="str">'Registros'</span>],
+        <span class="fn">collect</span>(<span class="var">$this</span><span class="op">-></span><span class="var">stats</span>)<span class="op">-></span><span class="fn">map</span>(
+            <span class="kw">fn</span> (<span class="var">$v</span>, <span class="var">$k</span>) <span class="op">=></span> [<span class="fn">str_replace</span>(<span class="str">'_'</span>, <span class="str">' '</span>, <span class="fn">ucfirst</span>(<span class="var">$k</span>)), <span class="var">$v</span>]
+        )<span class="op">-></span><span class="fn">values</span>()<span class="op">-></span><span class="fn">toArray</span>()
+    );
+    <span class="kw">return</span> <span class="kw">self</span>::<span class="var">SUCCESS</span>;
+}</pre>
+
+  <p>El <code>limpiarDatos()</code> elimina de <strong>14 tablas</strong> (prestaciones + causas + ILE) filtrando por <code>centro_salud_id</code>, año y mes:</p>
+
+  <pre class="code-block"><span class="kw">private function</span> <span class="fn">limpiarDatos</span>(<span class="type">array</span> <span class="var">$centroIds</span>, <span class="type">int</span> <span class="var">$anio</span>, <span class="type">int</span> <span class="var">$mes</span>): <span class="type">void</span>
+{
+    <span class="var">$tablas</span> = [
+        <span class="str">'prest_consulta_externa'</span>, <span class="str">'prest_referencias'</span>,
+        <span class="str">'prest_odontologia'</span>,     <span class="str">'prest_prenatales'</span>,
+        <span class="str">'prest_anticoncepcion'</span>,  <span class="str">'prest_crecimiento'</span>,
+        <span class="str">'prest_enfermeria'</span>,      <span class="str">'prest_micronutrientes'</span>,
+        <span class="str">'prest_actividades_comunidad'</span>, <span class="str">'prest_vacunas'</span>,
+        <span class="str">'prest_internaciones'</span>,  <span class="str">'prest_recien_nacidos'</span>,
+        <span class="str">'causas_consulta_externa'</span>, <span class="str">'prest_ile'</span>,
+    ];
+
+    <span class="kw">foreach</span> (<span class="var">$tablas</span> <span class="kw">as</span> <span class="var">$tabla</span>) {
+        <span class="cls">DB</span>::<span class="fn">table</span>(<span class="var">$tabla</span>)
+            <span class="op">-></span><span class="fn">whereIn</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroIds</span>)
+            <span class="op">-></span><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)<span class="op">-></span><span class="fn">where</span>(<span class="str">'mes'</span>, <span class="var">$mes</span>)
+            <span class="op">-></span><span class="fn">delete</span>();
+    }
+}</pre>
+</section>
+
+<!-- ────── § 8 ────── -->
+<section class="section" id="s8">
+  <h2>8 · Importadores por grupo (G01–G38)</h2>
+
+  <p>Cada grupo sigue el mismo patrón: leer filas → parsear codsubvar → agrupar → updateOrInsert. Veamos los tres patrones principales:</p>
+
+  <h3>Patrón 1 — Agrupación M/F simple (G01: Consulta Externa)</h3>
+
+  <pre class="code-block"><span class="kw">private function</span> <span class="fn">importarG01</span>(<span class="type">string</span> <span class="var">$corr</span>, <span class="type">int</span> <span class="var">$mes</span>, <span class="type">int</span> <span class="var">$centroId</span>, <span class="type">int</span> <span class="var">$anio</span>): <span class="type">int</span>
+{
+    <span class="var">$rows</span>    = <span class="var">$this</span><span class="op">-></span><span class="fn">queryGrupo</span>(<span class="str">'G01'</span>, <span class="var">$corr</span>, <span class="var">$mes</span>);
+    <span class="var">$grouped</span> = [];
+
+    <span class="kw">foreach</span> (<span class="var">$rows</span> <span class="kw">as</span> <span class="var">$row</span>) {
+        <span class="var">$cs</span>  = <span class="fn">trim</span>(<span class="var">$row</span>[<span class="str">'codsubvar'</span>] ?? <span class="str">''</span>);
+        <span class="var">$var</span> = <span class="fn">substr</span>(<span class="var">$cs</span>, <span class="num">5</span>, <span class="num">2</span>);
+        <span class="var">$sub</span> = <span class="fn">substr</span>(<span class="var">$cs</span>, <span class="num">7</span>, <span class="num">2</span>);
+        <span class="var">$grp</span> = <span class="kw">self</span>::<span class="var">CE_GRUPO</span>[<span class="var">$var</span>] ?? <span class="kw2">null</span>;
+        <span class="var">$tip</span> = <span class="kw">self</span>::<span class="var">CE_TIPO</span>[<span class="var">$sub</span>]  ?? <span class="kw2">null</span>;
+        <span class="kw">if</span> (! <span class="var">$grp</span> || ! <span class="var">$tip</span>) <span class="kw">continue</span>;
+
+        <span class="kw">if</span> (! isset(<span class="var">$grouped</span>[<span class="var">$grp</span>])) {
+            <span class="var">$grouped</span>[<span class="var">$grp</span>] = [
+                <span class="str">'primera_m'</span> <span class="op">=></span> <span class="num">0</span>, <span class="str">'primera_f'</span> <span class="op">=></span> <span class="num">0</span>,
+                <span class="str">'nueva_m'</span>   <span class="op">=></span> <span class="num">0</span>, <span class="str">'nueva_f'</span>   <span class="op">=></span> <span class="num">0</span>,
+                <span class="str">'repetida_m'</span><span class="op">=></span> <span class="num">0</span>, <span class="str">'repetida_f'</span><span class="op">=></span> <span class="num">0</span>,
+            ];
+        }
+        <span class="var">$grouped</span>[<span class="var">$grp</span>][<span class="str">"{$tip}_m"</span>] <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">v</span>(<span class="var">$row</span>, <span class="str">'V'</span>);
+        <span class="var">$grouped</span>[<span class="var">$grp</span>][<span class="str">"{$tip}_f"</span>] <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">v</span>(<span class="var">$row</span>, <span class="str">'M'</span>);
+    }
+
+    <span class="var">$count</span> = <span class="num">0</span>;
+    <span class="kw">foreach</span> (<span class="var">$grouped</span> <span class="kw">as</span> <span class="var">$grp</span> <span class="op">=></span> <span class="var">$vals</span>) {
+        <span class="kw">if</span> (<span class="fn">array_sum</span>(<span class="var">$vals</span>) === <span class="num">0</span>) <span class="kw">continue</span>;
+        <span class="cls">DB</span>::<span class="fn">table</span>(<span class="str">'prest_consulta_externa'</span>)<span class="op">-></span><span class="fn">updateOrInsert</span>(
+            [<span class="str">'centro_salud_id'</span> <span class="op">=></span> <span class="var">$centroId</span>, <span class="str">'mes'</span> <span class="op">=></span> <span class="var">$mes</span>, <span class="str">'anio'</span> <span class="op">=></span> <span class="var">$anio</span>, <span class="str">'grupo_etareo'</span> <span class="op">=></span> <span class="var">$grp</span>],
+            <span class="fn">array_merge</span>(<span class="var">$vals</span>, [<span class="str">'updated_at'</span> <span class="op">=></span> <span class="fn">now</span>()])
+        );
+        <span class="var">$count</span><span class="op">++</span>;
+    }
+    <span class="kw">return</span> <span class="var">$count</span>;
+}</pre>
+
+  <h3>Patrón 2 — Dentro/Fuera (G04: Prenatales)</h3>
+
+  <pre class="code-block"><span class="kw">private function</span> <span class="fn">importarG04</span>(...): <span class="type">int</span>
+{
+    <span class="var">$grouped</span> = [];
+    <span class="kw">foreach</span> (<span class="var">$this</span><span class="op">-></span><span class="fn">queryGrupo</span>(<span class="str">'G04'</span>, <span class="var">$corr</span>, <span class="var">$mes</span>) <span class="kw">as</span> <span class="var">$row</span>) {
+        <span class="var">$tipo</span> = <span class="kw">self</span>::<span class="var">PRENATAL_TIPO</span>[<span class="var">$var</span>]  ?? <span class="kw2">null</span>;
+        <span class="var">$grp</span>  = <span class="kw">self</span>::<span class="var">PRENATAL_GRUPO</span>[<span class="var">$sub</span>] ?? <span class="kw2">null</span>;
+
+        <span class="cmt">// Subvar impar = dentro, par = fuera</span>
+        <span class="var">$isDentro</span> = ((<span class="type">int</span>) <span class="var">$sub</span>) % <span class="num">2</span> === <span class="num">1</span>;
+        <span class="var">$total</span>    = <span class="var">$this</span><span class="op">-></span><span class="fn">v</span>(<span class="var">$row</span>, <span class="str">'V'</span>) + <span class="var">$this</span><span class="op">-></span><span class="fn">v</span>(<span class="var">$row</span>, <span class="str">'M'</span>);
+
+        <span class="var">$key</span> = <span class="str">"{$tipo}|{$grp}"</span>;
+        <span class="var">$grouped</span>[<span class="var">$key</span>][<span class="var">$isDentro</span> ? <span class="str">'dentro'</span> : <span class="str">'fuera'</span>] <span class="op">+=</span> <span class="var">$total</span>;
+    }
+    <span class="cmt">// updateOrInsert con ['dentro' => X, 'fuera' => Y]</span>
+}</pre>
+
+  <h3>Patrón 3 — Vacunas con matriz dentro/fuera × M/F (G37)</h3>
+
+  <pre class="code-block"><span class="kw">private function</span> <span class="fn">importarGrupoVacunas</span>(
+    <span class="type">string</span> <span class="var">$grupo</span>,
+    <span class="type">array</span>  <span class="var">$tipoMap</span>,
+    <span class="type">array</span>  <span class="var">$colMap</span>, ...
+): <span class="type">int</span> {
+    <span class="var">$grouped</span> = [];
+    <span class="kw">foreach</span> (<span class="var">$this</span><span class="op">-></span><span class="fn">queryGrupo</span>(<span class="var">$grupo</span>, <span class="var">$corr</span>, <span class="var">$mes</span>) <span class="kw">as</span> <span class="var">$row</span>) {
+        <span class="var">$tip</span> = <span class="var">$tipoMap</span>[<span class="var">$var</span>] ?? <span class="kw2">null</span>;
+        <span class="var">$col</span> = <span class="var">$colMap</span>[<span class="var">$sub</span>] ?? <span class="kw2">null</span>;
+        [<span class="var">$grp</span>, <span class="var">$isDentro</span>] = <span class="var">$col</span>;
+
+        <span class="var">$key</span> = <span class="str">"{$tip}|{$grp}"</span>;
+        <span class="kw">if</span> (<span class="var">$isDentro</span>) {
+            <span class="var">$grouped</span>[<span class="var">$key</span>][<span class="str">'dentro_m'</span>] <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">v</span>(<span class="var">$row</span>, <span class="str">'V'</span>);
+            <span class="var">$grouped</span>[<span class="var">$key</span>][<span class="str">'dentro_f'</span>] <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">v</span>(<span class="var">$row</span>, <span class="str">'M'</span>);
+        } <span class="kw">else</span> {
+            <span class="var">$grouped</span>[<span class="var">$key</span>][<span class="str">'fuera_m'</span>]  <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">v</span>(<span class="var">$row</span>, <span class="str">'V'</span>);
+            <span class="var">$grouped</span>[<span class="var">$key</span>][<span class="str">'fuera_f'</span>]  <span class="op">+=</span> <span class="var">$this</span><span class="op">-></span><span class="fn">v</span>(<span class="var">$row</span>, <span class="str">'M'</span>);
+        }
+    }
+    <span class="cmt">// updateOrInsert a prest_vacunas con 4 columnas</span>
+}</pre>
+
+  <div class="callout callout-info">
+    <strong>G37 + G38 comparten el mismo método</strong> — <code>importarGrupoVacunas()</code> recibe los mapas por parámetro, permitiendo reutilizar la misma lógica para menores de 5 años y otras vacunaciones.
+  </div>
+</section>
+
+<!-- ────── § 9 ────── -->
+<section class="section" id="s9">
+  <h2>9 · ImportarSnis — conexión ODBC a Access</h2>
+
+  <p>A diferencia de ImportarVes que extrae un Cabinet, ImportarSnis lee directamente los archivos <code>.mdb</code> del SNIS instalado en una carpeta local:</p>
+
+  <pre class="code-block"><span class="kw">class</span> <span class="cls">ImportarSnis</span> <span class="kw">extends</span> <span class="cls">Command</span>
+{
+    <span class="kw">protected</span> <span class="var">$signature</span> = <span class="str">'snis:importar
+        {--ruta=C:\SNIS2026 : Ruta de instalación del SNIS}
+        {--anio=2026 : Gestión SNIS a importar}
+        {--anio-destino= : Año destino en SIMUES (default = mismo que --anio)}
+        {--meses= : Meses a importar separados por coma}
+        {--limpiar : Eliminar datos existentes del período}'</span>;
+}</pre>
+
+  <p>La conexión se establece con PDO vía el driver ODBC de Access:</p>
+
+  <pre class="code-block"><span class="kw">private function</span> <span class="fn">connectMdb</span>(<span class="type">string</span> <span class="var">$path</span>): <span class="cls">PDO</span>
+{
+    <span class="var">$dsn</span> = <span class="str">"odbc:Driver={Microsoft Access Driver (*.mdb, *.accdb)}"</span>
+        . <span class="str">";Dbq={$path}"</span>
+        . <span class="str">";Pwd="</span> . <span class="kw">self</span>::<span class="fn">dbPassword</span>();
+
+    <span class="kw">return new</span> <span class="cls">PDO</span>(<span class="var">$dsn</span>, <span class="str">''</span>, <span class="str">''</span>, [
+        <span class="cls">PDO</span>::<span class="var">ATTR_ERRMODE</span>            <span class="op">=></span> <span class="cls">PDO</span>::<span class="var">ERRMODE_EXCEPTION</span>,
+        <span class="cls">PDO</span>::<span class="var">ATTR_DEFAULT_FETCH_MODE</span> <span class="op">=></span> <span class="cls">PDO</span>::<span class="var">FETCH_ASSOC</span>,
+    ]);
+}
+
+<span class="kw">private static function</span> <span class="fn">dbPassword</span>(): <span class="type">string</span>
+{
+    <span class="kw">return</span> <span class="fn">env</span>(<span class="str">'SNIS_DB_PASSWORD'</span>, <span class="str">''</span>);
+}</pre>
+
+  <div class="callout callout-warning">
+    <strong>Credenciales en .env</strong> — La contraseña del SNIS se lee de <code>SNIS_DB_PASSWORD</code>, nunca hardcodeada. El driver ODBC de Access requiere estar instalado en el sistema (incluido con Office o descargable por separado).
+  </div>
+
+  <p>La detección de meses disponibles consulta la tabla <code>301_CAB</code> directamente:</p>
+
+  <pre class="code-block"><span class="kw">private function</span> <span class="fn">getMesesDisponibles</span>(<span class="type">array</span> <span class="var">$centrosMap</span>): <span class="type">array</span>
+{
+    <span class="var">$corrList</span> = <span class="fn">array_keys</span>(<span class="var">$centrosMap</span>);
+    <span class="var">$placeholders</span> = <span class="fn">implode</span>(<span class="str">','</span>, <span class="fn">array_fill</span>(<span class="num">0</span>, <span class="fn">count</span>(<span class="var">$corrList</span>), <span class="str">'?'</span>));
+
+    <span class="var">$stmt</span> = <span class="var">$this</span><span class="op">-></span><span class="var">pdoData</span><span class="op">-></span><span class="fn">prepare</span>(
+        <span class="str">"SELECT DISTINCT mes FROM [301_CAB]
+         WHERE corr_estabgest IN ({$placeholders}) AND mes > 0
+         ORDER BY mes"</span>
+    );
+    <span class="var">$stmt</span><span class="op">-></span><span class="fn">execute</span>(<span class="var">$corrList</span>);
+
+    <span class="kw">return</span> <span class="fn">array_column</span>(<span class="var">$stmt</span><span class="op">-></span><span class="fn">fetchAll</span>(), <span class="str">'mes'</span>);
+}</pre>
+</section>
+
+<!-- ────── § 10 ────── -->
+<section class="section" id="s10">
+  <h2>10 · Diferencias respecto a ImportarVes</h2>
+
+  <table class="table-ui">
+    <thead>
+      <tr><th>Aspecto</th><th>ImportarVes</th><th>ImportarSnis</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Fuente de datos</td>
+        <td>Archivo .ves (un mes, un municipio)</td>
+        <td>Base .mdb instalada (múltiples meses)</td>
+      </tr>
+      <tr>
+        <td>Lector MDB</td>
+        <td><code>VesMdbReader</code> (servicio propio)</td>
+        <td>PDO con ODBC directo</td>
+      </tr>
+      <tr>
+        <td>Tablas MDB</td>
+        <td>Sufijo <code>05</code> (form) / <code>2005</code> (ref)</td>
+        <td>Sin sufijo (<code>301G01_DAT</code>)</td>
+      </tr>
+      <tr>
+        <td>Grupos importados</td>
+        <td>G01–G09, G12, G18, G37, G38 (13 métodos)</td>
+        <td>G01–G09, G37, G38 (10 métodos)</td>
+      </tr>
+      <tr>
+        <td>Año/Mes</td>
+        <td>Se detectan del propio .ves</td>
+        <td>Se pasan como opciones del CLI</td>
+      </tr>
+      <tr>
+        <td>Opción especial</td>
+        <td><code>--solo-centro</code></td>
+        <td><code>--anio-destino</code> (re-mapeo de año)</td>
+      </tr>
+      <tr>
+        <td>Limpieza</td>
+        <td>14 tablas (incluye causas, ILE)</td>
+        <td>10 tablas (solo prestaciones)</td>
+      </tr>
+      <tr>
+        <td>Consulta de filas</td>
+        <td><code>queryGrupo('G01', corr, mes)</code> vía reader</td>
+        <td><code>queryGroup('301G01_DAT', corr, mes)</code> vía PDO</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout callout-info">
+    <strong>¿Cuándo usar cada uno?</strong> — <code>snis:importar-ves</code> cuando se recibe el backup mensual (.ves) de otros municipios. <code>snis:importar</code> cuando se tiene el SNIS instalado localmente (la aplicación de escritorio del Ministerio de Salud).
+  </div>
+</section>
+
+<!-- ────── § 11 ────── -->
+<section class="section" id="s11">
+  <h2>11 · Patrón updateOrInsert idempotente</h2>
+
+  <p>Todos los importadores usan <code>DB::table()->updateOrInsert()</code> que garantiza <strong>idempotencia</strong>:</p>
+
+  <pre class="code-block"><span class="cmt">// Si existe la combinación (centro_salud_id, mes, anio, tipo) → UPDATE</span>
+<span class="cmt">// Si no existe → INSERT</span>
+<span class="cls">DB</span>::<span class="fn">table</span>(<span class="str">'prest_micronutrientes'</span>)<span class="op">-></span><span class="fn">updateOrInsert</span>(
+    <span class="cmt">// Condición de búsqueda (clave compuesta)</span>
+    [
+        <span class="str">'centro_salud_id'</span> <span class="op">=></span> <span class="var">$centroId</span>,
+        <span class="str">'mes'</span>             <span class="op">=></span> <span class="var">$mes</span>,
+        <span class="str">'anio'</span>            <span class="op">=></span> <span class="var">$anio</span>,
+        <span class="str">'tipo'</span>            <span class="op">=></span> <span class="var">$tipo</span>,
+    ],
+    <span class="cmt">// Valores a actualizar/insertar</span>
+    [
+        <span class="str">'cantidad'</span>   <span class="op">=></span> <span class="var">$cantidad</span>,
+        <span class="str">'updated_at'</span> <span class="op">=></span> <span class="fn">now</span>(),
+    ]
+);</pre>
+
+  <p>Esto permite ejecutar el mismo comando múltiples veces sin duplicar datos — esencial para re-importaciones cuando se corrigen datos en el SNIS.</p>
+
+  <p>El helper <code>v()</code> asegura que valores nulos o vacíos se traten como cero:</p>
+
+  <pre class="code-block"><span class="kw">private function</span> <span class="fn">v</span>(<span class="type">array</span> <span class="var">$row</span>, <span class="type">string</span> <span class="var">$campo</span>): <span class="type">int</span>
+{
+    <span class="kw">return</span> (<span class="type">int</span>) (<span class="var">$row</span>[<span class="var">$campo</span>] ?? <span class="num">0</span>);
+}</pre>
+</section>
+
+<!-- ────── § 12 ────── -->
+<section class="section" id="s12">
+  <h2>12 · Ejecución y verificación</h2>
+
+  <pre class="code-block"><span class="cmt"># Importar desde archivo .ves</span>
+php artisan snis:importar-ves --archivo="C:\ruta\M30701FORM_26_01al01.ves"
+php artisan snis:importar-ves --archivo="..." --limpiar
+php artisan snis:importar-ves --archivo="..." --solo-centro=300183
+
+<span class="cmt"># Importar desde SNIS instalado</span>
+php artisan snis:importar --ruta=C:\SNIS2026 --anio=2026
+php artisan snis:importar --ruta=C:\SNIS2026 --anio=2026 --meses=1,2,3
+php artisan snis:importar --anio=2025 --anio-destino=2026 --limpiar</pre>
+
+  <p>Ambos comandos muestran un resumen al finalizar:</p>
+
+  <pre class="code-block"><span class="cmt">══════ Resumen ══════
++--------------------+-----------+
+| Tipo de dato       | Registros |
++--------------------+-----------+
+| Consulta externa   |        30 |
+| Referencias        |         7 |
+| Odontologia        |        15 |
+| Prenatales         |        12 |
+| Anticoncepcion     |        18 |
+| Crecimiento        |         6 |
+| Enfermeria         |         4 |
+| Micronutrientes    |        22 |
+| Actividades        |        13 |
+| Vacunas            |        45 |
+| Internaciones      |         3 |
+| Recien nacidos     |         8 |
++--------------------+-----------+
+| Total: 183 registros importados |</span></pre>
+</section>
+
+<!-- ═══ RESUMEN ═══ -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li><strong>Dos fuentes, un destino</strong> — <code>snis:importar-ves</code> (762 líneas) extrae archivos Cabinet (.ves), <code>snis:importar</code> (645 líneas) lee el SNIS instalado vía ODBC.</li>
+    <li><strong>codsubvar</strong> — Código de 9 dígitos (FFFF GG VV SS) que identifica cada dato del formulario 301; se parsea con <code>substr()</code> en posiciones 5-6 y 7-8.</li>
+    <li><strong>15 mapas de constantes</strong> — Arrays <code>private const</code> que traducen códigos numéricos SNIS a enums de SIMUES, organizados por los 13 grupos del formulario.</li>
+    <li><strong>3 patrones de importación</strong> — Agrupación M/F simple (consulta externa, referencias), dentro/fuera (prenatales, vacunas), y acumulación escalar (micronutrientes, internaciones).</li>
+    <li><strong>updateOrInsert</strong> — Garantiza idempotencia para re-importaciones sin duplicar datos.</li>
+    <li><strong>Transacción completa</strong> — Todo-o-nada con <code>DB::beginTransaction()</code> + <code>commit()</code>/<code>rollBack()</code>.</li>
+    <li><strong>Limpieza temporal</strong> — El MDB extraído se elimina en <code>finally</code>; credenciales siempre desde <code>.env</code>.</li>
+  </ul>
+</section>
+
+<!-- ═══ NAV ═══ -->
+<nav class="lesson-nav">
+  <a href="54-presentacion-pptx.html">← 54. Presentación PPTX</a>
+  <a href="56-commands-varios.html">56. Commands Varios →</a>
+</nav>
+
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 55 de 58</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 20 — Traits y Concerns | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 4 — Autenticación y Seguridad</div>
+    <div class="lesson-number">Lección 20 de 58</div>
+    <h1 class="lesson-title">Traits y Concerns</h1>
+    <p class="lesson-subtitle">HasCentroSelector, PasswordValidationRules y ProfileValidationRules. 3 traits que eliminan código repetido en todo el proyecto.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 3 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~15 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="19-spatie-permission.html" class="lesson-nav-btn">← Lección 19</a>
+    <a href="21-vistas-auth.html" class="lesson-nav-btn">Lección 21 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#que-es-trait">¿Qué es un Trait en PHP?</a></li>
+      <li><a href="#centro-selector">HasCentroSelector — aislamiento de datos por centro</a></li>
+      <li><a href="#password-rules">PasswordValidationRules — reglas de password</a></li>
+      <li><a href="#profile-rules">ProfileValidationRules — reglas de perfil</a></li>
+      <li><a href="#donde-se-usan">Dónde se usan los 3 traits</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: QUÉ ES UN TRAIT
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="que-es-trait">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es un Trait en PHP?</h2>
+
+    <p>Un <strong>trait</strong> es un mecanismo de reutilización de código. Es como copiar y pegar métodos en una clase, pero sin duplicar código. Se usa con <code class="inline">use NombreDelTrait;</code>.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Concepto de Trait</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">trait</span> <span class="cls">MiTrait</span> {
+    <span class="kw">public function</span> <span class="fn">saludo</span>() { <span class="kw">return</span> <span class="str">'Hola'</span>; }
+}
+
+<span class="kw">class</span> <span class="cls">ClaseA</span> { <span class="kw">use</span> <span class="cls">MiTrait</span>; } <span class="cmt">// ClaseA tiene saludo()</span>
+<span class="kw">class</span> <span class="cls">ClaseB</span> { <span class="kw">use</span> <span class="cls">MiTrait</span>; } <span class="cmt">// ClaseB también</span></pre>
+    </div>
+
+    <div class="file-tree">
+      <div class="ft-dir">app/Concerns/</div>
+      <div class="ft-file" style="margin-left:1.5rem;">HasCentroSelector.php</div>
+      <div class="ft-file" style="margin-left:1.5rem;">PasswordValidationRules.php</div>
+      <div class="ft-file" style="margin-left:1.5rem;">ProfileValidationRules.php</div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: HAS CENTRO SELECTOR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="centro-selector">
+    <h2 class="section-title"><span class="number">2</span> HasCentroSelector — aislamiento de datos por centro</h2>
+
+    <p>Este es el trait más importante del proyecto. Garantiza que cada usuario solo vea datos de su centro de salud.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Concerns/HasCentroSelector.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">use</span> <span class="cls">Livewire\Attributes\Url</span>;
+
+<span class="kw">trait</span> <span class="cls">HasCentroSelector</span>
+{
+    <span class="dec">#[Url]</span>
+    <span class="kw">public int</span> <span class="var">$centroSaludId</span> = <span class="num">0</span>;
+
+    <span class="kw">public function</span> <span class="fn">mountHasCentroSelector</span>(): <span class="type">void</span>
+    {
+        <span class="var">$user</span> = <span class="fn">auth</span>()<span class="op">-></span><span class="fn">user</span>();
+
+        <span class="kw">if</span> (<span class="var">$this</span><span class="op">-></span><span class="var">centroSaludId</span> === <span class="num">0</span>) {
+            <span class="var">$this</span><span class="op">-></span><span class="var">centroSaludId</span> = <span class="var">$user</span>?-><span class="var">centro_salud_id</span> <span class="op">??</span> <span class="num">1</span>;
+        }
+
+        <span class="cmt">// Forzar centro asignado para no-superadmins</span>
+        <span class="kw">if</span> (<span class="var">$user</span> <span class="op">&&</span> ! <span class="var">$user</span><span class="op">-></span><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>) <span class="op">&&</span> <span class="var">$user</span><span class="op">-></span><span class="var">centro_salud_id</span>) {
+            <span class="var">$this</span><span class="op">-></span><span class="var">centroSaludId</span> = (<span class="type">int</span>) <span class="var">$user</span><span class="op">-></span><span class="var">centro_salud_id</span>;
+        }
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">#[Url] — sincronización con la URL</div>
+        El atributo <code class="inline">#[Url]</code> de Livewire sincroniza <code class="inline">$centroSaludId</code> con el query string: <code class="inline">?centroSaludId=3</code>. Pero el trait <strong>impide</strong> que un no-superadmin cambie este valor por URL — siempre se fuerza al centro asignado.
+      </div>
+    </div>
+
+    <h3 class="subsection-title">Protección al actualizar</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">HasCentroSelector — updatingCentroSaludId</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// Re-valida cuando alguien intenta cambiar el centro</span>
+<span class="kw">public function</span> <span class="fn">updatingCentroSaludId</span>(<span class="type">int</span> <span class="var">$value</span>): <span class="type">void</span>
+{
+    <span class="var">$user</span> = <span class="fn">auth</span>()<span class="op">-></span><span class="fn">user</span>();
+
+    <span class="kw">if</span> (<span class="var">$user</span> <span class="op">&&</span> ! <span class="var">$user</span><span class="op">-></span><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>) <span class="op">&&</span> <span class="var">$user</span><span class="op">-></span><span class="var">centro_salud_id</span>) {
+    <span class="var">$this</span><span class="op">-></span><span class="var">centroSaludId</span> = (<span class="type">int</span>) <span class="var">$user</span><span class="op">-></span><span class="var">centro_salud_id</span>;
+    }
+}</pre>
+    </div>
+
+    <h3 class="subsection-title">Computed properties</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">HasCentroSelector — propiedades computadas</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// Centros disponibles: solo superadmin ve la lista</span>
+<span class="kw">public function</span> <span class="fn">getCentrosDisponiblesProperty</span>(): <span class="type">array</span>
+{
+    <span class="var">$user</span> = <span class="fn">auth</span>()<span class="op">-></span><span class="fn">user</span>();
+    <span class="kw">if</span> (! <span class="var">$user</span> <span class="op">||</span> ! <span class="var">$user</span><span class="op">-></span><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>)) {
+        <span class="kw">return</span> [];
+    }
+    <span class="kw">return</span> <span class="cls">CentroSalud</span><span class="op">::</span><span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>)
+        <span class="op">-></span><span class="fn">orderBy</span>(<span class="str">'nombre'</span>)
+        <span class="op">-></span><span class="fn">pluck</span>(<span class="str">'nombre'</span>, <span class="str">'id'</span>)<span class="op">-></span><span class="fn">toArray</span>();
+}
+
+<span class="cmt">// Helper: ¿es superadmin?</span>
+<span class="kw">public function</span> <span class="fn">getEsSuperadminProperty</span>(): <span class="type">bool</span>
+{
+    <span class="kw">return</span> <span class="fn">auth</span>()<span class="op">-></span><span class="fn">user</span>()?-><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>) <span class="op">??</span> <span class="kw">false</span>;
+}
+
+<span class="cmt">// Acceso al ID actual desde cualquier componente</span>
+<span class="kw">protected function</span> <span class="fn">getCentroId</span>(): <span class="type">int</span>
+{
+    <span class="kw">return</span> <span class="var">$this</span><span class="op">-></span><span class="var">centroSaludId</span>;
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Uso en Blade</div>
+        En la vista: <code class="inline">$this-&gt;centrosDisponibles</code> (nota: sin <code class="inline">get</code>/<code class="inline">Property</code>). Si el usuario es superadmin, renderiza un dropdown. Si no, no muestra nada.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: PASSWORD RULES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="password-rules">
+    <h2 class="section-title"><span class="number">3</span> PasswordValidationRules — reglas de password</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Concerns/PasswordValidationRules.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">use</span> <span class="cls">Illuminate\Validation\Rules\Password</span>;
+
+<span class="kw">trait</span> <span class="cls">PasswordValidationRules</span>
+{
+    <span class="kw">protected function</span> <span class="fn">passwordRules</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="str">'required'</span>, <span class="str">'string'</span>, <span class="cls">Password</span><span class="op">::</span><span class="fn">default</span>(), <span class="str">'confirmed'</span>];
+    }
+
+    <span class="kw">protected function</span> <span class="fn">currentPasswordRules</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="str">'required'</span>, <span class="str">'string'</span>, <span class="str">'current_password'</span>];
+    }
+}</pre>
+    </div>
+
+    <p><code class="inline">Password::default()</code> usa las reglas globales definidas en <code class="inline">AppServiceProvider</code>. En producción esto incluye: mínimo 8 caracteres, mixtas mayúsculas/minúsculas, números y símbolos.</p>
+
+    <p>Este trait se usa en:</p>
+    <ul>
+      <li><code class="inline">CreateNewUser</code> → <code class="inline">$this-&gt;passwordRules()</code></li>
+      <li><code class="inline">ResetUserPassword</code> → <code class="inline">$this-&gt;passwordRules()</code></li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: PROFILE RULES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="profile-rules">
+    <h2 class="section-title"><span class="number">4</span> ProfileValidationRules — reglas de perfil</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">app/Concerns/ProfileValidationRules.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">trait</span> <span class="cls">ProfileValidationRules</span>
+{
+    <span class="kw">protected function</span> <span class="fn">profileRules</span>(?<span class="type">int</span> <span class="var">$userId</span> = <span class="kw">null</span>): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'name'</span>  <span class="op">=></span> <span class="var">$this</span><span class="op">-></span><span class="fn">nameRules</span>(),
+            <span class="str">'email'</span> <span class="op">=></span> <span class="var">$this</span><span class="op">-></span><span class="fn">emailRules</span>(<span class="var">$userId</span>),
+        ];
+    }
+
+    <span class="kw">protected function</span> <span class="fn">nameRules</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="str">'required'</span>, <span class="str">'string'</span>, <span class="str">'max:255'</span>];
+    }
+
+    <span class="kw">protected function</span> <span class="fn">emailRules</span>(?<span class="type">int</span> <span class="var">$userId</span> = <span class="kw">null</span>): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'required'</span>, <span class="str">'string'</span>, <span class="str">'email'</span>, <span class="str">'max:255'</span>,
+            <span class="var">$userId</span> === <span class="kw">null</span>
+                ? <span class="cls">Rule</span><span class="op">::</span><span class="fn">unique</span>(<span class="cls">User</span><span class="op">::</span><span class="kw">class</span>)
+                : <span class="cls">Rule</span><span class="op">::</span><span class="fn">unique</span>(<span class="cls">User</span><span class="op">::</span><span class="kw">class</span>)<span class="op">-></span><span class="fn">ignore</span>(<span class="var">$userId</span>),
+        ];
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Rule::unique + ignore — edición sin conflicto</div>
+        Al editar un perfil, el email del usuario actual debe ser válido aunque ya exista (es el suyo). <code class="inline">Rule::unique()-&gt;ignore($userId)</code> excluye al usuario actual de la verificación de unicidad.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: DÓNDE SE USAN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="donde-se-usan">
+    <h2 class="section-title"><span class="number">5</span> Dónde se usan los 3 traits</h2>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Trait</th>
+          <th>Usado en</th>
+          <th>Propósito</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="inline">HasCentroSelector</code></td>
+          <td>7 componentes Livewire (InformeCAI, CausasConsulta, ComunidadesPoblacion, Poblacion, etc.)</td>
+          <td>Selector + aislamiento de datos por centro de salud</td>
+        </tr>
+        <tr>
+          <td><code class="inline">PasswordValidationRules</code></td>
+          <td>CreateNewUser, ResetUserPassword</td>
+          <td>Reglas centralizadas de contraseña</td>
+        </tr>
+        <tr>
+          <td><code class="inline">ProfileValidationRules</code></td>
+          <td>Formularios de perfil de usuario</td>
+          <td>Reglas de nombre + email con unique flexible</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="arch-diagram">
+      <div class="arch-box" style="background:#dbeafe;"><strong>HasCentroSelector</strong><br><small>Seguridad de datos</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="background:#fef3c7;">7 componentes Livewire<br><small>InformeCAI, CausasConsulta, etc.</small></div>
+    </div>
+
+    <div class="arch-diagram" style="margin-top: 0.5rem;">
+      <div class="arch-box" style="background:#dcfce7;"><strong>PasswordValidationRules</strong><br><small>Reglas de password</small></div>
+      <div class="arch-arrow">→</div>
+      <div class="arch-box" style="background:#fce7f3;">CreateNewUser + ResetUserPassword</div>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 20</h3>
+    <ul>
+      <li><strong>HasCentroSelector</strong> — el trait más crítico: #[Url], mount, updating, computed properties</li>
+      <li>Impide que no-superadmins cambien de centro (server-side, no solo UI)</li>
+      <li><strong>PasswordValidationRules</strong> — <code class="inline">Password::default()</code> + <code class="inline">'confirmed'</code></li>
+      <li><strong>ProfileValidationRules</strong> — <code class="inline">Rule::unique()-&gt;ignore($userId)</code> para edición</li>
+      <li>3 traits en <code class="inline">app/Concerns/</code> — convención de Laravel para traits reutilizables</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="19-spatie-permission.html" class="lesson-nav-btn">← Lección 19: Spatie Permission</a>
+    <a href="21-vistas-auth.html" class="lesson-nav-btn">Lección 21: Vistas de autenticación →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 20 de 58</span>
+    <span>Siguiente: Vistas Blade de login, registro, 2FA, reset y pendiente</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

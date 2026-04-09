@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 48 · Informe CAI Livewire — Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL · Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+  <span class="badge">Fase 10 — Livewire Público</span>
+  <h1>Lección 48 · Informe CAI Livewire</h1>
+  <p class="subtitle">El componente full-page que genera el informe CAI completo: migración, censo, prestaciones, coberturas, deserción, ceros justificados y descarga en Excel, PDF y PowerPoint.</p>
+  <p class="meta">Lección 48 de 58 · Tiempo estimado: 25 min</p>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="47-poblacion-piramide.html">← Lección 47 · Población y Pirámide</a>
+  <a href="49-comunidades-causas.html">Lección 49 · ComunidadesPoblacion y CausasConsulta →</a>
+</nav>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">Arquitectura del componente InformeCAI</a></li>
+    <li><a href="#s2">Computed properties — datos, centros, periodo</a></li>
+    <li><a href="#s3">Generación de descargas — Excel, PDF, PPTX</a></li>
+    <li><a href="#s4">La vista — 7 secciones del informe</a></li>
+    <li><a href="#s5">Secciones colapsables con Alpine x-collapse</a></li>
+    <li><a href="#s6">Estado de meses y semáforo de coberturas</a></li>
+    <li><a href="#s7">Flujo completo: seleccionar → visualizar → descargar</a></li>
+  </ol>
+</nav>
+
+<!-- ───── Secciones ───── -->
+
+<!-- ───── S1 ───── -->
+<section id="s1">
+  <h2>1 · Arquitectura del componente InformeCAI</h2>
+
+  <p>El componente <code>InformeCAI</code> (106 líneas) es el más conciso de la interfaz pública porque <strong>delega toda la lógica pesada a CaiHelper</strong> (que vimos en la Lección 42). Es un orquestador puro:</p>
+
+  <pre><code><span class="cmt">// app/Livewire/InformeCAI.php</span>
+<span class="kw">class</span> <span class="cls">InformeCAI</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">use</span> <span class="cls">HasCentroSelector</span>;
+
+    #[<span class="cls">Url</span>]
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$periodo</span> = <span class="str">'cai1'</span>;    <span class="cmt">// 'cai1' | 'cai2' | 'gestion'</span>
+
+    #[<span class="cls">Url</span>]
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$anio</span> = <span class="num">0</span>;
+
+    <span class="kw">public function</span> <span class="fn">mount</span>(): <span class="type">void</span>
+    {
+        <span class="var">$this</span>-><span class="var">anio</span> = <span class="var">$this</span>-><span class="var">anio</span> ?: (<span class="type">int</span>) <span class="fn">date</span>(<span class="str">'Y'</span>);
+        <span class="var">$this</span>-><span class="fn">mountHasCentroSelector</span>();
+    }
+}</code></pre>
+
+  <p>Responsabilidades del componente:</p>
+  <table>
+    <thead>
+      <tr><th>Responsabilidad</th><th>Implementación</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Estado (centro, periodo, año)</td><td>Propiedades Livewire con #[Url]</td></tr>
+      <tr><td>Datos del informe</td><td>Computed → <code>CaiHelper::getDatosInforme()</code></td></tr>
+      <tr><td>Descarga Excel</td><td><code>generarExcel()</code> → InformeCAIExport</td></tr>
+      <tr><td>Descarga PDF</td><td><code>generarPdf()</code> → DomPDF</td></tr>
+      <tr><td>Descarga PPTX</td><td><code>generarPptx()</code> → PresentacionCAI</td></tr>
+      <tr><td>Visualización</td><td>Vista Blade con 7 secciones</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───── S2 ───── -->
+<section id="s2">
+  <h2>2 · Computed properties — datos, centros, periodo</h2>
+
+  <p>Tres computed properties proporcionan datos a la vista sin re-calcular en cada render innecesario:</p>
+
+  <pre><code><span class="cmt">// Lista de centros disponibles para el usuario</span>
+<span class="kw">public function</span> <span class="fn">getCentrosProperty</span>(): <span class="type">array</span>
+{
+    <span class="kw">return</span> <span class="var">$this</span>-><span class="var">centrosDisponibles</span>;
+}
+
+<span class="cmt">// Todos los datos del informe — el corazón</span>
+<span class="kw">public function</span> <span class="fn">getDatosProperty</span>(): ?<span class="type">array</span>
+{
+    <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">centroSaludId</span> === <span class="num">0</span>) {
+        <span class="kw">return null</span>;
+    }
+    <span class="kw">return</span> <span class="cls">CaiHelper</span>::<span class="fn">getDatosInforme</span>(
+        <span class="var">$this</span>-><span class="var">centroSaludId</span>,
+        <span class="var">$this</span>-><span class="var">periodo</span>,
+        <span class="var">$this</span>-><span class="var">anio</span>
+    );
+}
+
+<span class="cmt">// Nombre legible del periodo</span>
+<span class="kw">public function</span> <span class="fn">getNombrePeriodoProperty</span>(): <span class="type">string</span>
+{
+    <span class="kw">return</span> <span class="cls">CaiHelper</span>::<span class="fn">getNombrePeriodo</span>(<span class="var">$this</span>-><span class="var">periodo</span>, <span class="var">$this</span>-><span class="var">anio</span>);
+}</code></pre>
+
+  <p>El <code>getDatosProperty</code> retorna <code>null</code> si no hay centro seleccionado, lo que la vista usa para mostrar un mensaje de "seleccione un centro".</p>
+
+  <div class="callout info">
+    <strong>Lazy evaluation</strong>: <code>$this->datos</code> no se calcula hasta que la vista lo accede. Cuando el usuario cambia centro/periodo/año, Livewire re-renderiza y la computed se re-evalúa con los valores nuevos.
+  </div>
+</section>
+
+<!-- ───── S3 ───── -->
+<section id="s3">
+  <h2>3 · Generación de descargas — Excel, PDF, PPTX</h2>
+
+  <p>El componente ofrece <strong>tres formatos de descarga</strong>, cada uno con su propia estrategia:</p>
+
+  <h3>Excel con Maatwebsite</h3>
+  <pre><code><span class="kw">public function</span> <span class="fn">generarExcel</span>()
+{
+    <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">centroSaludId</span> === <span class="num">0</span>) <span class="kw">return</span>;
+
+    <span class="var">$datos</span>  = <span class="cls">CaiHelper</span>::<span class="fn">getDatosInforme</span>(...);
+    <span class="var">$nombre</span> = <span class="str">'InformeCAI_'</span>
+        . <span class="fn">str_replace</span>(<span class="str">' '</span>, <span class="str">'_'</span>, <span class="var">$datos</span>[<span class="str">'encabezado'</span>][<span class="str">'centro_nombre'</span>])
+        . <span class="str">'_'</span> . <span class="var">$this</span>-><span class="var">periodo</span> . <span class="str">'_'</span> . <span class="var">$this</span>-><span class="var">anio</span> . <span class="str">'.xlsx'</span>;
+
+    <span class="kw">return</span> <span class="cls">Excel</span>::<span class="fn">download</span>(
+        <span class="kw">new</span> <span class="cls">InformeCAIExport</span>(<span class="var">$datos</span>),
+        <span class="var">$nombre</span>
+    );
+}</code></pre>
+
+  <h3>PDF con DomPDF</h3>
+  <pre><code><span class="kw">public function</span> <span class="fn">generarPdf</span>()
+{
+    <span class="var">$datos</span>  = <span class="cls">CaiHelper</span>::<span class="fn">getDatosInforme</span>(...);
+    <span class="var">$nombre</span> = <span class="str">'InformeCAI_..._'</span> . <span class="var">$this</span>-><span class="var">anio</span> . <span class="str">'.pdf'</span>;
+
+    <span class="var">$pdf</span> = <span class="cls">Pdf</span>::<span class="fn">loadView</span>(<span class="str">'pdf.informe-cai'</span>, [<span class="str">'datos'</span> => <span class="var">$datos</span>])
+        -><span class="fn">setPaper</span>(<span class="str">'a4'</span>, <span class="str">'portrait'</span>)
+        -><span class="fn">setOption</span>(<span class="str">'margin-top'</span>, <span class="num">15</span>)
+        -><span class="fn">setOption</span>(<span class="str">'margin-bottom'</span>, <span class="num">15</span>)
+        -><span class="fn">setOption</span>(<span class="str">'margin-left'</span>, <span class="num">15</span>)
+        -><span class="fn">setOption</span>(<span class="str">'margin-right'</span>, <span class="num">15</span>);
+
+    <span class="kw">return</span> <span class="fn">response</span>()-><span class="fn">streamDownload</span>(
+        <span class="kw">fn</span> () => <span class="kw">print</span>(<span class="var">$pdf</span>-><span class="fn">output</span>()),
+        <span class="var">$nombre</span>
+    );
+}</code></pre>
+
+  <h3>PowerPoint con PhpPresentation</h3>
+  <pre><code><span class="kw">public function</span> <span class="fn">generarPptx</span>()
+{
+    <span class="var">$centro</span> = <span class="cls">CentroSalud</span>::<span class="fn">find</span>(<span class="var">$this</span>-><span class="var">centroSaludId</span>);
+
+    <span class="cmt">// PresentacionCAI genera TODAS las diapositivas del municipio</span>
+    <span class="var">$pptx</span>    = <span class="kw">new</span> <span class="cls">PresentacionCAI</span>(<span class="var">$centro</span>-><span class="var">municipio_id</span>, <span class="var">$this</span>-><span class="var">periodo</span>, <span class="var">$this</span>-><span class="var">anio</span>);
+    <span class="var">$tmpFile</span> = <span class="var">$pptx</span>-><span class="fn">generate</span>();  <span class="cmt">// Retorna path temporal</span>
+
+    <span class="kw">return</span> <span class="fn">response</span>()-><span class="fn">streamDownload</span>(
+        <span class="kw">function</span> () <span class="kw">use</span> (<span class="var">$tmpFile</span>) {
+            <span class="fn">readfile</span>(<span class="var">$tmpFile</span>);
+            @<span class="fn">unlink</span>(<span class="var">$tmpFile</span>);  <span class="cmt">// Limpiar archivo temporal</span>
+        },
+        <span class="var">$nombre</span>,
+        [<span class="str">'Content-Type'</span> => <span class="str">'application/vnd.openxmlformats-officedocument.presentationml.presentation'</span>]
+    );
+}</code></pre>
+
+  <div class="callout warning">
+    <strong>streamDownload + @unlink</strong>: El PPTX se genera como archivo temporal. <code>readfile()</code> lo envía al navegador y luego <code>@unlink()</code> lo elimina. El <code>@</code> suprime errores si el archivo ya fue eliminado.
+  </div>
+
+  <table>
+    <thead>
+      <tr><th>Formato</th><th>Librería</th><th>Estrategia</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Excel (.xlsx)</td><td>Maatwebsite\Excel</td><td><code>Excel::download(Export, nombre)</code></td></tr>
+      <tr><td>PDF (.pdf)</td><td>Barryvdh\DomPDF</td><td><code>Pdf::loadView()→streamDownload</code></td></tr>
+      <tr><td>PowerPoint (.pptx)</td><td>PhpPresentation</td><td><code>generate()→readfile→unlink</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───── S4 ───── -->
+<section id="s4">
+  <h2>4 · La vista — 7 secciones del informe</h2>
+
+  <p>La vista <code>informe-cai.blade.php</code> (399 líneas) muestra el informe completo en 7 secciones numeradas:</p>
+
+  <table>
+    <thead>
+      <tr><th>#</th><th>Sección</th><th>Datos</th><th>Colapsable</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>1</td><td>Contexto de Migración</td><td>4 stat cards (padrón, residentes, migrantes, MEF)</td><td>No</td></tr>
+      <tr><td>2</td><td>Censo Poblacional</td><td>Tabla comunidades + pirámide INE vs Real</td><td>No</td></tr>
+      <tr><td>3</td><td>Prestaciones Acumuladas</td><td>Vacunas, micronutrientes, crecimiento, puerperio</td><td>Sí</td></tr>
+      <tr><td>4</td><td>Cobertura de Programas</td><td>Tabla dual + tasas de deserción</td><td>No</td></tr>
+      <tr><td>5</td><td>Ceros Justificados</td><td>Tabla: mes, indicador, motivo, detalle</td><td>Sí</td></tr>
+      <tr><td>6</td><td>Observaciones Narrativas</td><td>Texto libre por mes</td><td>Sí</td></tr>
+      <tr><td>7</td><td>Firma</td><td>Línea de firma con responsable y fecha</td><td>No</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Selectores en la cabecera</h3>
+  <pre><code><span class="cmt">&lt;!-- Selector de centro de salud --&gt;</span>
+<span class="kw">&lt;select</span> <span class="attr">wire:model.live</span>=<span class="str">"centroSaludId"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;option</span> <span class="attr">value</span>=<span class="str">"0"</span><span class="kw">&gt;</span>— Seleccionar —<span class="kw">&lt;/option&gt;</span>
+    @<span class="fn">foreach</span> (<span class="var">$this</span>-><span class="var">centros</span> <span class="kw">as</span> <span class="var">$id</span> => <span class="var">$nombre</span>)
+        <span class="kw">&lt;option</span> <span class="attr">value</span>=<span class="str">"{{ $id }}"</span><span class="kw">&gt;</span>{{ <span class="var">$nombre</span> }}<span class="kw">&lt;/option&gt;</span>
+    @<span class="fn">endforeach</span>
+<span class="kw">&lt;/select&gt;</span>
+
+<span class="cmt">&lt;!-- Selector de año (últimos 4 años) --&gt;</span>
+<span class="kw">&lt;select</span> <span class="attr">wire:model.live</span>=<span class="str">"anio"</span><span class="kw">&gt;</span>
+    @<span class="fn">for</span> (<span class="var">$y</span> = <span class="fn">date</span>(<span class="str">'Y'</span>); <span class="var">$y</span> >= <span class="fn">date</span>(<span class="str">'Y'</span>) - <span class="num">3</span>; <span class="var">$y</span>--)
+        <span class="kw">&lt;option&gt;</span>{{ <span class="var">$y</span> }}<span class="kw">&lt;/option&gt;</span>
+    @<span class="fn">endfor</span>
+<span class="kw">&lt;/select&gt;</span>
+
+<span class="cmt">&lt;!-- Periodo: pills CAI 1, CAI 2, Cierre Gestión --&gt;</span>
+@<span class="fn">foreach</span> ([<span class="str">'cai1'</span> => <span class="str">'CAI 1 (Ene–Abr)'</span>, ...] <span class="kw">as</span> <span class="var">$val</span> => <span class="var">$label</span>)
+    <span class="kw">&lt;button</span> <span class="attr">wire:click</span>=<span class="str">"$set('periodo', '{{ $val }}')"</span><span class="kw">&gt;</span>
+        {{ <span class="var">$label</span> }}
+    <span class="kw">&lt;/button&gt;</span>
+@<span class="fn">endforeach</span></code></pre>
+
+  <h3>Sección 1 — Migración con stat cards</h3>
+  <pre><code><span class="cmt">&lt;!-- 4 stat cards con colores temáticos --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"grid grid-cols-2 gap-4 sm:grid-cols-4"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"rounded-lg bg-blue-50 p-3"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;p</span> <span class="attr">class</span>=<span class="str">"text-2xl font-bold text-blue-700"</span><span class="kw">&gt;</span>
+            {{ <span class="fn">number_format</span>(<span class="var">$mig</span>[<span class="str">'total_padron'</span>]) }}
+        <span class="kw">&lt;/p&gt;</span>
+        <span class="kw">&lt;p</span> <span class="attr">class</span>=<span class="str">"text-xs text-gray-600"</span><span class="kw">&gt;</span>Padrón total<span class="kw">&lt;/p&gt;</span>
+    <span class="kw">&lt;/div&gt;</span>
+    <span class="cmt">&lt;!-- + Residentes (verde), Migrantes (amarillo), MEF (morado) --&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+</section>
+
+<!-- ───── S5 ───── -->
+<section id="s5">
+  <h2>5 · Secciones colapsables con Alpine x-collapse</h2>
+
+  <p>Las secciones 3, 5 y 6 son colapsables para no abrumar la pantalla. Usan Alpine.js con <code>x-collapse</code>:</p>
+
+  <pre><code><span class="cmt">&lt;!-- Sección colapsable con Alpine --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">x-data</span>=<span class="str">"{ open: false }"</span> <span class="attr">class</span>=<span class="str">"rounded-xl border bg-white p-6"</span><span class="kw">&gt;</span>
+    <span class="cmt">&lt;!-- Botón toggle con chevron rotable --&gt;</span>
+    <span class="kw">&lt;button</span> @<span class="attr">click</span>=<span class="str">"open = !open"</span>
+            <span class="attr">class</span>=<span class="str">"flex w-full items-center justify-between text-left"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;h2&gt;</span>3. Prestaciones Acumuladas<span class="kw">&lt;/h2&gt;</span>
+        <span class="kw">&lt;svg</span> <span class="attr">:class</span>=<span class="str">"{ 'rotate-180': open }"</span>
+             <span class="attr">class</span>=<span class="str">"size-5 text-gray-400 transition-transform"</span><span class="kw">&gt;</span>
+            <span class="cmt">&lt;!-- Chevron down --&gt;</span>
+        <span class="kw">&lt;/svg&gt;</span>
+    <span class="kw">&lt;/button&gt;</span>
+
+    <span class="cmt">&lt;!-- Contenido con animación x-collapse --&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">x-show</span>=<span class="str">"open"</span> <span class="attr">x-collapse</span> <span class="attr">class</span>=<span class="str">"mt-4 space-y-4"</span><span class="kw">&gt;</span>
+        <span class="cmt">&lt;!-- Tablas de prestaciones aquí --&gt;</span>
+    <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <h3>Prestaciones acumuladas (Sección 3)</h3>
+  <p>Dentro del colapsable, hay <strong>5 sub-tablas</strong>:</p>
+  <ol>
+    <li><strong>Vacunas</strong>: tipo, grupo etáreo, dentro M/F, fuera M/F, total.</li>
+    <li><strong>Micronutrientes</strong>: tipo → total.</li>
+    <li><strong>Control de Crecimiento</strong>: grupo → nuevos M/F, repetidos M/F.</li>
+    <li><strong>Recién Nacidos</strong>: indicador → total.</li>
+    <li><strong>Puerperio</strong>: tipo control → total.</li>
+  </ol>
+
+  <div class="callout tip">
+    <strong>x-collapse vs x-show</strong>: <code>x-collapse</code> (plugin de Alpine) anima la altura del elemento con transición suave. <code>x-show</code> solo controla visibilidad. Juntos crean un acordeón fluido.
+  </div>
+</section>
+
+<!-- ───── S6 ───── -->
+<section id="s6">
+  <h2>6 · Estado de meses y semáforo de coberturas</h2>
+
+  <h3>Badges de meses cerrados</h3>
+  <pre><code><span class="cmt">&lt;!-- Indicadores visuales de estado por mes --&gt;</span>
+@<span class="fn">foreach</span> (<span class="var">$datos</span>[<span class="str">'meses_cerrados'</span>] <span class="kw">as</span> <span class="var">$mc</span>)
+    <span class="kw">&lt;span</span> <span class="attr">class</span>=<span class="str">"rounded-full px-2.5 py-0.5 text-xs font-medium
+        {{ $mc['cerrado']
+            ? 'bg-green-100 text-green-800'    // ✓ Mes cerrado
+            : 'bg-yellow-100 text-yellow-800'  // ⚠ Mes abierto
+        }}"</span><span class="kw">&gt;</span>
+      @<span class="fn">if</span>(<span class="var">$mc</span>[<span class="str">'cerrado'</span>])
+          <span class="cmt">&lt;!-- SVG checkmark --&gt;</span>
+      @<span class="fn">else</span>
+          <span class="cmt">&lt;!-- SVG warning triangle --&gt;</span>
+      @<span class="fn">endif</span>
+      {{ <span class="var">$mc</span>[<span class="str">'mes'</span>] }}
+    <span class="kw">&lt;/span&gt;</span>
+@<span class="fn">endforeach</span></code></pre>
+
+  <h3>Tabla de cobertura con semáforo</h3>
+  <pre><code><span class="cmt">&lt;!-- Cobertura dual: INE % y Real % --&gt;</span>
+<span class="kw">&lt;td</span> <span class="attr">class</span>=<span class="str">"{{
+    $prog['cob_ine'] >= 80 ? 'text-green-600'  :
+    ($prog['cob_ine'] >= 50 ? 'text-yellow-600' :
+                               'text-red-500')
+}}"</span><span class="kw">&gt;</span>
+    {{ <span class="var">$prog</span>[<span class="str">'cob_ine'</span>] }}%
+<span class="kw">&lt;/td&gt;</span></code></pre>
+
+  <h3>Tasas de deserción</h3>
+  <pre><code><span class="cmt">&lt;!-- Tasa deserción: rojo >10%, amarillo >0%, verde 0% --&gt;</span>
+<span class="kw">&lt;td</span> <span class="attr">class</span>=<span class="str">"{{
+    $d['tasa'] > 10 ? 'text-red-500'    :
+    ($d['tasa'] > 0  ? 'text-yellow-600' :
+                        'text-green-600')
+}}"</span><span class="kw">&gt;</span>
+    {{ <span class="var">$d</span>[<span class="str">'tasa'</span>] }}%
+<span class="kw">&lt;/td&gt;</span></code></pre>
+
+  <p>La deserción mide el porcentaje de personas que inician un esquema (ej. Pentavalente 1ra) pero no lo completan (Pentavalente 3ra). Una tasa >10% indica un problema serio de cobertura.</p>
+
+  <h3>Sección de firma</h3>
+  <pre><code><span class="cmt">&lt;!-- Bloque de firma formal --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"py-8 text-center"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"mx-auto w-64 border-b-2 border-gray-400"</span><span class="kw">&gt;&lt;/div&gt;</span>
+    <span class="kw">&lt;p&gt;</span>{{ <span class="var">$datos</span>[<span class="str">'encabezado'</span>][<span class="str">'responsable'</span>] }}<span class="kw">&lt;/p&gt;</span>
+    <span class="kw">&lt;p&gt;</span>Responsable — {{ <span class="var">$datos</span>[<span class="str">'encabezado'</span>][<span class="str">'centro_nombre'</span>] }}<span class="kw">&lt;/p&gt;</span>
+    <span class="kw">&lt;p&gt;</span>{{ <span class="var">$datos</span>[<span class="str">'encabezado'</span>][<span class="str">'municipio'</span>] }}, {{ <span class="var">$datos</span>[<span class="str">'encabezado'</span>][<span class="str">'fecha_generacion'</span>] }}<span class="kw">&lt;/p&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+</section>
+
+<!-- ───── S7 ───── -->
+<section id="s7">
+  <h2>7 · Flujo completo: seleccionar → visualizar → descargar</h2>
+
+  <pre><code><span class="cmt">Flujo del usuario</span>
+┌─────────────────────────────────────────────────────────┐
+│  1. Selecciona Centro de Salud   (wire:model.live)      │
+│  2. Selecciona Año               (wire:model.live)      │
+│  3. Selecciona Periodo           (wire:click → $set)    │
+│                                                         │
+│  → Livewire invoca $this->datos (computed)              │
+│  → CaiHelper::getDatosInforme() ejecuta 9+ queries     │
+│  → Vista renderiza 7 secciones con los datos            │
+│                                                         │
+│  4. Click "Descargar Excel"   → wire:click="generarExcel"│
+│     Click "Descargar PDF"     → wire:click="generarPdf"  │
+│     Click "Descargar PPTX"    → wire:click="generarPptx" │
+│                                                         │
+│  → Se re-calculan datos + se genera archivo             │
+│  → Browser descarga el archivo                          │
+└─────────────────────────────────────────────────────────┘</code></pre>
+
+  <h3>Arquitectura en capas</h3>
+  <table>
+    <thead>
+      <tr><th>Capa</th><th>Responsable</th><th>Lección</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Vista Blade</td><td>informe-cai.blade.php (399 líneas)</td><td>Esta lección</td></tr>
+      <tr><td>Componente Livewire</td><td>InformeCAI.php (106 líneas)</td><td>Esta lección</td></tr>
+      <tr><td>Motor de datos</td><td>CaiHelper.php (558 líneas)</td><td>Lección 42</td></tr>
+      <tr><td>Export Excel</td><td>InformeCAIExport (con Sheets)</td><td>Lección 51</td></tr>
+      <tr><td>Export PPTX</td><td>PresentacionCAI</td><td>Lección 52</td></tr>
+      <tr><td>Vista PDF</td><td>pdf/informe-cai.blade.php</td><td>Lección 53</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───── Resumen ───── -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li><strong>InformeCAI.php</strong> (106 líneas) es un orquestador lean que delega la lógica pesada a <code>CaiHelper</code>.</li>
+    <li>Usa <strong>3 computed properties</strong> (datos, centros, nombrePeriodo) para evaluación lazy.</li>
+    <li>Ofrece <strong>3 formatos de descarga</strong>: Excel (Maatwebsite), PDF (DomPDF con streamDownload), PPTX (PhpPresentation con tmpfile + unlink).</li>
+    <li>La vista (399 líneas) muestra <strong>7 secciones numeradas</strong> del informe CAI, con 3 secciones colapsables (Alpine x-collapse).</li>
+    <li>Los <strong>badges de meses</strong> muestran el estado de cierre (verde/amarillo), y las tablas de cobertura usan semáforo de 3 colores.</li>
+    <li>El <strong>bloque de firma</strong> incluye nombre del responsable, centro y fecha — listo para impresión.</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Próxima lección</strong>: En la Lección 49 exploraremos <strong>ComunidadesPoblacion y CausasConsulta</strong> — los dos componentes Livewire públicos que muestran datos de comunidades y las 10 principales causas de consulta.
+  </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="47-poblacion-piramide.html">← Lección 47 · Población y Pirámide</a>
+  <a href="49-comunidades-causas.html">Lección 49 · ComunidadesPoblacion y CausasConsulta →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+  Tutorial SICSAL · <span id="year"></span>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</footer>
+
+</body>
+</html>

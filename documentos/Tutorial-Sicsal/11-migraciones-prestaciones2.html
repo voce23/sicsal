@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 11 — Migraciones: Tablas prest_* Parte 2 + Auxiliares | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 2 — Base de Datos</div>
+    <div class="lesson-number">Lección 11 de 58</div>
+    <h1 class="lesson-title">Migraciones: prest_* Parte 2 + Auxiliares</h1>
+    <p class="lesson-subtitle">Las 10 tablas prest_* restantes, 5 tablas auxiliares, constraints UNIQUE e índices de rendimiento. Cierre completo de la Fase 2.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 17 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~45 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="10-migraciones-prestaciones1.html" class="lesson-nav-btn">← Lección 10</a>
+    <a href="12-modelos-basicos.html" class="lesson-nav-btn">Lección 12 →</a>
+  </div>
+
+  <!-- ═══ Tabla de Contenidos ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#prest-restantes">10 tablas prest_* restantes (resumen)</a></li>
+      <li><a href="#prest-micronutrientes">prest_micronutrientes</a></li>
+      <li><a href="#prest-recien-nacidos">prest_recien_nacidos</a></li>
+      <li><a href="#prest-anticoncepcion">prest_anticoncepcion</a></li>
+      <li><a href="#prest-comunidad">prest_actividades_comunidad</a></li>
+      <li><a href="#prest-otros">prest_referencias, odontología, enfermería, internaciones, cáncer, ILE</a></li>
+      <li><a href="#auxiliares">5 tablas auxiliares</a></li>
+      <li><a href="#constraints">UNIQUE constraints en tablas clínicas</a></li>
+      <li><a href="#indexes">Índices de rendimiento</a></li>
+      <li><a href="#mapa-total">Mapa total de la base de datos</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: RESUMEN PREST RESTANTES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="prest-restantes">
+    <h2 class="section-title"><span class="number">1</span> 10 tablas prest_* restantes (resumen)</h2>
+
+    <p>En la lección anterior creamos 6 tablas prest_*. Ahora completamos las 10 restantes. Todas siguen el mismo patrón: <code class="inline">centro_salud_id + mes + anio + dimensiones + contadores</code>.</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Tabla</th>
+          <th>Dimensión principal</th>
+          <th>Contadores</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>prest_micronutrientes</td><td>tipo (20 valores)</td><td>cantidad</td></tr>
+        <tr><td>prest_recien_nacidos</td><td>indicador (10 valores)</td><td>cantidad</td></tr>
+        <tr><td>prest_anticoncepcion</td><td>metodo + tipo_usuaria + grupo</td><td>cantidad</td></tr>
+        <tr><td>prest_actividades_comunidad</td><td>tipo_actividad (13 valores)</td><td>cantidad</td></tr>
+        <tr><td>prest_referencias</td><td>tipo (7 valores)</td><td>masculino, femenino</td></tr>
+        <tr><td>prest_odontologia</td><td>procedimiento + grupo</td><td>masculino, femenino</td></tr>
+        <tr><td>prest_enfermeria</td><td>tipo (7 valores)</td><td>cantidad</td></tr>
+        <tr><td>prest_internaciones</td><td>indicador (6 valores)</td><td>cantidad</td></tr>
+        <tr><td>prest_cancer_prevencion</td><td>indicador (9 valores)</td><td>cantidad</td></tr>
+        <tr><td>prest_ile</td><td>indicador (3 valores)</td><td>cantidad</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: PREST MICRONUTRIENTES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="prest-micronutrientes">
+    <h2 class="section-title"><span class="number">2</span> prest_micronutrientes</h2>
+
+    <p>Totales mensuales de suplementación (hierro, vitamina A, zinc, nutribebé, chispitas, etc.) — 20 tipos diferentes.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_create_prest_micronutrientes_table.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'prest_micronutrientes'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">tinyInteger</span>(<span class="str">'mes'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">year</span>(<span class="str">'anio'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'tipo'</span>, [
+        <span class="str">'hierro_embarazadas_completo'</span>, <span class="str">'hierro_puerperas_completo'</span>,
+        <span class="str">'hierro_menor_6m'</span>, <span class="str">'hierro_menor_1'</span>, <span class="str">'hierro_1anio'</span>, <span class="str">'hierro_2_5'</span>,
+        <span class="str">'vitA_puerpera_unica'</span>, <span class="str">'vitA_menor_1_unica'</span>,
+        <span class="str">'vitA_1anio_1ra'</span>, <span class="str">'vitA_1anio_2da'</span>,
+        <span class="str">'vitA_2_5_1ra'</span>, <span class="str">'vitA_2_5_2da'</span>,
+        <span class="str">'zinc_menor_1'</span>, <span class="str">'zinc_1anio'</span>,
+        <span class="str">'nutribebe_menor_1'</span>, <span class="str">'nutribebe_1anio'</span>,
+        <span class="str">'nutrimama_embarazada'</span>, <span class="str">'nutrimama_lactancia'</span>,
+        <span class="str">'carmelo_mayor_60'</span>, <span class="str">'chispitas_6_23m'</span>,
+    ]);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'cantidad'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+        [<span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>, <span class="str">'tipo'</span>],
+        <span class="str">'pm_centro_mes_anio_tipo_unique'</span>
+    );
+});</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: PREST RECIÉN NACIDOS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="prest-recien-nacidos">
+    <h2 class="section-title"><span class="number">3</span> prest_recien_nacidos</h2>
+
+    <p>Indicadores mensuales del programa de atención al recién nacido: nacidos vivos, peso bajo, lactancia inmediata, malformaciones, etc.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_create_prest_recien_nacidos_table.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'prest_recien_nacidos'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">tinyInteger</span>(<span class="str">'mes'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">year</span>(<span class="str">'anio'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'indicador'</span>, [
+        <span class="str">'nacidos_vivos_servicio'</span>, <span class="str">'nacidos_vivos_domicilio'</span>,
+        <span class="str">'nacidos_vivos_4cpn'</span>, <span class="str">'nacidos_vivos_peso_menor_2500'</span>,
+        <span class="str">'nacidos_muertos'</span>, <span class="str">'rn_lactancia_inmediata'</span>,
+        <span class="str">'rn_alojamiento_conjunto'</span>, <span class="str">'rn_corte_tardio_cordon'</span>,
+        <span class="str">'rn_malformacion_congenita'</span>, <span class="str">'rn_control_48h'</span>,
+    ]);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'cantidad'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+        [<span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>, <span class="str">'indicador'</span>],
+        <span class="str">'prn_centro_mes_anio_indicador_unique'</span>
+    );
+});</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: PREST ANTICONCEPCIÓN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="prest-anticoncepcion">
+    <h2 class="section-title"><span class="number">4</span> prest_anticoncepcion</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_create_prest_anticoncepcion_table.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'prest_anticoncepcion'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">tinyInteger</span>(<span class="str">'mes'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">year</span>(<span class="str">'anio'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'metodo'</span>, <span class="num">60</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'tipo_usuaria'</span>, [<span class="str">'nueva'</span>, <span class="str">'continua'</span>]);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'grupo_etareo'</span>, [
+        <span class="str">'menor_10'</span>, <span class="str">'10_14'</span>, <span class="str">'15_19'</span>,
+        <span class="str">'20_34'</span>, <span class="str">'35_49'</span>, <span class="str">'50_mas'</span>,
+    ]);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'cantidad'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+});</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: PREST ACTIVIDADES COMUNIDAD
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="prest-comunidad">
+    <h2 class="section-title"><span class="number">5</span> prest_actividades_comunidad</h2>
+
+    <p>Registro de actividades comunitarias: CAI, carpetización, visitas domiciliarias, reuniones, actividades educativas, atención a personas con discapacidad.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_create_prest_actividades_comunidad_table.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'prest_actividades_comunidad'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">tinyInteger</span>(<span class="str">'mes'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">year</span>(<span class="str">'anio'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'tipo_actividad'</span>, [
+        <span class="str">'actividades_con_comunidad'</span>, <span class="str">'cai_establecimiento'</span>,
+        <span class="str">'comunidades_en_cai'</span>, <span class="str">'familias_nuevas_carpetizadas'</span>,
+        <span class="str">'familias_seguimiento'</span>, <span class="str">'visitas_primeras'</span>,
+        <span class="str">'visitas_segundas'</span>, <span class="str">'visitas_terceras'</span>,
+        <span class="str">'reuniones_autoridades'</span>, <span class="str">'reuniones_comites_salud'</span>,
+        <span class="str">'actividades_educativas_salud'</span>,
+        <span class="str">'pcd_atendidas_establecimiento'</span>, <span class="str">'pcd_atendidas_comunidad'</span>,
+    ]);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'cantidad'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+        [<span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>, <span class="str">'tipo_actividad'</span>],
+        <span class="str">'pac_centro_mes_anio_actividad_unique'</span>
+    );
+});</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: PREST OTROS (6 MÁS)
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="prest-otros">
+    <h2 class="section-title"><span class="number">6</span> prest_referencias, odontología, enfermería, internaciones, cáncer, ILE</h2>
+
+    <p>Las 6 tablas restantes son más especializadas. Mostramos su estructura resumida:</p>
+
+    <h3 class="subsection-title">prest_referencias</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">prest_referencias</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'tipo'</span>, [
+    <span class="str">'ref_recibida_comunidad'</span>, <span class="str">'ref_recibida_establecimiento'</span>,
+    <span class="str">'ref_enviada'</span>, <span class="str">'contraref_recibida'</span>, <span class="str">'contraref_enviada'</span>,
+    <span class="str">'pcd_atendida_establecimiento'</span>, <span class="str">'pcd_atendida_comunidad'</span>,
+]);
+<span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'masculino'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);
+<span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'femenino'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);</pre>
+    </div>
+
+    <h3 class="subsection-title">prest_odontologia</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">prest_odontologia</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'procedimiento'</span>, <span class="num">60</span>);
+<span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'grupo_etareo'</span>, [
+    <span class="str">'menor_5'</span>, <span class="str">'5_9'</span>, <span class="str">'10_14'</span>, <span class="str">'15_19'</span>,
+    <span class="str">'20_39'</span>, <span class="str">'40_49'</span>, <span class="str">'50_59'</span>, <span class="str">'mayor_60'</span>,
+]);
+<span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'masculino'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);
+<span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'femenino'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);</pre>
+    </div>
+
+    <h3 class="subsection-title">prest_enfermeria</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">prest_enfermeria</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'tipo'</span>, [
+    <span class="str">'sueros_administrados'</span>, <span class="str">'inyecciones_administradas'</span>,
+    <span class="str">'curaciones'</span>, <span class="str">'nebulizaciones'</span>, <span class="str">'cirugia_menor'</span>,
+    <span class="str">'cirugia_mayor'</span>, <span class="str">'atencion_emergencia'</span>,
+]);
+<span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'cantidad'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);</pre>
+    </div>
+
+    <h3 class="subsection-title">prest_internaciones</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">prest_internaciones</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'indicador'</span>, [
+    <span class="str">'egresos'</span>, <span class="str">'fallecidos'</span>, <span class="str">'dias_estancia_egresos'</span>,
+    <span class="str">'dias_cama_disponible'</span>, <span class="str">'dias_cama_ocupada'</span>,
+    <span class="str">'infecciones_intrahospitalarias'</span>,
+]);
+<span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'cantidad'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);</pre>
+    </div>
+
+    <h3 class="subsection-title">prest_cancer_prevencion</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">prest_cancer_prevencion</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'indicador'</span>, [
+    <span class="str">'pap_nueva'</span>, <span class="str">'pap_repetida'</span>,
+    <span class="str">'ivaa_nueva'</span>, <span class="str">'ivaa_repetida'</span>, <span class="str">'ivaa_positivo'</span>,
+    <span class="str">'crioterapia'</span>, <span class="str">'examen_mama_nueva'</span>,
+    <span class="str">'examen_mama_repetida'</span>, <span class="str">'mamografia_referida'</span>,
+]);
+<span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'cantidad'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);</pre>
+    </div>
+
+    <h3 class="subsection-title">prest_ile (Interrupción Legal del Embarazo)</h3>
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">prest_ile</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'indicador'</span>, [
+    <span class="str">'ile_1er_trimestre'</span>,   <span class="cmt">// Form 301 F63</span>
+    <span class="str">'ile_2do_trimestre'</span>,   <span class="cmt">// F64</span>
+    <span class="str">'ile_3er_trimestre'</span>,   <span class="cmt">// F65</span>
+]);
+<span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'cantidad'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: TABLAS AUXILIARES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="auxiliares">
+    <h2 class="section-title"><span class="number">7</span> 5 tablas auxiliares</h2>
+
+    <h3 class="subsection-title">metas_ine — Proyecciones INE de población</h3>
+    <p>Almacena las metas poblacionales del Instituto Nacional de Estadística por centro, año, grupo etáreo y sexo. Son la referencia para calcular coberturas.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_create_metas_ine_table.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'metas_ine'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">year</span>(<span class="str">'anio'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'grupo_etareo'</span>, [
+        <span class="str">'menor_1'</span>, <span class="str">'1_anio'</span>, <span class="str">'2_anios'</span>, <span class="str">'3_anios'</span>, <span class="str">'4_anios'</span>,
+        <span class="str">'1_4'</span>, <span class="str">'5_anios'</span>, <span class="str">'6_anios'</span>, <span class="str">'menor_5'</span>, <span class="str">'mayor_5'</span>,
+        <span class="str">'menor_2'</span>, <span class="str">'2_3'</span>, <span class="str">'2_4'</span>, <span class="str">'5_9'</span>, <span class="str">'7_9'</span>, <span class="str">'10'</span>,
+        <span class="str">'10_14'</span>, <span class="str">'15_19'</span>, <span class="str">'20_39'</span>, <span class="str">'40_49'</span>, <span class="str">'50_59'</span>, <span class="str">'mayor_60'</span>,
+        <span class="str">'mef_15_40'</span>, <span class="str">'7_49'</span>, <span class="str">'adolescentes_10_19'</span>, <span class="str">'mujeres_menor_20'</span>,
+        <span class="str">'embarazos_esperados'</span>, <span class="str">'partos_esperados'</span>,
+        <span class="str">'nacimientos_esperados'</span>, <span class="str">'dt_7_49'</span>,
+    ]);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'sexo'</span>, [<span class="str">'M'</span>, <span class="str">'F'</span>, <span class="str">'ambos'</span>]);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'cantidad'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>([<span class="str">'centro_salud_id'</span>, <span class="str">'anio'</span>, <span class="str">'grupo_etareo'</span>, <span class="str">'sexo'</span>]);
+});</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Cobertura = (prestación / meta INE) × 100</div>
+        La fórmula de cobertura usa estas metas como denominador. Si la meta INE para menores de 1 año es 50 y se vacunaron 45, la cobertura es 90%.
+      </div>
+    </div>
+
+    <h3 class="subsection-title">justificaciones_cero — Cero justificado</h3>
+    <p>Cuando un indicador clave da cero en un mes, el registrador <strong>debe</strong> justificar por qué. Es una regla de negocio fundamental de SICSAL.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_create_justificaciones_cero_table.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'justificaciones_cero'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">tinyInteger</span>(<span class="str">'mes'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">year</span>(<span class="str">'anio'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'indicador'</span>, [
+        <span class="str">'control_prenatal'</span>, <span class="str">'partos'</span>, <span class="str">'puerperio'</span>,
+        <span class="str">'vacunacion_menor_5'</span>, <span class="str">'control_crecimiento'</span>,
+        <span class="str">'micronutrientes_menor_5'</span>,
+    ]);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'motivo'</span>, [
+        <span class="str">'no_hay_poblacion_activa_padron'</span>,
+        <span class="str">'poblacion_migrada_temporal'</span>,
+        <span class="str">'atendida_otro_centro'</span>,
+        <span class="str">'no_se_presento_razon_desconocida'</span>,
+        <span class="str">'otro'</span>,
+    ]);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'detalle'</span>, <span class="num">300</span>)<span class="op">-></span><span class="fn">nullable</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'registrado_por'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'users'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+        [<span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>, <span class="str">'indicador'</span>],
+        <span class="str">'jc_centro_mes_anio_indicador_unique'</span>
+    );
+});</pre>
+    </div>
+
+    <h3 class="subsection-title">observaciones_mensuales</h3>
+    <p>Un campo de texto libre por centro/mes/año para notas adicionales.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">observaciones_mensuales</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'observaciones_mensuales'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">tinyInteger</span>(<span class="str">'mes'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">year</span>(<span class="str">'anio'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">text</span>(<span class="str">'texto'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'registrado_por'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'users'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+        [<span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>],
+        <span class="str">'om_centro_mes_anio_unique'</span>
+    );
+});</pre>
+    </div>
+
+    <h3 class="subsection-title">meses_cerrados — Control de período</h3>
+    <p>Cuando un admin cierra un mes, ya no se pueden editar datos de ese período. Si es necesario, un superadmin puede reabrir.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">meses_cerrados</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'meses_cerrados'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">tinyInteger</span>(<span class="str">'mes'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">year</span>(<span class="str">'anio'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'cerrado_por'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'users'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">timestamp</span>(<span class="str">'fecha_cierre'</span>)<span class="op">-></span><span class="fn">useCurrent</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'reabierto_por'</span>)<span class="op">-></span><span class="fn">nullable</span>()<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'users'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">timestamp</span>(<span class="str">'fecha_reapertura'</span>)<span class="op">-></span><span class="fn">nullable</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+        [<span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>],
+        <span class="str">'mc_centro_mes_anio_unique'</span>
+    );
+});</pre>
+    </div>
+
+    <h3 class="subsection-title">causas_consulta_externa — Diagnósticos</h3>
+    <p>Las 20 causas de consulta más frecuentes, desglosadas por diagnóstico, grupo etáreo y sexo.</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">causas_consulta_externa</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'causas_consulta_externa'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)<span class="op">-></span><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">tinyInteger</span>(<span class="str">'mes'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">year</span>(<span class="str">'anio'</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'diagnostico'</span>, <span class="num">255</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'grupo_etareo'</span>, [
+        <span class="str">'menor_6m'</span>, <span class="str">'6m_menor_1'</span>, <span class="str">'1_4'</span>, <span class="str">'5_9'</span>, <span class="str">'10_14'</span>,
+        <span class="str">'15_19'</span>, <span class="str">'20_39'</span>, <span class="str">'40_49'</span>, <span class="str">'50_59'</span>, <span class="str">'mayor_60'</span>,
+    ]);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'masculino'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'femenino'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);
+    <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+    <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+        [<span class="str">'centro_salud_id'</span>, <span class="str">'mes'</span>, <span class="str">'anio'</span>, <span class="str">'diagnostico'</span>, <span class="str">'grupo_etareo'</span>],
+        <span class="str">'cce_unico'</span>
+    );
+});</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 8: UNIQUE CONSTRAINTS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="constraints">
+    <h2 class="section-title"><span class="number">8</span> UNIQUE constraints en tablas clínicas</h2>
+
+    <p>Esta migración agrega constraints de unicidad a las tablas clínicas individuales para prevenir datos duplicados:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_add_unique_constraints_person_level.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">public function</span> <span class="fn">up</span>(): <span class="type">void</span>
+{
+    <span class="cmt">// Misma persona no puede tener misma vacuna el mismo día</span>
+    <span class="cls">Schema</span><span class="op">::</span><span class="fn">table</span>(<span class="str">'vacunas_ninos'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+        <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+            [<span class="str">'persona_id'</span>, <span class="str">'tipo_vacuna'</span>, <span class="str">'fecha_aplicacion'</span>],
+            <span class="str">'vacunas_persona_tipo_fecha_unique'</span>
+        );
+    });
+
+    <span class="cmt">// Un control de crecimiento por persona por día</span>
+    <span class="cls">Schema</span><span class="op">::</span><span class="fn">table</span>(<span class="str">'crecimiento_infantil'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+        <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+            [<span class="str">'persona_id'</span>, <span class="str">'fecha'</span>],
+            <span class="str">'crecimiento_persona_fecha_unique'</span>
+        );
+    });
+
+    <span class="cmt">// No duplicar micronutriente para la misma persona y fecha</span>
+    <span class="cls">Schema</span><span class="op">::</span><span class="fn">table</span>(<span class="str">'micronutrientes_ninos'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+        <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+            [<span class="str">'persona_id'</span>, <span class="str">'tipo'</span>, <span class="str">'fecha'</span>],
+            <span class="str">'micronutrientes_persona_tipo_fecha_unique'</span>
+        );
+    });
+
+    <span class="cmt">// Un método por persona por fecha</span>
+    <span class="cls">Schema</span><span class="op">::</span><span class="fn">table</span>(<span class="str">'anticoncepcion'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+        <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+            [<span class="str">'persona_id'</span>, <span class="str">'metodo'</span>, <span class="str">'fecha'</span>],
+            <span class="str">'anticoncepcion_persona_metodo_fecha_unique'</span>
+        );
+    });
+
+    <span class="cmt">// No duplicar número de control prenatal</span>
+    <span class="cls">Schema</span><span class="op">::</span><span class="fn">table</span>(<span class="str">'controles_prenatales'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+        <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>(
+            [<span class="str">'embarazo_id'</span>, <span class="str">'numero_control'</span>],
+            <span class="str">'controles_embarazo_numero_unique'</span>
+        );
+    });
+
+    <span class="cmt">// Un solo parto por embarazo</span>
+    <span class="cls">Schema</span><span class="op">::</span><span class="fn">table</span>(<span class="str">'partos'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+        <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>([<span class="str">'embarazo_id'</span>], <span class="str">'partos_embarazo_unique'</span>);
+    });
+
+    <span class="cmt">// Un solo puerperio por parto</span>
+    <span class="cls">Schema</span><span class="op">::</span><span class="fn">table</span>(<span class="str">'puerperios'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+        <span class="var">$table</span><span class="op">-></span><span class="fn">unique</span>([<span class="str">'parto_id'</span>], <span class="str">'puerperios_parto_unique'</span>);
+    });
+}</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">Seguridad de datos</div>
+        Los UNIQUE constraints son una capa de protección a nivel de base de datos. Aunque el código PHP valide duplicados, si hay un bug o un request concurrente, MySQL <strong>siempre</strong> rechazará el duplicado. Defensa en profundidad.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 9: ÍNDICES DE RENDIMIENTO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="indexes">
+    <h2 class="section-title"><span class="number">9</span> Índices de rendimiento</h2>
+
+    <p>Agregamos índices en columnas que se usan frecuentemente en filtros WHERE:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_add_performance_indexes.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">public function</span> <span class="fn">up</span>(): <span class="type">void</span>
+{
+    <span class="cls">Schema</span><span class="op">::</span><span class="fn">table</span>(<span class="str">'personas'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+        <span class="var">$table</span><span class="op">-></span><span class="fn">index</span>(<span class="str">'estado'</span>);    <span class="cmt">// filtrar residentes vs migrados</span>
+    });
+
+    <span class="cls">Schema</span><span class="op">::</span><span class="fn">table</span>(<span class="str">'centros_salud'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+        <span class="var">$table</span><span class="op">-></span><span class="fn">index</span>(<span class="str">'codigo_snis'</span>); <span class="cmt">// búsqueda por código SNIS</span>
+    });
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">¿Cuándo agregar un índice?</div>
+        Agrega un índice cuando: (1) la columna se usa en <code class="inline">WHERE</code> frecuentemente, (2) la tabla tendrá muchas filas, (3) la columna tiene buena selectividad (muchos valores distintos). No abuses: cada índice ocupa espacio y ralentiza los INSERT.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 10: MAPA TOTAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="mapa-total">
+    <h2 class="section-title"><span class="number">10</span> Mapa total de la base de datos</h2>
+
+    <p>Con esta lección completamos <strong>todas las migraciones</strong> de SICSAL. Aquí el inventario final:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Grupo</th>
+          <th>Tablas</th>
+          <th>Total</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Base / Geográficas</td>
+          <td>municipios, centros_salud, comunidades</td>
+          <td>3</td>
+        </tr>
+        <tr>
+          <td>Usuarios</td>
+          <td>users, password_reset_tokens, sessions</td>
+          <td>3</td>
+        </tr>
+        <tr>
+          <td>Personas</td>
+          <td>personas, defunciones</td>
+          <td>2</td>
+        </tr>
+        <tr>
+          <td>Clínicas individuales</td>
+          <td>vacunas_ninos, crecimiento_infantil, micronutrientes_ninos, embarazos, controles_prenatales, partos, puerperios, anticoncepcion</td>
+          <td>8</td>
+        </tr>
+        <tr>
+          <td>Prestaciones agregadas (prest_*)</td>
+          <td>prest_consulta_externa, prest_vacunas, prest_prenatales, prest_partos, prest_puerperio, prest_crecimiento, prest_micronutrientes, prest_recien_nacidos, prest_anticoncepcion, prest_actividades_comunidad, prest_referencias, prest_odontologia, prest_enfermeria, prest_internaciones, prest_cancer_prevencion, prest_ile</td>
+          <td>16</td>
+        </tr>
+        <tr>
+          <td>Auxiliares</td>
+          <td>metas_ine, justificaciones_cero, observaciones_mensuales, meses_cerrados, causas_consulta_externa</td>
+          <td>5</td>
+        </tr>
+        <tr>
+          <td>Spatie (permisos)</td>
+          <td>roles, permissions, model_has_roles, model_has_permissions, role_has_permissions</td>
+          <td>5</td>
+        </tr>
+        <tr>
+          <td><strong>TOTAL</strong></td>
+          <td></td>
+          <td><strong>~42</strong></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Fase 2 completada</div>
+        Con 50 archivos de migración creados, la base de datos está definida. En la siguiente fase crearemos los <strong>modelos Eloquent</strong> que representan estas tablas en PHP.
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Git commit</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">git</span> add .
+<span class="prompt">$</span> <span class="cmd">git</span> commit <span class="flag">-m</span> <span class="str">"Crear migraciones: prest_* restantes, auxiliares, constraints e índices"</span></pre>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 11</h3>
+    <ul>
+      <li><strong>10 tablas prest_*</strong> adicionales: micronutrientes, recién nacidos, anticoncepción, actividades comunitarias, referencias, odontología, enfermería, internaciones, cáncer, ILE</li>
+      <li><strong>5 tablas auxiliares</strong>: metas_ine (proyecciones poblacionales), justificaciones_cero, observaciones_mensuales, meses_cerrados, causas_consulta_externa</li>
+      <li><strong>UNIQUE constraints</strong> agregados a 7 tablas clínicas individuales para prevenir duplicados</li>
+      <li><strong>Índices de rendimiento</strong> en personas.estado y centros_salud.codigo_snis</li>
+      <li>Base de datos completa: <strong>~42 tablas</strong> en 50 archivos de migración</li>
+      <li>¡Fase 2 terminada! Siguiente: modelos Eloquent</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="10-migraciones-prestaciones1.html" class="lesson-nav-btn">← Lección 10: Tablas prest_* — Parte 1</a>
+    <a href="12-modelos-basicos.html" class="lesson-nav-btn">Lección 12: Modelos — Municipio, CentroSalud, Comunidad →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 11 de 58</span>
+    <span>Siguiente: Modelos: Municipio, CentroSalud, Comunidad</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

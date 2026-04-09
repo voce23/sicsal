@@ -1,0 +1,551 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Lección 56 — Commands: Censo, Defunciones, Causas y TransferirSoaps | Tutorial SICSAL</title>
+<link rel="stylesheet" href="css/leccion.css">
+<link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ TOPBAR ═══ -->
+<div class="topbar">
+  <a href="00-indice.html" class="topbar-brand">📚 Tutorial SICSAL</a>
+  <span class="topbar-sep">|</span>
+  <span class="topbar-page">Lección 56 de 58</span>
+</div>
+
+<!-- ═══ HERO ═══ -->
+<section class="hero">
+  <div class="hero-badge">Fase 12 — Commands e Importación</div>
+  <h1>Commands: Censo, Defunciones, Causas y TransferirSoaps</h1>
+  <p class="hero-subtitle">Cinco comandos que conectan SOAPS (SQL Server) con SIMUES y el SNIS — censo de pacientes, defunciones, causas de consulta, normalización de nombres y transferencia bidireccional.</p>
+  <div class="hero-meta">
+    <span>⏱️ 40 min</span>
+    <span>📦 app/Console/Commands/</span>
+    <span>🔗 SOAPS SQL Server · PDO ODBC · CIE-10 regex</span>
+  </div>
+</section>
+
+<!-- ═══ NAV ═══ -->
+<nav class="lesson-nav">
+  <a href="55-commands-importacion.html">← 55. ImportarVes e ImportarSnis</a>
+  <a href="57-vistas-pdf-inicio.html">57. Vistas PDF e Inicio →</a>
+</nav>
+
+<!-- ═══ TOC ═══ -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">Panorama: 5 commands SOAPS</a></li>
+    <li><a href="#s2">ImportarCenso — Pacientes SOAPS → Personas SIMUES</a></li>
+    <li><a href="#s3">Resolución de comunidades por zona y dirección</a></li>
+    <li><a href="#s4">ImportarDefunciones — Mortalidad SOAPS → SIMUES</a></li>
+    <li><a href="#s5">ImportarCausasConsulta — Top-N diagnósticos CIE-10</a></li>
+    <li><a href="#s6">NormalizarNombres — Title Case masivo</a></li>
+    <li><a href="#s7">TransferirSoaps — Flujo inverso SOAPS → SNIS</a></li>
+    <li><a href="#s8">TransferirSoaps: el mapeo CIE-10 (302A y 305)</a></li>
+    <li><a href="#s9">TransferirSoaps: formularios 301 + 302 + 305</a></li>
+    <li><a href="#s10">Conexiones y seguridad</a></li>
+    <li><a href="#s11">Ejecución y verificación</a></li>
+  </ol>
+</nav>
+
+<!-- ═══ CONTENIDO ═══ -->
+
+<!-- ────── § 1 ────── -->
+<section class="section" id="s1">
+  <h2>1 · Panorama: 5 commands SOAPS</h2>
+
+  <table class="table-ui">
+    <thead>
+      <tr><th>Comando</th><th>Firma artisan</th><th>Líneas</th><th>Dirección</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>ImportarCenso</td>
+        <td><code>soaps:importar-censo</code></td>
+        <td>277</td>
+        <td>SOAPS → SIMUES</td>
+      </tr>
+      <tr>
+        <td>ImportarDefunciones</td>
+        <td><code>soaps:importar-defunciones</code></td>
+        <td>260</td>
+        <td>SOAPS → SIMUES</td>
+      </tr>
+      <tr>
+        <td>ImportarCausasConsulta</td>
+        <td><code>soaps:importar-causas</code></td>
+        <td>209</td>
+        <td>SOAPS → SIMUES</td>
+      </tr>
+      <tr>
+        <td>NormalizarNombres</td>
+        <td><code>sicsal:normalizar-nombres</code></td>
+        <td>38</td>
+        <td>Interno SIMUES</td>
+      </tr>
+      <tr>
+        <td>TransferirSoaps</td>
+        <td><code>soaps:transferir-snis</code></td>
+        <td>891</td>
+        <td>SOAPS → SNIS (.mdb)</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <p>Todos los comandos SOAPS se conectan a <strong>SQL Server</strong> vía PDO ODBC (credenciales en <code>.env</code>). TransferirSoaps también escribe al SNIS (Access .mdb).</p>
+</section>
+
+<!-- ────── § 2 ────── -->
+<section class="section" id="s2">
+  <h2>2 · ImportarCenso — Pacientes SOAPS → Personas SIMUES</h2>
+
+  <pre class="code-block"><span class="kw">class</span> <span class="cls">ImportarCenso</span> <span class="kw">extends</span> <span class="cls">Command</span>
+{
+    <span class="kw">protected</span> <span class="var">$signature</span> = <span class="str">'soaps:importar-censo
+        {--anio=2025 : Año base del censo}
+        {--codestabl=300183 : Código de establecimiento SOAPS}
+        {--centro-salud=1 : ID del centro de salud en SIMUES}
+        {--limpiar : Eliminar personas existentes antes de importar}
+        {--solo-conteo : Solo mostrar conteo sin importar}'</span>;
+}</pre>
+
+  <p>El flujo principal tiene 4 pasos:</p>
+
+  <ol>
+    <li><strong>Consulta SOAPS</strong> — Pacientes con consulta en la gestión (incluye ene-mar del año siguiente).</li>
+    <li><strong>Excluir fallecidos</strong> — Cruza con <code>Tbl_datosFallecido</code> normalizando nombres para comparación.</li>
+    <li><strong>Resolver comunidad</strong> — Mapea <code>zon_descripcion</code> y <code>HCL_DIRECC</code> a comunidades SIMUES.</li>
+    <li><strong>Importar con dedup</strong> — Busca duplicados por CI o por nombre+fecha_nacimiento; actualiza o crea.</li>
+  </ol>
+
+  <pre class="code-block"><span class="cmt">// Paso 4: Deduplicación inteligente</span>
+<span class="var">$existente</span> = <span class="kw2">null</span>;
+<span class="kw">if</span> (<span class="var">$data</span>[<span class="str">'ci'</span>]) {
+    <span class="var">$existente</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroSaludId</span>)
+        <span class="op">-></span><span class="fn">where</span>(<span class="str">'ci'</span>, <span class="var">$data</span>[<span class="str">'ci'</span>])<span class="op">-></span><span class="fn">first</span>();
+}
+<span class="kw">if</span> (! <span class="var">$existente</span>) {
+    <span class="var">$existente</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroSaludId</span>)
+        <span class="op">-></span><span class="fn">where</span>(<span class="str">'apellidos'</span>, <span class="var">$data</span>[<span class="str">'apellidos'</span>])
+        <span class="op">-></span><span class="fn">where</span>(<span class="str">'nombres'</span>, <span class="var">$data</span>[<span class="str">'nombres'</span>])
+        <span class="op">-></span><span class="fn">where</span>(<span class="str">'fecha_nacimiento'</span>, <span class="var">$data</span>[<span class="str">'fecha_nacimiento'</span>])
+        <span class="op">-></span><span class="fn">first</span>();
+}
+
+<span class="kw">if</span> (<span class="var">$existente</span>) {
+    <span class="var">$existente</span><span class="op">-></span><span class="fn">update</span>([
+        <span class="str">'comunidad_id'</span> <span class="op">=></span> <span class="var">$data</span>[<span class="str">'comunidad_id'</span>],
+        <span class="str">'tipo_seguro'</span>  <span class="op">=></span> <span class="var">$data</span>[<span class="str">'tipo_seguro'</span>],
+    ]);
+    <span class="var">$actualizados</span><span class="op">++</span>;
+} <span class="kw">else</span> {
+    <span class="cls">Persona</span>::<span class="fn">create</span>(<span class="var">$data</span>);
+    <span class="var">$nuevos</span><span class="op">++</span>;
+}</pre>
+
+  <div class="callout callout-info">
+    <strong>Período ampliado</strong> — El censo incluye enero-marzo del año siguiente (<code>$anioSig</code>), ya que la gestión boliviana del SNIS abarca hasta marzo del siguiente año calendario.
+  </div>
+</section>
+
+<!-- ────── § 3 ────── -->
+<section class="section" id="s3">
+  <h2>3 · Resolución de comunidades por zona y dirección</h2>
+
+  <p>Tanto ImportarCenso como ImportarDefunciones usan un sistema de dos niveles para asignar comunidades:</p>
+
+  <pre class="code-block"><span class="cmt">// Nivel 1: Mapeo directo zona → comunidad</span>
+<span class="kw">private const</span> <span class="var">ZONA_COMUNIDAD</span> = [
+    <span class="str">'HORNOMA'</span>      <span class="op">=></span> <span class="str">'Hornoma'</span>,
+    <span class="str">'HUAYCHOMA'</span>    <span class="op">=></span> <span class="str">'Huaychoma'</span>,
+    <span class="str">'VILLCABAMBA'</span>  <span class="op">=></span> <span class="str">'Villcabamba'</span>,
+    <span class="str">'COCOMA'</span>       <span class="op">=></span> <span class="str">'Cocoma'</span>,
+    <span class="str">'TOCOHALLA'</span>    <span class="op">=></span> <span class="str">'Tocohalla'</span>,
+    <span class="str">'CHALLAVILQUE'</span> <span class="op">=></span> <span class="str">'Challavilque'</span>,
+    <span class="str">'CALACAJA'</span>     <span class="op">=></span> <span class="str">'Calacaja'</span>,
+    <span class="str">'SIQUIMIRANI'</span>  <span class="op">=></span> <span class="str">'Siquimirani'</span>,
+];
+
+<span class="cmt">// Nivel 2: Búsqueda por palabras clave en dirección</span>
+<span class="kw">private const</span> <span class="var">DIRECC_COMUNIDAD</span> = [
+    <span class="str">'HORNOMA'</span>       <span class="op">=></span> <span class="str">'Hornoma'</span>,
+    <span class="str">'HHUAYCHOMA'</span>    <span class="op">=></span> <span class="str">'Huaychoma'</span>,   <span class="cmt">// typo frecuente</span>
+    <span class="str">'VILLCABAM'</span>     <span class="op">=></span> <span class="str">'Villcabamba'</span>,  <span class="cmt">// parcial</span>
+    <span class="str">'CHALLAVILLQUE'</span> <span class="op">=></span> <span class="str">'Challavilque'</span>, <span class="cmt">// typo</span>
+    <span class="str">'CALCAJA'</span>       <span class="op">=></span> <span class="str">'Calacaja'</span>,    <span class="cmt">// typo</span>
+    <span class="str">'CALA CAJA'</span>     <span class="op">=></span> <span class="str">'Calacaja'</span>,    <span class="cmt">// con espacio</span>
+    <span class="str">'HIORNOMA'</span>      <span class="op">=></span> <span class="str">'Hornoma'</span>,     <span class="cmt">// typo</span>
+];</pre>
+
+  <div class="callout callout-warning">
+    <strong>Tolerancia a errores de tipeo</strong> — Los datos del SOAPS contienen errores de digitación frecuentes. El fallback a <code>DIRECC_COMUNIDAD</code> maneja variantes comunes. Los pacientes sin comunidad se asignan a <strong>Hornoma</strong> (centro de salud principal) y se reportan con <code>--verbose</code>.
+  </div>
+</section>
+
+<!-- ────── § 4 ────── -->
+<section class="section" id="s4">
+  <h2>4 · ImportarDefunciones — Mortalidad SOAPS → SIMUES</h2>
+
+  <pre class="code-block"><span class="kw">class</span> <span class="cls">ImportarDefunciones</span> <span class="kw">extends</span> <span class="cls">Command</span>
+{
+    <span class="kw">protected</span> <span class="var">$signature</span> = <span class="str">'soaps:importar-defunciones
+        {--desde=2024 : Año desde el cual importar}
+        {--hasta=2026 : Año hasta el cual importar}
+        {--codestabl=300183 : Código de establecimiento SOAPS}
+        {--centro-salud=1 : ID del centro de salud en SIMUES}
+        {--todas : Importar todas las gestiones}
+        {--limpiar : Eliminar defunciones importadas antes}
+        {--solo-conteo : Solo mostrar conteo}'</span>;
+}</pre>
+
+  <p>La consulta al SOAPS cruza <code>CONSULTA_EXTERNA_2014</code> con <code>SE_HC</code>, filtrando por <code>MORTALIDAD_TODAS IS NOT NULL</code>:</p>
+
+  <pre class="code-block"><span class="var">$defunciones</span> = <span class="var">$pdo</span><span class="op">-></span><span class="fn">query</span>(<span class="str">"
+    SELECT ce.Fecha, ce.HC, ce.NOMBRE, ce.DIAGNOS_DESCRIP, ce.CIE_I,
+           ce.zona_res, h.HCL_APPAT, h.HCL_APMAT, h.HCL_NOMBRE,
+           h.HCL_NUMCI, h.HCL_SEXO, h.HCL_FECNAC, h.HCL_DIRECC
+    FROM CONSULTA_EXTERNA_2014 ce
+    JOIN SE_HC h ON h.HCL_CODIGO = ce.HC
+    WHERE ce.MORTALIDAD_TODAS IS NOT NULL
+      AND ce.MORTALIDAD_TODAS &lt;&gt; '' AND ce.MORTALIDAD_TODAS &lt;&gt; '0'
+      AND ce.codestabl = '{$codestabl}'
+      {$filtroAnio}
+    ORDER BY ce.Fecha DESC
+"</span>);</pre>
+
+  <p>Al crear la defunción, el modelo <code>Defuncion</code> auto-calcula <code>grupo_etareo</code> y desactiva la persona vinculada:</p>
+
+  <pre class="code-block"><span class="cmt">// Buscar persona en el censo para vincular</span>
+<span class="var">$persona</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'ci'</span>, <span class="var">$data</span>[<span class="str">'ci'</span>])<span class="op">-></span><span class="fn">first</span>();
+<span class="var">$data</span>[<span class="str">'persona_id'</span>] = <span class="var">$persona</span>?-><span class="var">id</span>;
+
+<span class="cmt">// El modelo auto-calcula grupo_etareo y desactiva persona</span>
+<span class="cls">Defuncion</span>::<span class="fn">create</span>(<span class="var">$data</span>);</pre>
+</section>
+
+<!-- ────── § 5 ────── -->
+<section class="section" id="s5">
+  <h2>5 · ImportarCausasConsulta — Top-N diagnósticos CIE-10</h2>
+
+  <pre class="code-block"><span class="kw">class</span> <span class="cls">ImportarCausasConsulta</span> <span class="kw">extends</span> <span class="cls">Command</span>
+{
+    <span class="kw">protected</span> <span class="var">$signature</span> = <span class="str">'soaps:importar-causas
+        {--servidor=.\\SNS : Instancia SQL Server del SOAPS}
+        {--db=BDestadistica : Base de datos SOAPS}
+        {--anio=2026 : Gestión a importar}
+        {--top=10 : Cantidad de principales causas}
+        {--limpiar : Eliminar datos existentes}'</span>;
+}</pre>
+
+  <p>El flujo por cada centro y mes:</p>
+
+  <ol>
+    <li><strong>Cargar diccionario CIE-10</strong> desde <code>SE_CIE10</code>.</li>
+    <li><strong>Consultar todas las atenciones</strong> del mes, calculando <code>total_meses</code> de vida para grupo etáreo.</li>
+    <li><strong>Acumular en PHP</strong>: <code>$conteos[CIE][grupo][M/F]</code>.</li>
+    <li><strong>Ordenar por total descendente</strong> y tomar las Top-N causas.</li>
+    <li><strong>Limpiar + insertar</strong> en <code>causas_consulta_externa</code>.</li>
+  </ol>
+
+  <pre class="code-block"><span class="cmt">// Grupo etáreo a partir de meses de vida</span>
+<span class="kw">private function</span> <span class="fn">getGrupoFromMeses</span>(<span class="type">int</span> <span class="var">$totalMeses</span>): <span class="type">string</span>
+{
+    <span class="kw">if</span> (<span class="var">$totalMeses</span> <span class="op">&lt;</span> <span class="num">6</span>)   <span class="kw">return</span> <span class="str">'menor_6m'</span>;
+    <span class="kw">if</span> (<span class="var">$totalMeses</span> <span class="op">&lt;</span> <span class="num">12</span>)  <span class="kw">return</span> <span class="str">'6m_menor_1'</span>;
+    <span class="kw">if</span> (<span class="var">$totalMeses</span> <span class="op">&lt;</span> <span class="num">60</span>)  <span class="kw">return</span> <span class="str">'1_4'</span>;
+    <span class="kw">if</span> (<span class="var">$totalMeses</span> <span class="op">&lt;</span> <span class="num">120</span>) <span class="kw">return</span> <span class="str">'5_9'</span>;
+    <span class="cmt">// ... hasta mayor_60</span>
+}
+
+<span class="cmt">// Acumulación y ranking</span>
+<span class="var">$conteos</span> = [];
+<span class="kw">foreach</span> (<span class="var">$allRecords</span> <span class="kw">as</span> <span class="var">$d</span>) {
+    <span class="var">$cie</span>  = <span class="fn">trim</span>(<span class="var">$d</span>[<span class="str">'cie'</span>]) ?: <span class="str">'Z76.8'</span>;
+    <span class="var">$g</span>    = <span class="var">$this</span><span class="op">-></span><span class="fn">getGrupoFromMeses</span>((<span class="type">int</span>) <span class="var">$d</span>[<span class="str">'total_meses'</span>]);
+    <span class="var">$sexo</span> = <span class="var">$d</span>[<span class="str">'Sexo'</span>];
+    <span class="var">$conteos</span>[<span class="var">$cie</span>][<span class="var">$g</span>][<span class="var">$sexo</span> === <span class="str">'Masculino'</span> ? <span class="str">'m'</span> : <span class="str">'f'</span>]<span class="op">++</span>;
+}
+
+<span class="fn">arsort</span>(<span class="var">$totales</span>);
+<span class="var">$top10</span> = <span class="fn">array_slice</span>(<span class="var">$totales</span>, <span class="num">0</span>, <span class="var">$top</span>, <span class="kw2">true</span>);</pre>
+
+  <div class="callout callout-info">
+    <strong>Codificación Latin-1 → UTF-8</strong> — SOAPS devuelve descripciones CIE-10 en Windows-1252. Se aplica <code>mb_convert_encoding()</code> para insertar correctamente en MySQL (UTF-8).
+  </div>
+
+  <pre class="code-block"><span class="cmt">// Conversión segura de encoding</span>
+<span class="var">$diag</span> = <span class="fn">mb_detect_encoding</span>(<span class="var">$rawDiag</span>, [<span class="str">'UTF-8'</span>], <span class="kw2">true</span>)
+    ? <span class="var">$rawDiag</span>
+    : <span class="fn">mb_convert_encoding</span>(<span class="var">$rawDiag</span>, <span class="str">'UTF-8'</span>, <span class="str">'Windows-1252'</span>);</pre>
+</section>
+
+<!-- ────── § 6 ────── -->
+<section class="section" id="s6">
+  <h2>6 · NormalizarNombres — Title Case masivo</h2>
+
+  <p>El comando más breve (38 líneas) convierte nombres/apellidos de MAYÚSCULAS a Title Case:</p>
+
+  <pre class="code-block"><span class="kw">class</span> <span class="cls">NormalizarNombres</span> <span class="kw">extends</span> <span class="cls">Command</span>
+{
+    <span class="kw">protected</span> <span class="var">$signature</span>   = <span class="str">'sicsal:normalizar-nombres'</span>;
+    <span class="kw">protected</span> <span class="var">$description</span> = <span class="str">'Convierte nombres a Title Case'</span>;
+
+    <span class="kw">public function</span> <span class="fn">handle</span>(): <span class="type">int</span>
+    {
+        <span class="var">$total</span> = <span class="cls">Persona</span>::<span class="fn">count</span>();
+        <span class="var">$bar</span> = <span class="var">$this</span><span class="op">-></span><span class="var">output</span><span class="op">-></span><span class="fn">createProgressBar</span>(<span class="var">$total</span>);
+
+        <span class="cls">Persona</span>::<span class="fn">chunk</span>(<span class="num">200</span>, <span class="kw">function</span> (<span class="var">$personas</span>) <span class="kw">use</span> (&amp;<span class="var">$procesados</span>, <span class="var">$bar</span>) {
+            <span class="kw">foreach</span> (<span class="var">$personas</span> <span class="kw">as</span> <span class="var">$persona</span>) {
+                <span class="var">$nuevo</span> = <span class="fn">mb_convert_case</span>(
+                    <span class="fn">mb_strtolower</span>(<span class="var">$persona</span><span class="op">-></span><span class="fn">getRawOriginal</span>(<span class="str">'nombres'</span>)),
+                    <span class="var">MB_CASE_TITLE</span>, <span class="str">'UTF-8'</span>
+                );
+
+                <span class="kw">if</span> (<span class="var">$persona</span><span class="op">-></span><span class="fn">getRawOriginal</span>(<span class="str">'nombres'</span>) !== <span class="var">$nuevo</span>) {
+                    <span class="var">$persona</span><span class="op">-></span><span class="var">timestamps</span> = <span class="kw2">false</span>;
+                    <span class="var">$persona</span><span class="op">-></span><span class="fn">updateQuietly</span>([
+                        <span class="str">'nombres'</span> <span class="op">=></span> <span class="var">$nuevo</span>,
+                    ]);
+                }
+                <span class="var">$bar</span><span class="op">-></span><span class="fn">advance</span>();
+            }
+        });
+    }
+}</pre>
+
+  <div class="callout callout-info">
+    <strong>Tres técnicas clave:</strong>
+    <ul>
+      <li><code>getRawOriginal()</code> — Lee el valor sin accessors/mutators del modelo.</li>
+      <li><code>timestamps = false</code> — No actualiza <code>updated_at</code> (cambio cosmético).</li>
+      <li><code>updateQuietly()</code> — No dispara observers ni eventos (evita efectos secundarios).</li>
+    </ul>
+  </div>
+</section>
+
+<!-- ────── § 7 ────── -->
+<section class="section" id="s7">
+  <h2>7 · TransferirSoaps — Flujo inverso SOAPS → SNIS</h2>
+
+  <p>El comando más grande (891 líneas) transfiere datos del <strong>SOAPS</strong> (SQL Server) al <strong>SNIS</strong> (Access .mdb) — es decir, en dirección <em>opuesta</em> a los comandos <code>snis:importar-*</code>:</p>
+
+  <pre class="code-block"><span class="kw">class</span> <span class="cls">TransferirSoaps</span> <span class="kw">extends</span> <span class="cls">Command</span>
+{
+    <span class="kw">protected</span> <span class="var">$signature</span> = <span class="str">'soaps:transferir-snis
+        {--mes= : Mes a transferir (1-12)}
+        {--anio=2025 : Año a transferir}
+        {--ruta-snis=C:\SNIS2025 : Ruta del SNIS}
+        {--codestabl=300183 : Código de establecimiento}
+        {--limpiar : Eliminar datos antes de insertar}
+        {--solo-consulta : Solo G01}
+        {--solo-odontologia : Solo G03}
+        {--solo-302 : Solo Vigilancia Semanal}
+        {--solo-305 : Solo Vigilancia Mensual}
+        {--formulario= : 301,302,305}'</span>;
+}</pre>
+
+  <p>Establece <strong>dos conexiones PDO simultáneas</strong>:</p>
+
+  <pre class="code-block"><span class="cmt">// SQL Server (SOAPS) — lectura</span>
+<span class="var">$this</span><span class="op">-></span><span class="var">pdoSoaps</span> = <span class="var">$this</span><span class="op">-></span><span class="fn">connectSoaps</span>();
+
+<span class="cmt">// Access .mdb (SNIS) — escritura</span>
+<span class="var">$dataFile</span> = <span class="str">"{$rutaSnis}\\snis{$anio}.mdb"</span>;
+<span class="var">$this</span><span class="op">-></span><span class="var">pdoSnis</span> = <span class="var">$this</span><span class="op">-></span><span class="fn">connectSnis</span>(<span class="var">$dataFile</span>);</pre>
+
+  <p>El flujo principal despacha a tres transferidores según el formulario seleccionado:</p>
+
+  <pre class="code-block"><span class="cmt">// 301 = Consulta Externa + Odontología</span>
+<span class="kw">if</span> (<span class="fn">in_array</span>(<span class="str">'301'</span>, <span class="var">$formularios</span>)) {
+    <span class="var">$stats</span> = <span class="var">$this</span><span class="op">-></span><span class="fn">transferir301</span>(<span class="var">$corr</span>, <span class="var">$anio</span>, <span class="var">$mes</span>, <span class="var">$limpiar</span>);
+}
+
+<span class="cmt">// 302 = Vigilancia Epidemiológica Semanal (302A)</span>
+<span class="kw">if</span> (<span class="fn">in_array</span>(<span class="str">'302'</span>, <span class="var">$formularios</span>)) {
+    <span class="var">$stats</span>[<span class="str">'302_semanal'</span>] = <span class="var">$this</span><span class="op">-></span><span class="fn">transferir302Semanal</span>(...);
+}
+
+<span class="cmt">// 305 = Vigilancia Epidemiológica Mensual (305/302B)</span>
+<span class="kw">if</span> (<span class="fn">in_array</span>(<span class="str">'305'</span>, <span class="var">$formularios</span>)) {
+    <span class="var">$stats</span>[<span class="str">'305_mensual'</span>] = <span class="var">$this</span><span class="op">-></span><span class="fn">transferir305Mensual</span>(...);
+}</pre>
+</section>
+
+<!-- ────── § 8 ────── -->
+<section class="section" id="s8">
+  <h2>8 · TransferirSoaps: el mapeo CIE-10 (302A y 305)</h2>
+
+  <p>Los formularios de vigilancia epidemiológica usan patrones <strong>regex contra códigos CIE-10</strong> para clasificar diagnósticos:</p>
+
+  <pre class="code-block"><span class="kw">private const</span> <span class="var">CIE_302_MAP</span> = [
+    <span class="cmt">// G06 - Enfermedades prevalentes</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'06'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'10'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^A0[0-9]/'</span>],       <span class="cmt">// EDA (A00-A09)</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'06'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'11'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^J(0[0-6]|2[0-2])/'</span>], <span class="cmt">// IRA sin neumonía</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'06'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'12'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^J1[2-8]/'</span>],       <span class="cmt">// Neumonía</span>
+
+    <span class="cmt">// G01 - Notificación inmediata (40+ patologías)</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'01'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'11'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^B0[56]/'</span>],       <span class="cmt">// Sarampión/Rubéola</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'01'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'33'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^U07/'</span>],         <span class="cmt">// COVID-19</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'01'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'36'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^B04/'</span>],         <span class="cmt">// Mpox</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'01'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'37'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^A93\.0/'</span>],      <span class="cmt">// Oropouche</span>
+    <span class="cmt">// ... G04 (Inmunoprevenibles), G05 (ITS), G07 (TB),</span>
+    <span class="cmt">// G08 (Violencia), G13 (Intoxicaciones), G17 (Tropicales)</span>
+];
+
+<span class="kw">private const</span> <span class="var">CIE_305_MAP</span> = [
+    <span class="cmt">// G02 - Enfermedades crónicas no transmisibles</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'02'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'01'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^E10/'</span>],          <span class="cmt">// Diabetes Tipo 1</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'02'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'06'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^I1[0-5]/'</span>],     <span class="cmt">// HTA</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'02'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'13'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^C/'</span>],           <span class="cmt">// Otros cánceres</span>
+
+    <span class="cmt">// G03 - Salud Mental (12 categorías)</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'03'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'01'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^F3[23]/'</span>],      <span class="cmt">// Depresión</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'03'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'09'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^F84/'</span>],        <span class="cmt">// Autismo</span>
+
+    <span class="cmt">// G04 - Neurodegenerativas</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'04'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'01'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^G30/'</span>],        <span class="cmt">// Alzheimer</span>
+    [<span class="str">'grp'</span> <span class="op">=></span> <span class="str">'04'</span>, <span class="str">'var'</span> <span class="op">=></span> <span class="str">'02'</span>, <span class="str">'rx'</span> <span class="op">=></span> <span class="str">'/^G20/'</span>],        <span class="cmt">// Parkinson</span>
+];</pre>
+
+  <p>La función <code>matchCie()</code> aplica la primera coincidencia regex en orden de prioridad:</p>
+
+  <pre class="code-block"><span class="kw">private function</span> <span class="fn">matchCie</span>(<span class="type">array</span> <span class="var">$map</span>, <span class="type">string</span> <span class="var">$cie</span>): ?<span class="type">array</span>
+{
+    <span class="kw">foreach</span> (<span class="var">$map</span> <span class="kw">as</span> <span class="var">$entry</span>) {
+        <span class="kw">if</span> (<span class="fn">preg_match</span>(<span class="var">$entry</span>[<span class="str">'rx'</span>], <span class="var">$cie</span>)) {
+            <span class="kw">return</span> <span class="var">$entry</span>;
+        }
+    }
+    <span class="kw">return</span> <span class="kw2">null</span>;
+}</pre>
+</section>
+
+<!-- ────── § 9 ────── -->
+<section class="section" id="s9">
+  <h2>9 · TransferirSoaps: formularios 301 + 302 + 305</h2>
+
+  <h3>301 — Consulta Externa (G01)</h3>
+  <p>Agrega datos de <code>SE_DATOS</code> con un <code>GROUP BY</code> enorme que clasifica edad y reconsulta directamente en SQL Server, generando los <code>var_code</code> y <code>sub_code</code> del codsubvar:</p>
+
+  <pre class="code-block"><span class="cmt">// La query SQL Server calcula el grupo etáreo con CASE WHEN</span>
+<span class="str">CASE
+    WHEN DAT_FNANIO = 0 AND DAT_FNMES &lt; 6  THEN '12'  -- menor_6m
+    WHEN DAT_FNANIO = 0 AND DAT_FNMES >= 6 THEN '13'  -- 6m_menor_1
+    WHEN DAT_FNANIO >= 60                   THEN '08'  -- mayor_60
+    ...
+END AS var_code</span></pre>
+
+  <h3>301 — Odontología (G03)</h3>
+  <p>Lee individualmente de <code>se_odontologia</code> y acumula por codsubvar en PHP. Cada campo del SOAPS se traduce a un <code>codvariabl</code> del SNIS:</p>
+
+  <pre class="code-block"><span class="kw">private const</span> <span class="var">G03_CAMPOS_VAR</span> = [
+    <span class="str">'PRIMERA_CONSULTA'</span>     <span class="op">=></span> <span class="str">'01'</span>,
+    <span class="str">'RESINA_FOTOCURABLE'</span>   <span class="op">=></span> <span class="str">'06'</span>,  <span class="cmt">// Restauraciones (agrupado)</span>
+    <span class="str">'RESINA_AUTOCURABLE'</span>   <span class="op">=></span> <span class="str">'06'</span>,
+    <span class="str">'AMALGAMA'</span>             <span class="op">=></span> <span class="str">'06'</span>,
+    <span class="str">'IONOMERO'</span>             <span class="op">=></span> <span class="str">'06'</span>,
+    <span class="str">'PULPOTOMIA'</span>           <span class="op">=></span> <span class="str">'08'</span>,  <span class="cmt">// Endodoncia</span>
+    <span class="str">'FLUORINIZACION_DENTRO'</span><span class="op">=></span> <span class="str">'21'</span>,  <span class="cmt">// Medidas preventivas</span>
+    <span class="cmt">// ... 26 campos totales</span>
+];</pre>
+
+  <h3>302A — Vigilancia Epidemiológica Semanal</h3>
+  <p>Agrupa por <strong>semana ISO</strong> (el jueves determina el mes SNIS). Evalúa CIE-10 en las 4 columnas diagnósticas (<code>CIE_I</code>, <code>CIE_II</code>, <code>CIE_III</code>, <code>CAUSA_EXTERNA</code>).</p>
+
+  <h3>305 — Vigilancia Epidemiológica Mensual</h3>
+  <p>Similar al 302 pero agrega por mes. Usa 20 subvars (10 edades × 2 sexos) para grupos G02-G04, donde <code>V</code> = caso nuevo y <code>M</code> = en control (Reconsulta).</p>
+
+  <div class="callout callout-warning">
+    <strong>Columna «Años» con ñ</strong> — La columna del SOAPS usa <code>Años</code> (chr 241 Latin-1). El código accede a ella con un hex literal: <code>$aniosCol = "A\xf1os"</code>.
+  </div>
+</section>
+
+<!-- ────── § 10 ────── -->
+<section class="section" id="s10">
+  <h2>10 · Conexiones y seguridad</h2>
+
+  <p>Todos los comandos SOAPS usan el mismo patrón de conexión con credenciales desde <code>.env</code>:</p>
+
+  <pre class="code-block"><span class="cmt">// Credenciales SOAPS (SQL Server)</span>
+<span class="kw">private static function</span> <span class="fn">soapsServer</span>(): <span class="type">string</span> { <span class="kw">return</span> <span class="fn">env</span>(<span class="str">'SOAPS_SERVER'</span>, <span class="str">'.\SNS'</span>); }
+<span class="kw">private static function</span> <span class="fn">soapsDb</span>(): <span class="type">string</span>     { <span class="kw">return</span> <span class="fn">env</span>(<span class="str">'SOAPS_DB'</span>, <span class="str">'BDestadistica'</span>); }
+<span class="kw">private static function</span> <span class="fn">soapsUser</span>(): <span class="type">string</span>   { <span class="kw">return</span> <span class="fn">env</span>(<span class="str">'SOAPS_USER'</span>, <span class="str">'sa'</span>); }
+<span class="kw">private static function</span> <span class="fn">soapsPass</span>(): <span class="type">string</span>   { <span class="kw">return</span> <span class="fn">env</span>(<span class="str">'SOAPS_PASS'</span>, <span class="str">''</span>); }
+
+<span class="cmt">// Variables .env requeridas:</span>
+<span class="cmt">// SOAPS_SERVER=.\SNS</span>
+<span class="cmt">// SOAPS_DB=BDestadistica</span>
+<span class="cmt">// SOAPS_USER=sa</span>
+<span class="cmt">// SOAPS_PASS=secreto</span>
+<span class="cmt">// SNIS_DB_PASSWORD=password_access</span></pre>
+
+  <table class="table-ui">
+    <thead>
+      <tr><th>Driver</th><th>Uso</th><th>Variable .env</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>ODBC SQL Server</td><td>Lectura de SOAPS</td><td><code>SOAPS_*</code></td></tr>
+      <tr><td>ODBC Access</td><td>Lectura/escritura de SNIS .mdb</td><td><code>SNIS_DB_PASSWORD</code></td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ────── § 11 ────── -->
+<section class="section" id="s11">
+  <h2>11 · Ejecución y verificación</h2>
+
+  <pre class="code-block"><span class="cmt"># ── SOAPS → SIMUES ──</span>
+php artisan soaps:importar-censo --anio=2025 --centro-salud=1
+php artisan soaps:importar-censo --anio=2025 --solo-conteo
+
+php artisan soaps:importar-defunciones --desde=2024 --hasta=2026
+php artisan soaps:importar-defunciones --todas --solo-conteo
+
+php artisan soaps:importar-causas --anio=2026 --top=10
+php artisan soaps:importar-causas --anio=2026 --meses=1,2,3 --limpiar
+
+<span class="cmt"># ── Normalización interna ──</span>
+php artisan sicsal:normalizar-nombres
+
+<span class="cmt"># ── SOAPS → SNIS (.mdb) ──</span>
+php artisan soaps:transferir-snis --anio=2025 --mes=6
+php artisan soaps:transferir-snis --anio=2025 --formulario=301,302
+php artisan soaps:transferir-snis --anio=2025 --solo-odontologia --limpiar
+php artisan soaps:transferir-snis --anio=2025 --solo-302
+php artisan soaps:transferir-snis --anio=2025 --solo-305</pre>
+
+  <div class="callout callout-info">
+    <strong>Flag <code>--solo-conteo</code></strong> — Los comandos de censo y defunciones incluyen esta opción para verificar datos sin escribir nada. Útil para validación previa.
+  </div>
+</section>
+
+<!-- ═══ RESUMEN ═══ -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li><strong>ImportarCenso</strong> (277 líneas) — Importa pacientes del SOAPS al censo de SIMUES, excluyendo fallecidos y resolviendo comunidades por zona y dirección con tolerancia a typos.</li>
+    <li><strong>ImportarDefunciones</strong> (260 líneas) — Importa mortalidad, vincula con personas del censo y las desactiva automáticamente vía el modelo Defuncion.</li>
+    <li><strong>ImportarCausasConsulta</strong> (209 líneas) — Calcula las Top-N causas de consulta externa por mes y centro, con conversión Latin-1 → UTF-8 para diagnósticos CIE-10.</li>
+    <li><strong>NormalizarNombres</strong> (38 líneas) — Convierte nombres de MAYÚSCULAS a Title Case con <code>chunk(200)</code>, <code>getRawOriginal()</code> y <code>updateQuietly()</code>.</li>
+    <li><strong>TransferirSoaps</strong> (891 líneas) — Flujo inverso SOAPS → SNIS (.mdb) para formularios 301 (consulta + odontología), 302A (vigilancia semanal con regex CIE-10) y 305 (vigilancia mensual de enfermedades crónicas y salud mental). Conexión dual PDO (SQL Server + Access).</li>
+    <li><strong>Seguridad</strong> — Todas las credenciales en <code>.env</code>; PDO con <code>ERRMODE_EXCEPTION</code>; <code>escapeshellarg()</code> donde hay exec.</li>
+  </ul>
+</section>
+
+<!-- ═══ NAV ═══ -->
+<nav class="lesson-nav">
+  <a href="55-commands-importacion.html">← 55. ImportarVes e ImportarSnis</a>
+  <a href="57-vistas-pdf-inicio.html">57. Vistas PDF e Inicio →</a>
+</nav>
+
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 56 de 58</p>
+</footer>
+
+</body>
+</html>

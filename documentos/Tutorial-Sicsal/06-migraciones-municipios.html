@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 06 — Migraciones: Municipios y Centros | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 2 — Base de Datos</div>
+    <div class="lesson-number">Lección 06 de 58</div>
+    <h1 class="lesson-title">Migraciones: Municipios y Centros de Salud</h1>
+    <p class="lesson-subtitle">Aprender qué son las migraciones de Laravel y crear las primeras dos tablas del proyecto.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 2 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~25 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Principiante</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="05-git-versionamiento.html" class="lesson-nav-btn">← Lección 05</a>
+    <a href="07-migraciones-comunidades.html" class="lesson-nav-btn">Lección 07 →</a>
+  </div>
+
+  <!-- ═══ Tabla de Contenidos ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#que-son-migraciones">¿Qué son las migraciones?</a></li>
+      <li><a href="#crear-migracion">Crear una migración con Artisan</a></li>
+      <li><a href="#tabla-municipios">Tabla municipios</a></li>
+      <li><a href="#tabla-centros-salud">Tabla centros_salud</a></li>
+      <li><a href="#ejecutar-migraciones">Ejecutar las migraciones</a></li>
+      <li><a href="#tipos-columna">Tipos de columna en Laravel</a></li>
+      <li><a href="#llaves-foraneas">Llaves foráneas (foreign keys)</a></li>
+      <li><a href="#rollback">Revertir migraciones</a></li>
+      <li><a href="#resumen-archivos">Archivos de esta lección</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: QUÉ SON MIGRACIONES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="que-son-migraciones">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué son las migraciones?</h2>
+
+    <p>Las migraciones son archivos PHP que definen la estructura de tus tablas en la base de datos. Son como un <strong>"control de versiones para la BD"</strong>.</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>SQL directo</th>
+          <th>Migraciones Laravel</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Escribes <code>CREATE TABLE …</code> en MySQL</td>
+          <td>Escribes PHP: <code>$table->string('nombre')</code></td>
+        </tr>
+        <tr>
+          <td>Si cambias algo, tienes que recordar el ALTER</td>
+          <td>Laravel registra qué migró y qué falta</td>
+        </tr>
+        <tr>
+          <td>Cada desarrollador ejecuta SQL manualmente</td>
+          <td>Todos ejecutan <code>php artisan migrate</code></td>
+        </tr>
+        <tr>
+          <td>No hay forma fácil de revertir</td>
+          <td><code>php artisan migrate:rollback</code> deshace</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Plan de la Base de Datos</div>
+        SICSAL tiene <strong>50 migraciones</strong> que crean ~35 tablas. Las crearemos en 6 lecciones (06-11). Empezamos con las más simples: <strong>municipios</strong> y <strong>centros_salud</strong>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: CREAR MIGRACIÓN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="crear-migracion">
+    <h2 class="section-title"><span class="number">2</span> Crear una migración con Artisan</h2>
+
+    <p>Artisan genera el esqueleto de la migración:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan make:migration create_municipios_table
+<span class="output">INFO  Migration [database/migrations/2026_04_03_015720_create_municipios_table.php] created successfully.</span></pre>
+    </div>
+
+    <p>El nombre del archivo tiene formato: <code class="inline">YYYY_MM_DD_HHMMSS_nombre.php</code>. La fecha asegura que las migraciones se ejecutan en <strong>orden cronológico</strong>.</p>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Convención de nombres</div>
+        Usa <code class="inline">create_XXX_table</code> para tablas nuevas y <code class="inline">add_YYY_to_XXX_table</code> para agregar columnas a tablas existentes. Laravel usa el nombre para inferir la operación.
+      </div>
+    </div>
+
+    <p>El archivo generado contiene dos métodos:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Esqueleto de migración (generado por artisan)</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">return new class</span> <span class="kw">extends</span> <span class="cls">Migration</span>
+{
+    <span class="kw">public function</span> <span class="fn">up</span>(): <span class="type">void</span>
+    {
+        <span class="cmt">// Aquí defines la estructura de la tabla</span>
+    }
+
+    <span class="kw">public function</span> <span class="fn">down</span>(): <span class="type">void</span>
+    {
+        <span class="cmt">// Aquí la reviertes (drop, eliminar columnas, etc.)</span>
+    }
+};</pre>
+    </div>
+
+    <ul class="styled">
+      <li><strong>up()</strong> — Se ejecuta cuando corres <code class="inline">php artisan migrate</code></li>
+      <li><strong>down()</strong> — Se ejecuta cuando corres <code class="inline">php artisan migrate:rollback</code></li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: TABLA MUNICIPIOS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="tabla-municipios">
+    <h2 class="section-title"><span class="number">3</span> Tabla municipios</h2>
+
+    <p>La tabla <code class="inline">municipios</code> almacena los municipios del departamento. Es la tabla más simple y no depende de ninguna otra.</p>
+
+    <h3 class="subsection-title">Diseño de la tabla</h3>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Columna</th>
+          <th>Tipo</th>
+          <th>Descripción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pk-badge">PK</span> id</td>
+          <td><span class="type-badge">bigint</span></td>
+          <td>Identificador autoincremental</td>
+        </tr>
+        <tr>
+          <td>nombre</td>
+          <td><span class="type-badge">varchar(100)</span></td>
+          <td>Nombre del municipio (ej: "Capinota")</td>
+        </tr>
+        <tr>
+          <td>departamento</td>
+          <td><span class="type-badge">varchar(100)</span></td>
+          <td>Departamento (default: "Cochabamba")</td>
+        </tr>
+        <tr>
+          <td>activo</td>
+          <td><span class="type-badge">boolean</span></td>
+          <td>Borrado lógico (true/false)</td>
+        </tr>
+        <tr>
+          <td>created_at</td>
+          <td><span class="type-badge">timestamp</span></td>
+          <td>Fecha de creación (automática)</td>
+        </tr>
+        <tr>
+          <td>updated_at</td>
+          <td><span class="type-badge">timestamp</span></td>
+          <td>Fecha de última modificación (automática)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="subsection-title">Código completo de la migración</h3>
+
+    <p>Abre el archivo generado en <code class="inline">database/migrations/</code> y reemplaza todo el contenido:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_XX_XX_XXXXXX_create_municipios_table.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">&lt;?php</span>
+
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Migrations\Migration</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Schema\Blueprint</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Support\Facades\Schema</span>;
+
+<span class="kw">return new class</span> <span class="kw">extends</span> <span class="cls">Migration</span>
+{
+    <span class="kw">public function</span> <span class="fn">up</span>(): <span class="type">void</span>
+    {
+        <span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'municipios'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+            <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();                                      <span class="cmt">// PK autoincremental</span>
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'nombre'</span>, <span class="num">100</span>);                      <span class="cmt">// varchar(100)</span>
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'departamento'</span>, <span class="num">100</span>)
+                  <span class="op">-></span><span class="fn">default</span>(<span class="str">'Cochabamba'</span>);                    <span class="cmt">// default</span>
+            <span class="var">$table</span><span class="op">-></span><span class="fn">boolean</span>(<span class="str">'activo'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="kw">true</span>);         <span class="cmt">// borrado lógico</span>
+            <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();                               <span class="cmt">// created_at + updated_at</span>
+        });
+    }
+
+    <span class="kw">public function</span> <span class="fn">down</span>(): <span class="type">void</span>
+    {
+        <span class="cls">Schema</span><span class="op">::</span><span class="fn">dropIfExists</span>(<span class="str">'municipios'</span>);
+    }
+};</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Borrado lógico con "activo"</div>
+        En SICSAL nunca borramos registros de la base de datos. En su lugar, ponemos <code class="inline">activo = false</code>. Esto preserva la integridad referencial y permite auditoría. Es una regla del proyecto (ver PLAN_SICSAL.md).
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: TABLA CENTROS_SALUD
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="tabla-centros-salud">
+    <h2 class="section-title"><span class="number">4</span> Tabla centros_salud</h2>
+
+    <p>Crea la segunda migración:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan make:migration create_centros_salud_table</pre>
+    </div>
+
+    <h3 class="subsection-title">Diseño de la tabla</h3>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Columna</th>
+          <th>Tipo</th>
+          <th>Descripción</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><span class="pk-badge">PK</span> id</td>
+          <td><span class="type-badge">bigint</span></td>
+          <td>Identificador autoincremental</td>
+        </tr>
+        <tr>
+          <td><span class="fk-badge">FK</span> municipio_id</td>
+          <td><span class="type-badge">bigint</span></td>
+          <td>Referencia a municipios.id</td>
+        </tr>
+        <tr>
+          <td>nombre</td>
+          <td><span class="type-badge">varchar(150)</span></td>
+          <td>Nombre del centro (ej: "C.S. Hornoma")</td>
+        </tr>
+        <tr>
+          <td>codigo_snis</td>
+          <td><span class="type-badge">varchar(20)</span></td>
+          <td>Código del SNIS (puede ser null)</td>
+        </tr>
+        <tr>
+          <td>subsector</td>
+          <td><span class="type-badge">enum</span></td>
+          <td>Público, Seguro Social, Privado, ONG</td>
+        </tr>
+        <tr>
+          <td>red_salud</td>
+          <td><span class="type-badge">varchar(100)</span></td>
+          <td>Red de salud (ej: "Red VII")</td>
+        </tr>
+        <tr>
+          <td>poblacion_ine</td>
+          <td><span class="type-badge">integer</span></td>
+          <td>Población INE asignada</td>
+        </tr>
+        <tr>
+          <td>activo</td>
+          <td><span class="type-badge">boolean</span></td>
+          <td>Borrado lógico</td>
+        </tr>
+        <tr>
+          <td>created_at, updated_at</td>
+          <td><span class="type-badge">timestamp</span></td>
+          <td>Automáticas</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 class="subsection-title">Código completo</h3>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/migrations/XXXX_XX_XX_XXXXXX_create_centros_salud_table.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">&lt;?php</span>
+
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Migrations\Migration</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Schema\Blueprint</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Support\Facades\Schema</span>;
+
+<span class="kw">return new class</span> <span class="kw">extends</span> <span class="cls">Migration</span>
+{
+    <span class="kw">public function</span> <span class="fn">up</span>(): <span class="type">void</span>
+    {
+        <span class="cls">Schema</span><span class="op">::</span><span class="fn">create</span>(<span class="str">'centros_salud'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+            <span class="var">$table</span><span class="op">-></span><span class="fn">id</span>();
+            <span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'municipio_id'</span>)
+                  <span class="op">-></span><span class="fn">constrained</span>(<span class="str">'municipios'</span>);             <span class="cmt">// FK → municipios.id</span>
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'nombre'</span>, <span class="num">150</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'codigo_snis'</span>, <span class="num">20</span>)
+                  <span class="op">-></span><span class="fn">nullable</span>();                             <span class="cmt">// puede ser null</span>
+            <span class="var">$table</span><span class="op">-></span><span class="fn">enum</span>(<span class="str">'subsector'</span>, [
+                <span class="str">'Público'</span>, <span class="str">'Seguro Social'</span>,
+                <span class="str">'Privado'</span>, <span class="str">'ONG'</span>
+            ])<span class="op">-></span><span class="fn">default</span>(<span class="str">'Público'</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">string</span>(<span class="str">'red_salud'</span>, <span class="num">100</span>)
+                  <span class="op">-></span><span class="fn">nullable</span>();
+            <span class="var">$table</span><span class="op">-></span><span class="fn">integer</span>(<span class="str">'poblacion_ine'</span>)
+                  <span class="op">-></span><span class="fn">default</span>(<span class="num">0</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">boolean</span>(<span class="str">'activo'</span>)<span class="op">-></span><span class="fn">default</span>(<span class="kw">true</span>);
+            <span class="var">$table</span><span class="op">-></span><span class="fn">timestamps</span>();
+        });
+    }
+
+    <span class="kw">public function</span> <span class="fn">down</span>(): <span class="type">void</span>
+    {
+        <span class="cls">Schema</span><span class="op">::</span><span class="fn">dropIfExists</span>(<span class="str">'centros_salud'</span>);
+    }
+};</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: EJECUTAR MIGRACIONES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="ejecutar-migraciones">
+    <h2 class="section-title"><span class="number">5</span> Ejecutar las migraciones</h2>
+
+    <p>Con los archivos creados, ejecuta las migraciones para que Laravel cree las tablas en MySQL:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan migrate
+<span class="output">INFO  Running migrations.</span>
+<span class="output"></span>
+<span class="output">  2026_04_03_015720_create_municipios_table .......... 25ms DONE</span>
+<span class="output">  2026_04_03_015721_create_centros_salud_table ....... 32ms DONE</span></pre>
+    </div>
+
+    <p>Verifica en MySQL que las tablas existen:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan db:table municipios
+<span class="output">  Column ......... Type ......... Nullable</span>
+<span class="output">  id ............. bigint unsigned No</span>
+<span class="output">  nombre ......... varchar(100) .. No</span>
+<span class="output">  departamento ... varchar(100) .. No</span>
+<span class="output">  activo ......... tinyint(1) .... No</span>
+<span class="output">  created_at ..... timestamp ..... Yes</span>
+<span class="output">  updated_at ..... timestamp ..... Yes</span></pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Tabla migrations</div>
+        Laravel crea una tabla oculta llamada <code class="inline">migrations</code> donde registra qué migraciones ya ejecutó. Así sabe que no debe ejecutar las mismas dos veces.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: TIPOS DE COLUMNA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="tipos-columna">
+    <h2 class="section-title"><span class="number">6</span> Tipos de columna en Laravel</h2>
+
+    <p>Referencia rápida de los tipos que usaremos en SICSAL:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Método Laravel</th>
+          <th>MySQL</th>
+          <th>Uso en SICSAL</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code>$table->id()</code></td><td>BIGINT UNSIGNED AUTO_INCREMENT</td><td>PK de todas las tablas</td></tr>
+        <tr><td><code>$table->string('x', 100)</code></td><td>VARCHAR(100)</td><td>Nombres, códigos, textos cortos</td></tr>
+        <tr><td><code>$table->text('x')</code></td><td>TEXT</td><td>Observaciones largas</td></tr>
+        <tr><td><code>$table->integer('x')</code></td><td>INT</td><td>Cantidades, conteos</td></tr>
+        <tr><td><code>$table->unsignedInteger('x')</code></td><td>INT UNSIGNED</td><td>Cantidades que nunca son negativas</td></tr>
+        <tr><td><code>$table->boolean('x')</code></td><td>TINYINT(1)</td><td>activo, cerrado, etc.</td></tr>
+        <tr><td><code>$table->date('x')</code></td><td>DATE</td><td>fecha_nacimiento, fecha_defuncion</td></tr>
+        <tr><td><code>$table->enum('x', [...])</code></td><td>ENUM</td><td>subsector, sexo, estado_civil</td></tr>
+        <tr><td><code>$table->foreignId('x')</code></td><td>BIGINT UNSIGNED</td><td>Llaves foráneas</td></tr>
+        <tr><td><code>$table->timestamps()</code></td><td>2 × TIMESTAMP</td><td>created_at + updated_at</td></tr>
+      </tbody>
+    </table>
+
+    <h3 class="subsection-title">Modificadores comunes</h3>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Modificador</th>
+          <th>Qué hace</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code>->nullable()</code></td><td>Permite NULL (por defecto es NOT NULL)</td></tr>
+        <tr><td><code>->default(valor)</code></td><td>Valor por defecto</td></tr>
+        <tr><td><code>->unique()</code></td><td>Valor único en toda la tabla</td></tr>
+        <tr><td><code>->index()</code></td><td>Crea un índice para búsquedas rápidas</td></tr>
+        <tr><td><code>->constrained('tabla')</code></td><td>Crea FK que referencia a otra tabla</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: LLAVES FORÁNEAS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="llaves-foraneas">
+    <h2 class="section-title"><span class="number">7</span> Llaves foráneas (foreign keys)</h2>
+
+    <p>La tabla <code class="inline">centros_salud</code> tiene una <strong>llave foránea</strong> hacia <code class="inline">municipios</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Llave foránea</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="var">$table</span><span class="op">-></span><span class="fn">foreignId</span>(<span class="str">'municipio_id'</span>)
+      <span class="op">-></span><span class="fn">constrained</span>(<span class="str">'municipios'</span>);</pre>
+    </div>
+
+    <p>Esto hace dos cosas:</p>
+    <ol>
+      <li>Crea una columna <code class="inline">municipio_id BIGINT UNSIGNED</code></li>
+      <li>Crea un constraint <code class="inline">FOREIGN KEY (municipio_id) REFERENCES municipios(id)</code></li>
+    </ol>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">Orden de migración importa</div>
+        La tabla <code class="inline">municipios</code> <strong>debe existir antes</strong> que <code class="inline">centros_salud</code> porque la FK referencia a municipios. Por eso la migración de municipios tiene un timestamp menor.
+      </div>
+    </div>
+
+    <p>Relación visual:</p>
+
+    <div class="arch-diagram">
+      <div class="arch-box">municipios<br><small>id, nombre, departamento</small></div>
+      <div class="arch-arrow">1 ──── N</div>
+      <div class="arch-box">centros_salud<br><small>id, municipio_id, nombre</small></div>
+    </div>
+
+    <p>Un municipio tiene <strong>muchos</strong> centros de salud. Un centro de salud pertenece a <strong>un</strong> municipio.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 8: ROLLBACK
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="rollback">
+    <h2 class="section-title"><span class="number">8</span> Revertir migraciones</h2>
+
+    <p>Si necesitas deshacer las migraciones (por ejemplo, si cometiste un error en la estructura):</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="cmt"># Revertir el último lote de migraciones</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate:rollback
+
+<span class="cmt"># Revertir TODO y volver a migrar</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate:fresh
+<span class="output">Dropped all tables successfully.</span>
+<span class="output">Running migrations...</span>
+
+<span class="cmt"># Fresh + ejecutar seeders</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate:fresh <span class="flag">--seed</span></pre>
+    </div>
+
+    <div class="callout callout-danger">
+      <span class="callout-icon">🚨</span>
+      <div>
+        <div class="callout-title">Cuidado con migrate:fresh</div>
+        <code class="inline">migrate:fresh</code> <strong>borra todas las tablas</strong> y las recrea. Perfecto en desarrollo, <strong>nunca en producción</strong> (perderías todos los datos). En producción usa solo <code class="inline">migrate</code> para aplicar migraciones nuevas.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 9: ARCHIVOS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen-archivos">
+    <h2 class="section-title"><span class="number">9</span> Archivos de esta lección</h2>
+
+    <div class="file-tree">
+      <div class="file-tree-title">Archivos creados</div>
+      <ul>
+        <li><span class="ft-dir">database/migrations/</span>
+          <ul>
+            <li><span class="ft-file ft-new">XXXX_create_municipios_table.php</span></li>
+            <li><span class="ft-file ft-new">XXXX_create_centros_salud_table.php</span></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Git commit sugerido</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">git</span> add .
+<span class="prompt">$</span> <span class="cmd">git</span> commit <span class="flag">-m</span> <span class="str">"Crear migraciones: municipios y centros_salud"</span></pre>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 06</h3>
+    <ul>
+      <li>Las <strong>migraciones</strong> definen tablas con PHP en vez de SQL</li>
+      <li>Creamos la tabla <strong>municipios</strong> (id, nombre, departamento, activo)</li>
+      <li>Creamos la tabla <strong>centros_salud</strong> (id, municipio_id FK, nombre, codigo_snis, subsector, red_salud, poblacion_ine, activo)</li>
+      <li><code class="inline">foreignId()->constrained()</code> crea llaves foráneas</li>
+      <li><code class="inline">php artisan migrate</code> ejecuta las migraciones pendientes</li>
+      <li><code class="inline">php artisan migrate:rollback</code> revierte</li>
+      <li>SICSAL usa <strong>borrado lógico</strong> (<code class="inline">activo = false</code>) en vez de DELETE</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="05-git-versionamiento.html" class="lesson-nav-btn">← Lección 05: Git y Control de Versiones</a>
+    <a href="07-migraciones-comunidades.html" class="lesson-nav-btn">Lección 07: Migraciones — Comunidades y Usuarios →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 06 de 58</span>
+    <span>Siguiente: Migraciones: Comunidades y Usuarios</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

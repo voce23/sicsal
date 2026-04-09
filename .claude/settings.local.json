@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:laravel-livewire.com)",
+      "Bash(php artisan:*)"
+    ]
+  }
+}

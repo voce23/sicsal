@@ -1,0 +1,473 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 25 — Resource: CentroSalud | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 6 — Panel Admin (Filament)</div>
+    <div class="lesson-number">Lección 25 de 58</div>
+    <h1 class="lesson-title">Resource: CentroSalud</h1>
+    <p class="lesson-subtitle">Primer Resource completo: 6 archivos con Form separado, Table separado, 3 Pages y acceso solo superadmin.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 6 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~30 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="24-filament-instalacion.html" class="lesson-nav-btn">← Lección 24</a>
+    <a href="26-resource-comunidad.html" class="lesson-nav-btn">Lección 26 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#estructura">Estructura de un Resource Filament</a></li>
+      <li><a href="#resource">CentroSaludResource — clase principal</a></li>
+      <li><a href="#form">CentroSaludForm — formulario con 2 secciones</a></li>
+      <li><a href="#table">CentroSaludsTable — listado con 7 columnas</a></li>
+      <li><a href="#pages">Pages: List, Create, Edit</a></li>
+      <li><a href="#patron">Patrón SICSAL: Schemas/ y Tables/ separados</a></li>
+      <li><a href="#resumen">Resumen</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: ESTRUCTURA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="estructura">
+    <h2><span class="section-number">1</span> Estructura de un Resource Filament</h2>
+
+    <p>Un <strong>Resource</strong> en Filament es la unidad CRUD. Agrupa formulario, tabla y páginas para un modelo Eloquent.</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">app/Filament/Resources/CentroSaluds/</div>
+      <div class="ft-file ft-new">CentroSaludResource.php</div>
+      <div class="ft-dir ft-new">Pages/
+        <div class="ft-file">CreateCentroSalud.php</div>
+        <div class="ft-file">EditCentroSalud.php</div>
+        <div class="ft-file">ListCentroSaluds.php</div>
+      </div>
+      <div class="ft-dir ft-new">Schemas/
+        <div class="ft-file">CentroSaludForm.php</div>
+      </div>
+      <div class="ft-dir ft-new">Tables/
+        <div class="ft-file">CentroSaludsTable.php</div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Convención SICSAL</div>
+      <p>En SICSAL, los formularios y tablas están en clases <strong>separadas</strong> (Schemas/ y Tables/), no inline en el Resource. Esto mantiene cada archivo pequeño y enfocado. El Resource solo conecta las piezas.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: RESOURCE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resource">
+    <h2><span class="section-number">2</span> CentroSaludResource — clase principal</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/CentroSaluds/CentroSaludResource.php</div>
+      <div class="code-body">
+<pre><span class="kw">&lt;?php</span>
+
+<span class="kw">namespace</span> <span class="cls">App\Filament\Resources\CentroSaluds</span>;
+
+<span class="kw">use</span> <span class="cls">App\Filament\Resources\CentroSaluds\Pages\CreateCentroSalud</span>;
+<span class="kw">use</span> <span class="cls">App\Filament\Resources\CentroSaluds\Pages\EditCentroSalud</span>;
+<span class="kw">use</span> <span class="cls">App\Filament\Resources\CentroSaluds\Pages\ListCentroSaluds</span>;
+<span class="kw">use</span> <span class="cls">App\Filament\Resources\CentroSaluds\Schemas\CentroSaludForm</span>;
+<span class="kw">use</span> <span class="cls">App\Filament\Resources\CentroSaluds\Tables\CentroSaludsTable</span>;
+<span class="kw">use</span> <span class="cls">App\Models\CentroSalud</span>;
+<span class="kw">use</span> <span class="cls">BackedEnum</span>;
+<span class="kw">use</span> <span class="cls">Filament\Resources\Resource</span>;
+<span class="kw">use</span> <span class="cls">Filament\Schemas\Schema</span>;
+<span class="kw">use</span> <span class="cls">Filament\Support\Icons\Heroicon</span>;
+<span class="kw">use</span> <span class="cls">Filament\Tables\Table</span>;
+
+<span class="kw">class</span> <span class="cls">CentroSaludResource</span> <span class="kw">extends</span> <span class="cls">Resource</span>
+{
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$model</span> <span class="op">=</span> <span class="cls">CentroSalud</span>::<span class="kw">class</span>;
+
+    <span class="cmt">// ─── Navegación ───</span>
+    <span class="kw">protected static</span> <span class="type">string</span>|<span class="cls">BackedEnum</span>|<span class="kw">null</span> <span class="var">$navigationIcon</span>
+        <span class="op">=</span> <span class="cls">Heroicon</span>::<span class="var">OutlinedBuildingOffice2</span>;
+    <span class="kw">protected static</span> <span class="type">string</span>|<span class="cls">\UnitEnum</span>|<span class="kw">null</span> <span class="var">$navigationGroup</span>
+        <span class="op">=</span> <span class="str">'Configuración'</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$navigationLabel</span> <span class="op">=</span> <span class="str">'Centros de Salud'</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$modelLabel</span> <span class="op">=</span> <span class="str">'Centro de Salud'</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$pluralModelLabel</span> <span class="op">=</span> <span class="str">'Centros de Salud'</span>;
+    <span class="kw">protected static</span> ?<span class="type">int</span> <span class="var">$navigationSort</span> <span class="op">=</span> <span class="num">1</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$recordTitleAttribute</span> <span class="op">=</span> <span class="str">'nombre'</span>;
+
+    <span class="cmt">// ─── Acceso ───</span>
+    <span class="kw">public static function</span> <span class="fn">canAccess</span>(): <span class="type">bool</span>
+    {
+        <span class="kw">return</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()?-&gt;<span class="fn">hasRole</span>(<span class="str">'superadmin'</span>) <span class="op">??</span> <span class="kw">false</span>;
+    }
+
+    <span class="cmt">// ─── Form y Table delegados ───</span>
+    <span class="kw">public static function</span> <span class="fn">form</span>(<span class="cls">Schema</span> <span class="var">$schema</span>): <span class="cls">Schema</span>
+    {
+        <span class="kw">return</span> <span class="cls">CentroSaludForm</span>::<span class="fn">configure</span>(<span class="var">$schema</span>);
+    }
+
+    <span class="kw">public static function</span> <span class="fn">table</span>(<span class="cls">Table</span> <span class="var">$table</span>): <span class="cls">Table</span>
+    {
+        <span class="kw">return</span> <span class="cls">CentroSaludsTable</span>::<span class="fn">configure</span>(<span class="var">$table</span>);
+    }
+
+    <span class="kw">public static function</span> <span class="fn">getRelations</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [];
+    }
+
+    <span class="kw">public static function</span> <span class="fn">getPages</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'index'</span>  <span class="op">=&gt;</span> <span class="cls">ListCentroSaluds</span>::<span class="fn">route</span>(<span class="str">'/'</span>),
+            <span class="str">'create'</span> <span class="op">=&gt;</span> <span class="cls">CreateCentroSalud</span>::<span class="fn">route</span>(<span class="str">'/create'</span>),
+            <span class="str">'edit'</span>   <span class="op">=&gt;</span> <span class="cls">EditCentroSalud</span>::<span class="fn">route</span>(<span class="str">'/{record}/edit'</span>),
+        ];
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-title">Propiedades estáticas del Resource</div>
+      <table>
+        <thead><tr><th>Propiedad</th><th>Valor</th><th>Propósito</th></tr></thead>
+        <tbody>
+          <tr><td><code>$model</code></td><td>CentroSalud::class</td><td>Modelo Eloquent que gestiona</td></tr>
+          <tr><td><code>$navigationIcon</code></td><td>OutlinedBuildingOffice2</td><td>Icono en el sidebar</td></tr>
+          <tr><td><code>$navigationGroup</code></td><td>'Configuración'</td><td>Grupo del sidebar (lección 24)</td></tr>
+          <tr><td><code>$navigationSort</code></td><td>1</td><td>Primero en el grupo</td></tr>
+          <tr><td><code>$recordTitleAttribute</code></td><td>'nombre'</td><td>Campo para búsqueda global</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">canAccess() — solo superadmin</div>
+      <p>Solo el superadmin puede gestionar centros de salud. Los admin y registrador no ven este Resource en el sidebar. Si intentan acceder por URL, Filament devuelve 403.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: FORM
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="form">
+    <h2><span class="section-number">3</span> CentroSaludForm — formulario con 2 secciones</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/CentroSaluds/Schemas/CentroSaludForm.php</div>
+      <div class="code-body">
+<pre><span class="kw">&lt;?php</span>
+
+<span class="kw">namespace</span> <span class="cls">App\Filament\Resources\CentroSaluds\Schemas</span>;
+
+<span class="kw">use</span> <span class="cls">Filament\Forms\Components\Placeholder</span>;
+<span class="kw">use</span> <span class="cls">Filament\Schemas\Components\Section</span>;
+<span class="kw">use</span> <span class="cls">Filament\Forms\Components\Select</span>;
+<span class="kw">use</span> <span class="cls">Filament\Forms\Components\TextInput</span>;
+<span class="kw">use</span> <span class="cls">Filament\Forms\Components\Toggle</span>;
+<span class="kw">use</span> <span class="cls">Filament\Schemas\Schema</span>;
+
+<span class="kw">class</span> <span class="cls">CentroSaludForm</span>
+{
+    <span class="kw">public static function</span> <span class="fn">configure</span>(<span class="cls">Schema</span> <span class="var">$schema</span>): <span class="cls">Schema</span>
+    {
+        <span class="kw">return</span> <span class="var">$schema</span>
+            -&gt;<span class="fn">components</span>([
+
+                <span class="cmt">// ─── Sección 1: Información General ───</span>
+                <span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Información General'</span>)
+                    -&gt;<span class="fn">columns</span>(<span class="num">2</span>)
+                    -&gt;<span class="fn">schema</span>([
+                        <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'municipio_id'</span>)
+                            -&gt;<span class="fn">relationship</span>(<span class="str">'municipio'</span>, <span class="str">'nombre'</span>)
+                            -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">preload</span>()-&gt;<span class="fn">required</span>()
+                            -&gt;<span class="fn">label</span>(<span class="str">'Municipio'</span>),
+                        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'nombre'</span>)
+                            -&gt;<span class="fn">required</span>()-&gt;<span class="fn">maxLength</span>(<span class="num">150</span>)
+                            -&gt;<span class="fn">label</span>(<span class="str">'Nombre del centro'</span>),
+                        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'codigo_snis'</span>)
+                            -&gt;<span class="fn">maxLength</span>(<span class="num">20</span>)
+                            -&gt;<span class="fn">label</span>(<span class="str">'Código SNIS'</span>),
+                        <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'subsector'</span>)
+                            -&gt;<span class="fn">options</span>([
+                                <span class="str">'Público'</span>       <span class="op">=&gt;</span> <span class="str">'Público'</span>,
+                                <span class="str">'Seguro Social'</span> <span class="op">=&gt;</span> <span class="str">'Seguro Social'</span>,
+                                <span class="str">'Privado'</span>       <span class="op">=&gt;</span> <span class="str">'Privado'</span>,
+                                <span class="str">'ONG'</span>           <span class="op">=&gt;</span> <span class="str">'ONG'</span>,
+                            ])
+                            -&gt;<span class="fn">default</span>(<span class="str">'Público'</span>)-&gt;<span class="fn">required</span>()
+                            -&gt;<span class="fn">label</span>(<span class="str">'Subsector'</span>),
+                        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'red_salud'</span>)
+                            -&gt;<span class="fn">maxLength</span>(<span class="num">100</span>)
+                            -&gt;<span class="fn">label</span>(<span class="str">'Red de Salud'</span>),
+                        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'poblacion_ine'</span>)
+                            -&gt;<span class="fn">numeric</span>()-&gt;<span class="fn">default</span>(<span class="num">0</span>)
+                            -&gt;<span class="fn">label</span>(<span class="str">'Población INE asignada'</span>),
+                        <span class="cls">Toggle</span>::<span class="fn">make</span>(<span class="str">'activo'</span>)
+                            -&gt;<span class="fn">default</span>(<span class="kw">true</span>)
+                            -&gt;<span class="fn">label</span>(<span class="str">'Activo'</span>)-&gt;<span class="fn">columnSpan</span>(<span class="num">2</span>),
+                    ]),
+
+                <span class="cmt">// ─── Sección 2: Ubicación Geográfica ───</span>
+                <span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Ubicación Geográfica'</span>)
+                    -&gt;<span class="fn">description</span>(<span class="str">'Coordenadas GPS del establecimiento...'</span>)
+                    -&gt;<span class="fn">columns</span>(<span class="num">2</span>)
+                    -&gt;<span class="fn">schema</span>([
+                        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'latitud'</span>)
+                            -&gt;<span class="fn">numeric</span>()-&gt;<span class="fn">label</span>(<span class="str">'Latitud'</span>)
+                            -&gt;<span class="fn">placeholder</span>(<span class="str">'-17.886227'</span>)
+                            -&gt;<span class="fn">rules</span>([<span class="str">'nullable'</span>, <span class="str">'numeric'</span>, <span class="str">'between:-90,90'</span>]),
+                        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'longitud'</span>)
+                            -&gt;<span class="fn">numeric</span>()-&gt;<span class="fn">label</span>(<span class="str">'Longitud'</span>)
+                            -&gt;<span class="fn">placeholder</span>(<span class="str">'-66.201318'</span>)
+                            -&gt;<span class="fn">rules</span>([<span class="str">'nullable'</span>, <span class="str">'numeric'</span>, <span class="str">'between:-180,180'</span>]),
+                        <span class="cls">Placeholder</span>::<span class="fn">make</span>(<span class="str">'mapa_ayuda'</span>)
+                            -&gt;<span class="fn">label</span>(<span class="str">''</span>)
+                            -&gt;<span class="fn">content</span>(<span class="str">'💡 Cómo obtener coordenadas: ...'</span>)
+                            -&gt;<span class="fn">columnSpan</span>(<span class="num">2</span>),
+                    ]),
+            ]);
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Componentes Filament usados</div>
+      <ul>
+        <li><strong>Select::make('municipio_id')->relationship()</strong> — genera dropdown desde la relación Eloquent con búsqueda</li>
+        <li><strong>TextInput::make()->numeric()</strong> — input con validación numérica</li>
+        <li><strong>Toggle::make('activo')</strong> — switch on/off</li>
+        <li><strong>Placeholder::make()</strong> — texto informativo sin input</li>
+        <li><strong>Section::make()->columns(2)</strong> — agrupación visual en 2 columnas</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: TABLE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="table">
+    <h2><span class="section-number">4</span> CentroSaludsTable — listado con 7 columnas</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/CentroSaluds/Tables/CentroSaludsTable.php</div>
+      <div class="code-body">
+<pre><span class="kw">&lt;?php</span>
+
+<span class="kw">namespace</span> <span class="cls">App\Filament\Resources\CentroSaluds\Tables</span>;
+
+<span class="kw">use</span> <span class="cls">Filament\Actions\BulkActionGroup</span>;
+<span class="kw">use</span> <span class="cls">Filament\Actions\DeleteBulkAction</span>;
+<span class="kw">use</span> <span class="cls">Filament\Actions\EditAction</span>;
+<span class="kw">use</span> <span class="cls">Filament\Tables\Columns\IconColumn</span>;
+<span class="kw">use</span> <span class="cls">Filament\Tables\Columns\TextColumn</span>;
+<span class="kw">use</span> <span class="cls">Filament\Tables\Table</span>;
+
+<span class="kw">class</span> <span class="cls">CentroSaludsTable</span>
+{
+    <span class="kw">public static function</span> <span class="fn">configure</span>(<span class="cls">Table</span> <span class="var">$table</span>): <span class="cls">Table</span>
+    {
+        <span class="kw">return</span> <span class="var">$table</span>
+            -&gt;<span class="fn">columns</span>([
+                <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'nombre'</span>)
+                    -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">sortable</span>()-&gt;<span class="fn">label</span>(<span class="str">'Nombre'</span>),
+                <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'codigo_snis'</span>)
+                    -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">label</span>(<span class="str">'Código SNIS'</span>),
+                <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'municipio.nombre'</span>)
+                    -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">sortable</span>()-&gt;<span class="fn">label</span>(<span class="str">'Municipio'</span>),
+                <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'red_salud'</span>)
+                    -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">label</span>(<span class="str">'Red de Salud'</span>),
+                <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'subsector'</span>)
+                    -&gt;<span class="fn">badge</span>()-&gt;<span class="fn">label</span>(<span class="str">'Subsector'</span>),
+                <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'poblacion_ine'</span>)
+                    -&gt;<span class="fn">numeric</span>()-&gt;<span class="fn">sortable</span>()-&gt;<span class="fn">label</span>(<span class="str">'Pob. INE'</span>),
+                <span class="cls">IconColumn</span>::<span class="fn">make</span>(<span class="str">'activo'</span>)
+                    -&gt;<span class="fn">boolean</span>()-&gt;<span class="fn">label</span>(<span class="str">'Activo'</span>),
+            ])
+            -&gt;<span class="fn">filters</span>([])
+            -&gt;<span class="fn">recordActions</span>([<span class="cls">EditAction</span>::<span class="fn">make</span>()])
+            -&gt;<span class="fn">toolbarActions</span>([
+                <span class="cls">BulkActionGroup</span>::<span class="fn">make</span>([
+                    <span class="cls">DeleteBulkAction</span>::<span class="fn">make</span>(),
+                ]),
+            ]);
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-title">Columnas de la tabla</div>
+      <table>
+        <thead><tr><th>Columna</th><th>Tipo</th><th>Búsqueda</th><th>Ordenar</th></tr></thead>
+        <tbody>
+          <tr><td>nombre</td><td>TextColumn</td><td>✅</td><td>✅</td></tr>
+          <tr><td>codigo_snis</td><td>TextColumn</td><td>✅</td><td></td></tr>
+          <tr><td>municipio.nombre</td><td>TextColumn (relación)</td><td>✅</td><td>✅</td></tr>
+          <tr><td>red_salud</td><td>TextColumn</td><td>✅</td><td></td></tr>
+          <tr><td>subsector</td><td>TextColumn + badge()</td><td></td><td></td></tr>
+          <tr><td>poblacion_ine</td><td>TextColumn + numeric()</td><td></td><td>✅</td></tr>
+          <tr><td>activo</td><td>IconColumn + boolean()</td><td></td><td></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">municipio.nombre — notación punto</div>
+      <p><code>TextColumn::make('municipio.nombre')</code> accede al campo <code>nombre</code> de la relación <code>municipio</code>. Filament hace el JOIN automáticamente. Lo mismo funciona con <code>searchable()</code> y <code>sortable()</code>.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: PAGES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="pages">
+    <h2><span class="section-number">5</span> Pages: List, Create, Edit</h2>
+
+    <p>Las 3 páginas son casi idénticas — herencia directa de clases base de Filament:</p>
+
+    <div class="code-block">
+      <div class="code-header">Pages/ListCentroSaluds.php</div>
+      <div class="code-body">
+<pre><span class="kw">&lt;?php</span>
+
+<span class="kw">namespace</span> <span class="cls">App\Filament\Resources\CentroSaluds\Pages</span>;
+
+<span class="kw">use</span> <span class="cls">App\Filament\Resources\CentroSaluds\CentroSaludResource</span>;
+<span class="kw">use</span> <span class="cls">Filament\Actions\CreateAction</span>;
+<span class="kw">use</span> <span class="cls">Filament\Resources\Pages\ListRecords</span>;
+
+<span class="kw">class</span> <span class="cls">ListCentroSaluds</span> <span class="kw">extends</span> <span class="cls">ListRecords</span>
+{
+    <span class="kw">protected static</span> <span class="type">string</span> <span class="var">$resource</span> <span class="op">=</span> <span class="cls">CentroSaludResource</span>::<span class="kw">class</span>;
+
+    <span class="kw">protected function</span> <span class="fn">getHeaderActions</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="cls">CreateAction</span>::<span class="fn">make</span>()];
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Pages/CreateCentroSalud.php</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">CreateCentroSalud</span> <span class="kw">extends</span> <span class="cls">CreateRecord</span>
+{
+    <span class="kw">protected static</span> <span class="type">string</span> <span class="var">$resource</span> <span class="op">=</span> <span class="cls">CentroSaludResource</span>::<span class="kw">class</span>;
+}</pre>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Pages/EditCentroSalud.php</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">EditCentroSalud</span> <span class="kw">extends</span> <span class="cls">EditRecord</span>
+{
+    <span class="kw">protected static</span> <span class="type">string</span> <span class="var">$resource</span> <span class="op">=</span> <span class="cls">CentroSaludResource</span>::<span class="kw">class</span>;
+
+    <span class="kw">protected function</span> <span class="fn">getHeaderActions</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [<span class="cls">DeleteAction</span>::<span class="fn">make</span>()];
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Minimal boilerplate</div>
+      <p>Las páginas solo necesitan declarar <code>$resource</code> y opcionalmente <code>getHeaderActions()</code>. Filament se encarga de renderizar el formulario (Create/Edit) o la tabla (List) automáticamente.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: PATRÓN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="patron">
+    <h2><span class="section-number">6</span> Patrón SICSAL: Schemas/ y Tables/ separados</h2>
+
+    <div class="arch-diagram">
+      <div class="arch-box"><strong>Resource</strong><br>Conecta piezas, acceso, navegación</div>
+      <div class="arch-arrow">↓ delega</div>
+      <div style="display: flex; gap: 2rem; flex-wrap: wrap; justify-content: center;">
+        <div class="arch-box"><strong>Schemas/Form</strong><br>Campos del formulario</div>
+        <div class="arch-box"><strong>Tables/Table</strong><br>Columnas, filtros, acciones</div>
+        <div class="arch-box"><strong>Pages/*</strong><br>List, Create, Edit</div>
+      </div>
+    </div>
+
+    <p>Este patrón se repite en los 8 Resources de SICSAL. Las ventajas:</p>
+    <ul>
+      <li>Cada archivo tiene una sola responsabilidad</li>
+      <li>Los formularios complejos (como PersonaForm, 121 líneas) no ensucian el Resource</li>
+      <li>Fácil de encontrar: "necesito cambiar una columna" → ve a <code>Tables/</code></li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: RESUMEN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen">
+    <h2><span class="section-number">7</span> Resumen</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos</h3>
+      <ul>
+        <li>Un <strong>Resource</strong> Filament agrupa modelo, formulario, tabla y páginas CRUD</li>
+        <li><strong>CentroSaludResource</strong> — solo accesible para superadmin, grupo "Configuración"</li>
+        <li><strong>CentroSaludForm</strong> — 2 secciones: info general (7 campos) + GPS (2 coordenadas)</li>
+        <li><strong>CentroSaludsTable</strong> — 7 columnas con búsqueda, ordenamiento y badge</li>
+        <li><strong>3 Pages</strong> minimal: List (+ CreateAction), Create (vacía), Edit (+ DeleteAction)</li>
+        <li><strong>Patrón SICSAL</strong>: Form en <code>Schemas/</code>, Table en <code>Tables/</code>, separados del Resource</li>
+        <li>Componentes clave: <code>Select->relationship()</code>, <code>Toggle</code>, <code>IconColumn->boolean()</code>, <code>badge()</code></li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="24-filament-instalacion.html" class="lesson-nav-btn">← Lección 24</a>
+    <a href="26-resource-comunidad.html" class="lesson-nav-btn">Lección 26 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 25 de 58</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 13 — Exportar Excel, PDF y PPTX | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand"><span class="dot"></span> SICSAL — Lección 13</div>
+  <nav>
+    <a href="12-alpine-frontend.html">← Anterior</a>
+    <a href="00-indice.html">Índice</a>
+    <a href="14-observers.html">Siguiente →</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 13 de 16</span>
+    <h1>Exportar Excel, PDF y PPTX</h1>
+    <p>Informes CAI multi-hoja, tablas estilizadas, PDFs con DomPDF y presentaciones PowerPoint.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos</h2>
+    <table class="db-table">
+      <thead><tr><th>Archivo</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>app/Exports/InformeCAIExport.php</code></td><td>Informe CAI multi-hoja (7 sheets)</td></tr>
+        <tr><td><code>app/Exports/CausasConsultaExternaExport.php</code></td><td>Top 10 causas — una hoja con estilos</td></tr>
+        <tr><td><code>app/Exports/PadronComunidadesExport.php</code></td><td>Una hoja por comunidad</td></tr>
+        <tr><td><code>app/Exports/PresentacionCAI.php</code></td><td>Generador de PowerPoint (1000+ líneas)</td></tr>
+        <tr><td><code>app/Exports/Sheets/</code></td><td>11 clases de hojas individuales</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. Las 3 librerías de exportación</a></li>
+      <li><a href="#s2">2. Excel con Maatwebsite: multi-hoja</a></li>
+      <li><a href="#s3">3. Estilizar celdas con PhpSpreadsheet</a></li>
+      <li><a href="#s4">4. PDF con DomPDF</a></li>
+      <li><a href="#s5">5. PowerPoint con PhpPresentation</a></li>
+      <li><a href="#s6">6. Mapa de archivos de exportación</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> Las 3 librerías de exportación</h2>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-title">📊 Maatwebsite Excel</div>
+        <div class="card-body">
+          <p>Genera archivos <strong>.xlsx</strong> desde PHP.</p>
+          <p>Usa PhpSpreadsheet debajo del capó.</p>
+          <p><code>Excel::download(new Export, 'nombre.xlsx')</code></p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📄 DomPDF</div>
+        <div class="card-body">
+          <p>Convierte <strong>HTML a PDF</strong>.</p>
+          <p>Usa vistas Blade como plantillas.</p>
+          <p><code>Pdf::loadView('pdf.vista', $datos)</code></p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📽️ PhpPresentation</div>
+        <div class="card-body">
+          <p>Genera archivos <strong>.pptx</strong> programáticamente.</p>
+          <p>Diapositivas, gráficas y tablas.</p>
+          <p><code>$pptx = new PhpPresentation()</code></p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> Excel con Maatwebsite: multi-hoja</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Exports/InformeCAIExport.php — 7 hojas</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">InformeCAIExport</span> <span class="kw">implements</span> <span class="cls">WithMultipleSheets</span>
+{
+    <span class="kw">use</span> <span class="cls">Exportable</span>;
+
+    <span class="kw">public function</span> <span class="fn">__construct</span>(<span class="kw">private array</span> <span class="var">$datos</span>) {}
+
+    <span class="kw">public function</span> <span class="fn">sheets</span>(): <span class="kw">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'Encabezado'</span>      => <span class="kw">new</span> <span class="cls">Sheets\EncabezadoSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'encabezado'</span>], ...),
+            <span class="str">'Migración'</span>       => <span class="kw">new</span> <span class="cls">Sheets\MigracionSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'migracion'</span>]),
+            <span class="str">'Censo'</span>           => <span class="kw">new</span> <span class="cls">Sheets\CensoSheet</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'censo'</span>]),
+            <span class="str">'Cobertura'</span>       => <span class="kw">new</span> <span class="cls">Sheets\CoberturaSheet</span>(...),
+            <span class="str">'Prestaciones'</span>    => <span class="kw">new</span> <span class="cls">Sheets\PrestacionesSheet</span>(...),
+            <span class="str">'Ceros Justific.'</span> => <span class="kw">new</span> <span class="cls">Sheets\CerosSheet</span>(...),
+            <span class="str">'Observaciones'</span>   => <span class="kw">new</span> <span class="cls">Sheets\ObservacionesSheet</span>(...),
+        ];
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Patrón Multi-Hoja</div>
+      <p>La clase principal implementa <code>WithMultipleSheets</code> y devuelve un array de hojas. Cada hoja es una clase separada en <code>app/Exports/Sheets/</code>. Esto mantiene el código organizado: un archivo = una hoja.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">PadronComunidadesExport.php — Una hoja por comunidad</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">PadronComunidadesExport</span> <span class="kw">implements</span> <span class="cls">WithMultipleSheets</span>
+{
+    <span class="kw">public function</span> <span class="fn">sheets</span>(): <span class="kw">array</span>
+    {
+        <span class="var">$sheets</span> = [];
+        <span class="cmt">// Una hoja con el padrón completo por cada comunidad</span>
+        <span class="kw">foreach</span> (<span class="var">$comunidades</span> <span class="kw">as</span> <span class="var">$comunidad</span>) {
+            <span class="var">$sheets</span>[] = <span class="kw">new</span> <span class="cls">PadronComunidadSheet</span>(<span class="var">$comunidad</span>, <span class="var">$centro</span>);
+        }
+        <span class="kw">return</span> <span class="var">$sheets</span>;
+    }
+}</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> Estilizar celdas con PhpSpreadsheet</h2>
+
+    <div class="code-block">
+      <div class="code-header">CausasConsultaExternaExport.php — Estilos profesionales</div>
+      <pre class="code-body language-php"><span class="cmt">// La clase implementa FromArray + WithEvents para control total</span>
+<span class="kw">class</span> <span class="cls">CausasConsultaExternaExport</span> <span class="kw">implements</span> <span class="cls">FromArray</span>, <span class="cls">WithTitle</span>, <span class="cls">WithEvents</span>
+{
+    <span class="kw">public function</span> <span class="fn">array</span>(): <span class="kw">array</span>
+    {
+        <span class="cmt">// Construir filas: título, encabezados, 10 causas, total</span>
+        <span class="var">$rows</span>[] = [<span class="str">'10 PRINCIPALES CAUSAS DE CONSULTA EXTERNA'</span>];
+        <span class="var">$rows</span>[] = [<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'centro'</span>] . <span class="str">' · '</span> . <span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'periodo_label'</span>]];
+        <span class="cmt">// ... encabezados de grupo etáreo M/F ...</span>
+        <span class="kw">foreach</span> (<span class="var">$causas</span> <span class="kw">as</span> <span class="var">$causa</span>) {
+            <span class="var">$row</span> = [<span class="var">$causa</span>[<span class="str">'rank'</span>], <span class="var">$causa</span>[<span class="str">'diagnostico'</span>], ...];
+        }
+        <span class="kw">return</span> <span class="var">$rows</span>;
+    }
+
+    <span class="kw">public function</span> <span class="fn">registerEvents</span>(): <span class="kw">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="cls">AfterSheet</span>::<span class="kw">class</span> => <span class="kw">function</span> (<span class="cls">AfterSheet</span> <span class="var">$event</span>) {
+                <span class="var">$sheet</span> = <span class="var">$event</span>-><span class="var">sheet</span>-><span class="fn">getDelegate</span>();
+
+                <span class="cmt">// Fusionar celdas del título</span>
+                <span class="var">$sheet</span>-><span class="fn">mergeCells</span>(<span class="str">'A1:Z1'</span>);
+
+                <span class="cmt">// Estilo del título: fondo teal, texto blanco</span>
+                <span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">'A1'</span>)-><span class="fn">applyFromArray</span>([
+                    <span class="str">'font'</span> => [<span class="str">'bold'</span> => <span class="kw2">true</span>, <span class="str">'size'</span> => <span class="num">13</span>,
+                              <span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FFFFFFFF'</span>]],
+                    <span class="str">'fill'</span> => [<span class="str">'fillType'</span> => <span class="cls">Fill</span>::<span class="var">FILL_SOLID</span>,
+                              <span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FF004D40'</span>]],
+                ]);
+
+                <span class="cmt">// Filas alternas (cebra)</span>
+                <span class="kw">for</span> (<span class="var">$i</span> = <span class="num">0</span>; <span class="var">$i</span> < <span class="num">10</span>; <span class="var">$i</span>++) {
+                    <span class="var">$bg</span> = (<span class="var">$i</span> % <span class="num">2</span> === <span class="num">0</span>) ? <span class="str">'FFFFFFFF'</span> : <span class="str">'FFF5F5F5'</span>;
+                    <span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"A{$f}:Z{$f}"</span>)-><span class="fn">applyFromArray</span>([
+                        <span class="str">'fill'</span> => [<span class="str">'fillType'</span> => <span class="cls">Fill</span>::<span class="var">FILL_SOLID</span>,
+                                  <span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="var">$bg</span>]],
+                    ]);
+                }
+
+                <span class="cmt">// Congelar filas de encabezado</span>
+                <span class="var">$sheet</span>-><span class="fn">freezePane</span>(<span class="str">'C5'</span>);
+
+                <span class="cmt">// Orientación horizontal para impresión</span>
+                <span class="var">$sheet</span>-><span class="fn">getPageSetup</span>()-><span class="fn">setOrientation</span>(
+                    <span class="cls">PageSetup</span>::<span class="var">ORIENTATION_LANDSCAPE</span>
+                );
+            },
+        ];
+    }
+}</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> PDF con DomPDF</h2>
+
+    <div class="code-block">
+      <div class="code-header">InformeCAI.php (componente Livewire) — Generar PDF</div>
+      <pre class="code-body language-php"><span class="kw">public function</span> <span class="fn">generarPdf</span>()
+{
+    <span class="var">$datos</span> = <span class="cls">CaiHelper</span>::<span class="fn">getDatosInforme</span>(...);
+
+    <span class="cmt">// 1. Cargar una vista Blade como HTML</span>
+    <span class="var">$pdf</span> = <span class="cls">Pdf</span>::<span class="fn">loadView</span>(<span class="str">'pdf.informe-cai'</span>, [<span class="str">'datos'</span> => <span class="var">$datos</span>])
+        -><span class="fn">setPaper</span>(<span class="str">'a4'</span>, <span class="str">'portrait'</span>)
+        -><span class="fn">setOption</span>(<span class="str">'margin-top'</span>, <span class="num">15</span>)
+        -><span class="fn">setOption</span>(<span class="str">'margin-bottom'</span>, <span class="num">15</span>);
+
+    <span class="cmt">// 2. Enviar al navegador como descarga</span>
+    <span class="kw">return</span> <span class="fn">response</span>()-><span class="fn">streamDownload</span>(
+        <span class="kw">fn</span> () => <span class="fn">print</span>(<span class="var">$pdf</span>-><span class="fn">output</span>()), <span class="var">$nombre</span>
+    );
+}</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">DomPDF: HTML → PDF</div>
+      <p>DomPDF renderiza una vista Blade a PDF. Puedes usar cualquier HTML/CSS en la plantilla <code>resources/views/pdf/informe-cai.blade.php</code>. Limitaciones: no soporta Flexbox/Grid avanzado ni JavaScript. Usa tablas HTML para layouts complejos.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> PowerPoint con PhpPresentation</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Exports/PresentacionCAI.php — 1000+ líneas</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">PresentacionCAI</span>
+{
+    <span class="cmt">// Paleta institucional</span>
+    <span class="kw">private const</span> <span class="var">CYAN</span>  = <span class="str">'0097A7'</span>;
+    <span class="kw">private const</span> <span class="var">TEAL</span>  = <span class="str">'00897B'</span>;
+    <span class="kw">private const</span> <span class="var">GREEN</span> = <span class="str">'43A047'</span>;
+    <span class="kw">private const</span> <span class="var">RED</span>   = <span class="str">'E53935'</span>;
+
+    <span class="kw">public function</span> <span class="fn">generate</span>(): <span class="kw">string</span>
+    {
+        <span class="var">$pptx</span> = <span class="kw">new</span> <span class="cls">PhpPresentation</span>();
+
+        <span class="cmt">// Cada método genera una diapositiva</span>
+        <span class="var">$this</span>-><span class="fn">slidePortada</span>(<span class="var">$pptx</span>);
+        <span class="var">$this</span>-><span class="fn">slidePoblacion</span>(<span class="var">$pptx</span>);
+        <span class="var">$this</span>-><span class="fn">slidePiramide</span>(<span class="var">$pptx</span>);
+        <span class="var">$this</span>-><span class="fn">slideCoberturaVacunal</span>(<span class="var">$pptx</span>);  <span class="cmt">// Municipal</span>
+        <span class="var">$this</span>-><span class="fn">slideCoberturaPorCentro</span>(<span class="var">$pptx</span>); <span class="cmt">// Por cada centro</span>
+        <span class="var">$this</span>-><span class="fn">slideDesercion</span>(<span class="var">$pptx</span>);
+        <span class="var">$this</span>-><span class="fn">slideMicronutrientes</span>(<span class="var">$pptx</span>);
+        <span class="var">$this</span>-><span class="fn">slideMaterna</span>(<span class="var">$pptx</span>);
+        <span class="var">$this</span>-><span class="fn">slideCierre</span>(<span class="var">$pptx</span>);
+
+        <span class="cmt">// Guardar en archivo temporal</span>
+        <span class="var">$tmpFile</span> = <span class="fn">tempnam</span>(<span class="fn">sys_get_temp_dir</span>(), <span class="str">'cai_'</span>) . <span class="str">'.pptx'</span>;
+        <span class="var">$writer</span> = <span class="cls">IOFactory</span>::<span class="fn">createWriter</span>(<span class="var">$pptx</span>, <span class="str">'PowerPoint2007'</span>);
+        <span class="var">$writer</span>-><span class="fn">save</span>(<span class="var">$tmpFile</span>);
+
+        <span class="kw">return</span> <span class="var">$tmpFile</span>;  <span class="cmt">// El Livewire lo descarga con streamDownload</span>
+    }
+
+    <span class="cmt">// Helper: semáforo de cobertura (verde/amarillo/rojo)</span>
+    <span class="kw">private function</span> <span class="fn">semaforoColor</span>(<span class="kw">float</span> <span class="var">$pct</span>): <span class="kw">string</span>
+    {
+        <span class="kw">return match</span> (<span class="kw2">true</span>) {
+            <span class="var">$pct</span> >= <span class="num">80</span> => <span class="kw">self</span>::<span class="var">GREEN</span>,  <span class="cmt">// ✅ Bien</span>
+            <span class="var">$pct</span> >= <span class="num">50</span> => <span class="kw">self</span>::<span class="var">AMBER</span>,  <span class="cmt">// ⚠️ Alerta</span>
+            <span class="kw">default</span>    => <span class="kw">self</span>::<span class="var">RED</span>,    <span class="cmt">// 🔴 Crítico</span>
+        };
+    }
+}</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> Mapa de archivos de exportación</h2>
+
+    <div class="file-tree">
+      <div class="file-tree-title">app/Exports/</div>
+      <ul>
+        <li>📊 InformeCAIExport.php <span class="tag tag-teal">7 hojas</span></li>
+        <li>📊 ComunidadesPoblacionExport.php <span class="tag tag-teal">3 hojas</span></li>
+        <li>📊 CausasConsultaExternaExport.php <span class="tag tag-blue">1 hoja con estilos</span></li>
+        <li>📊 PadronComunidadesExport.php <span class="tag tag-teal">1 hoja/comunidad</span></li>
+        <li>📽️ PresentacionCAI.php <span class="tag tag-purple">PPTX 15+ slides</span></li>
+        <li>📁 Sheets/
+          <ul>
+            <li>EncabezadoSheet.php</li>
+            <li>MigracionSheet.php</li>
+            <li>CensoSheet.php</li>
+            <li>CoberturaSheet.php</li>
+            <li>PrestacionesSheet.php</li>
+            <li>CerosSheet.php</li>
+            <li>ObservacionesSheet.php</li>
+            <li>ComunidadesResumenSheet.php</li>
+            <li>ComunidadesDetalleSheet.php</li>
+            <li>ComunidadesConsolidadoSheet.php</li>
+            <li>PadronComunidadSheet.php</li>
+            <li>📁 Concerns/ <span class="tag tag-blue">EstiloExcel trait</span></li>
+          </ul>
+        </li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 13</h3>
+    <ul>
+      <li><strong>Maatwebsite Excel</strong>: <code>WithMultipleSheets</code> para múltiples hojas, <code>FromArray</code> para datos, <code>AfterSheet</code> para estilos.</li>
+      <li><strong>DomPDF</strong>: <code>Pdf::loadView('vista', $datos)</code> convierte Blade a PDF.</li>
+      <li><strong>PhpPresentation</strong>: Genera PPTX programáticamente con diapositivas, tablas y gráficos semáforo.</li>
+      <li><code>streamDownload()</code> envía archivos al navegador sin guardarlos en disco.</li>
+      <li>El patrón es: <strong>Livewire llama al método</strong> → método genera el archivo → <code>streamDownload</code> lo envía.</li>
+    </ul>
+  </div>
+
+  <div class="lesson-nav">
+    <a href="12-alpine-frontend.html">← Lección 12: Frontend</a>
+    <a href="14-observers.html">Lección 14: Observers →</a>
+  </div>
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 13: Exportaciones</span>
+    <span>Maatwebsite Excel · DomPDF · PhpPresentation · streamDownload</span>
+  </div>
+</div>
+</body>
+</html>

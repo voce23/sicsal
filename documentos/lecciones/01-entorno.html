@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 01 — Preparando el Entorno | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Lección 01
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+    <a href="02-estructura-laravel.html">Siguiente →</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 01 de 16</span>
+    <h1>Preparando el Entorno de Desarrollo</h1>
+    <p>Instalar todas las herramientas necesarias, crear el proyecto Laravel y verificar que todo funciona correctamente.</p>
+  </div>
+
+  <!-- ═══ Tabla de archivos que usaremos ═══ -->
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos en esta lección</h2>
+    <table class="db-table">
+      <thead>
+        <tr><th>Archivo</th><th>Propósito</th><th>Se crea / edita</th></tr>
+      </thead>
+      <tbody>
+        <tr><td><code>composer.json</code></td><td>Lista de paquetes PHP del proyecto</td><td>Automático al crear proyecto</td></tr>
+        <tr><td><code>package.json</code></td><td>Lista de paquetes JavaScript</td><td>Automático al crear proyecto</td></tr>
+        <tr><td><code>.env</code></td><td>Variables de entorno (contraseñas, BD, etc.)</td><td>Editar manualmente</td></tr>
+        <tr><td><code>artisan</code></td><td>Herramienta de línea de comandos de Laravel</td><td>Automático</td></tr>
+        <tr><td><code>vite.config.js</code></td><td>Configuración del empaquetador de assets</td><td>Automático, modificable</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. ¿Qué necesitamos instalar?</a></li>
+      <li><a href="#s2">2. Instalar Laragon</a></li>
+      <li><a href="#s3">3. Instalar Visual Studio Code</a></li>
+      <li><a href="#s4">4. Instalar Composer</a></li>
+      <li><a href="#s5">5. Instalar Node.js y NPM</a></li>
+      <li><a href="#s6">6. Crear el proyecto Laravel</a></li>
+      <li><a href="#s7">7. Configurar la base de datos</a></li>
+      <li><a href="#s8">8. Verificar que todo funciona</a></li>
+      <li><a href="#s9">9. ¿Qué es cada herramienta? (Resumen)</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué necesitamos instalar?</h2>
+
+    <p>Para construir SICSAL necesitamos un conjunto de herramientas que trabajan juntas. Piensa en ellas como tu "caja de herramientas de programador":</p>
+
+    <div class="arch-diagram">
+      <div class="arch-label">HERRAMIENTAS DE DESARROLLO</div>
+      <div class="arch-row">
+        <div class="arch-box highlight">Laragon</div>
+        <div class="arch-arrow">contiene</div>
+        <div class="arch-box">Apache</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-box">PHP 8.3</div>
+        <div class="arch-arrow">+</div>
+        <div class="arch-box">MySQL</div>
+      </div>
+      <div class="arch-row"><div class="arch-arrow">▼</div></div>
+      <div class="arch-row">
+        <div class="arch-box secondary">Composer</div>
+        <div class="arch-arrow">gestiona</div>
+        <div class="arch-box">Paquetes PHP</div>
+      </div>
+      <div class="arch-row"><div class="arch-arrow">▼</div></div>
+      <div class="arch-row">
+        <div class="arch-box secondary">Node.js + NPM</div>
+        <div class="arch-arrow">gestiona</div>
+        <div class="arch-box">Paquetes JS</div>
+      </div>
+      <div class="arch-row"><div class="arch-arrow">▼</div></div>
+      <div class="arch-row">
+        <div class="arch-box highlight">VS Code</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">Tu editor de código</div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Requisitos del proyecto SICSAL</div>
+      <ul>
+        <li><strong>PHP 8.3</strong> o superior (Laravel 13 lo requiere)</li>
+        <li><strong>MySQL 8.0</strong> o superior</li>
+        <li><strong>Composer 2.x</strong> (gestor de paquetes PHP)</li>
+        <li><strong>Node.js 20+</strong> y <strong>NPM 10+</strong> (para Vite y Tailwind CSS)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> Instalar Laragon</h2>
+
+    <p><strong>Laragon</strong> es un entorno de desarrollo local para Windows que incluye Apache, PHP, MySQL y otras herramientas en un solo paquete. Es como un "servidor web portátil" que corre en tu computadora.</p>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">¿Por qué Laragon y no XAMPP?</div>
+      <p>Laragon es más ligero, crea automáticamente URLs bonitas (como <code>sicsal.test</code> en vez de <code>localhost/sicsal/public</code>), y facilita cambiar entre versiones de PHP.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <strong>Descargar Laragon</strong>
+          <p>Ve a <code>https://laragon.org/download/</code> y descarga la versión <strong>Full</strong> (incluye más herramientas).</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <strong>Instalar</strong>
+          <p>Ejecuta el instalador. La ubicación por defecto es <code>C:\laragon</code>. Puedes dejar todo por defecto.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <strong>Iniciar Laragon</strong>
+          <p>Abre Laragon y haz clic en <strong>"Start All"</strong>. Esto inicia Apache y MySQL.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <strong>Verificar PHP</strong>
+          <p>Abre la terminal de Laragon (botón "Terminal") y escribe:</p>
+          <div class="code-block">
+            <div class="code-header">Terminal de Laragon</div>
+            <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> <span class="flag">-v</span>
+
+PHP 8.3.26 (cli) (built: ...)
+Copyright (c) The PHP Group</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">¿Tu versión de PHP es menor a 8.3?</div>
+      <p>Laravel 13 requiere PHP 8.3 mínimo. Si Laragon trae una versión anterior, descarga PHP 8.3 desde <code>https://windows.php.net/download/</code> y cópialo a <code>C:\laragon\bin\php\php-8.3.xx</code>. Luego en Laragon: clic derecho → PHP → versión 8.3.</p>
+    </div>
+
+    <!-- Vista previa visual: Laragon -->
+    <div style="background: #1a1a2e; border-radius: 12px; padding: 1.5rem; margin: 1.5rem 0; color: white; font-family: 'Segoe UI', sans-serif;">
+      <div style="display: flex; align-items: center; gap: .5rem; margin-bottom: 1rem;">
+        <span style="width:12px;height:12px;background:#ef4444;border-radius:50%;display:inline-block;"></span>
+        <span style="width:12px;height:12px;background:#fbbf24;border-radius:50%;display:inline-block;"></span>
+        <span style="width:12px;height:12px;background:#22c55e;border-radius:50%;display:inline-block;"></span>
+        <span style="font-size:.8rem;color:#94a3b8;margin-left:.5rem;">Laragon — Vista previa</span>
+      </div>
+      <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 1rem; text-align:center;">
+        <div style="background:#16a34a;border-radius:8px;padding:1rem;">
+          <div style="font-size:1.5rem;">🌐</div>
+          <div style="font-weight:700;margin-top:.3rem;">Apache</div>
+          <div style="font-size:.75rem;color:#bbf7d0;">● Running</div>
+        </div>
+        <div style="background:#2563eb;border-radius:8px;padding:1rem;">
+          <div style="font-size:1.5rem;">🗃️</div>
+          <div style="font-weight:700;margin-top:.3rem;">MySQL</div>
+          <div style="font-size:.75rem;color:#bfdbfe;">● Running</div>
+        </div>
+        <div style="background:#7c3aed;border-radius:8px;padding:1rem;">
+          <div style="font-size:1.5rem;">🐘</div>
+          <div style="font-weight:700;margin-top:.3rem;">PHP 8.3</div>
+          <div style="font-size:.75rem;color:#ddd6fe;">● Active</div>
+        </div>
+      </div>
+      <div style="margin-top:1rem; text-align:center;">
+        <span style="background:#0891b2; padding:.4rem 1.2rem; border-radius:6px; font-weight:700; font-size:.85rem;">▶ Start All</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> Instalar Visual Studio Code</h2>
+
+    <p><strong>VS Code</strong> es un editor de código gratuito de Microsoft. Es el editor más popular para desarrollo web.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <strong>Descargar e instalar</strong>
+          <p>Ve a <code>https://code.visualstudio.com</code> y descarga la versión para Windows.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <strong>Extensiones recomendadas</strong>
+          <p>Instala estas extensiones desde la barra lateral de Extensiones (<code>Ctrl+Shift+X</code>):</p>
+          <table class="db-table">
+            <thead><tr><th>Extensión</th><th>Para qué sirve</th></tr></thead>
+            <tbody>
+              <tr><td><code>PHP Intelephense</code></td><td>Autocompletado y errores en PHP</td></tr>
+              <tr><td><code>Laravel Blade</code></td><td>Resaltado de plantillas Blade</td></tr>
+              <tr><td><code>Tailwind CSS IntelliSense</code></td><td>Autocompletado de clases Tailwind</td></tr>
+              <tr><td><code>GitHub Copilot</code></td><td>Asistente de IA para escribir código</td></tr>
+              <tr><td><code>DotENV</code></td><td>Resaltado para archivos .env</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <strong>Abrir el proyecto</strong>
+          <p>Después de crear el proyecto, abre VS Code y ve a <strong>File → Open Folder</strong>. Navega a <code>C:\laragon\www\sicsal</code> y ábrelo.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> Instalar Composer</h2>
+
+    <p><strong>Composer</strong> es el gestor de paquetes de PHP. Así como en tu teléfono usas la "Play Store" para instalar apps, en PHP usamos Composer para instalar librerías.</p>
+
+    <div class="callout callout-info">
+      <div class="callout-title">¿Qué es un paquete?</div>
+      <p>Un paquete es código que alguien más escribió y que puedes reutilizar. Por ejemplo, Laravel es un paquete. Filament es otro paquete. En vez de programar todo desde cero, usamos paquetes que resuelven problemas comunes.</p>
+    </div>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <strong>Verificar si ya está instalado</strong>
+          <p>Laragon normalmente incluye Composer. Abre la terminal de Laragon y escribe:</p>
+          <div class="code-block">
+            <div class="code-header">Terminal</div>
+            <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">composer</span> <span class="flag">--version</span>
+
+Composer version 2.8.x 2025-xx-xx</pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <strong>Si NO está instalado</strong>
+          <p>Descarga el instalador desde <code>https://getcomposer.org/download/</code> y ejecútalo. Asegúrate de que apunte al PHP de Laragon.</p>
+        </div>
+      </div>
+    </div>
+
+    <p>Cuando instalamos paquetes con Composer, se guardan en la carpeta <code>vendor/</code> y se registran en <code>composer.json</code>. Nuestro proyecto SICSAL usa estos paquetes principales:</p>
+
+    <div class="code-block">
+      <div class="code-header">composer.json — Dependencias principales</div>
+      <pre class="code-body language-json">{
+    <span class="str">"require"</span>: {
+        <span class="str">"php"</span>:                       <span class="str">"^8.3"</span>,         <span class="cmt">// PHP 8.3 mínimo</span>
+        <span class="str">"laravel/framework"</span>:          <span class="str">"^13.0"</span>,        <span class="cmt">// Laravel 13</span>
+        <span class="str">"filament/filament"</span>:          <span class="str">"~5.0"</span>,         <span class="cmt">// Panel de administración</span>
+        <span class="str">"livewire/livewire"</span>:          <span class="str">"^4.1"</span>,         <span class="cmt">// Componentes reactivos</span>
+        <span class="str">"spatie/laravel-permission"</span>:  <span class="str">"*"</span>,            <span class="cmt">// Roles y permisos</span>
+        <span class="str">"maatwebsite/excel"</span>:          <span class="str">"*"</span>,            <span class="cmt">// Exportar a Excel</span>
+        <span class="str">"barryvdh/laravel-dompdf"</span>:    <span class="str">"*"</span>,            <span class="cmt">// Generar PDFs</span>
+        <span class="str">"phpoffice/phppresentation"</span>:  <span class="str">"*"</span>             <span class="cmt">// Presentaciones PowerPoint</span>
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Leyendo las versiones</div>
+      <ul>
+        <li><code>^8.3</code> → "versión 8.3 o superior, pero menor a 9.0"</li>
+        <li><code>~5.0</code> → "versión 5.0.x (solo parches)"</li>
+        <li><code>*</code> → "cualquier versión disponible"</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> Instalar Node.js y NPM</h2>
+
+    <p><strong>Node.js</strong> es un entorno para ejecutar JavaScript fuera del navegador. <strong>NPM</strong> (Node Package Manager) viene incluido con Node y sirve para instalar paquetes de JavaScript, como Tailwind CSS y Vite.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <strong>Descargar Node.js</strong>
+          <p>Ve a <code>https://nodejs.org</code> y descarga la versión <strong>LTS</strong> (Long Term Support). Al momento de escribir esta lección, es la versión 22.x.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <strong>Instalar y verificar</strong>
+          <div class="code-block">
+            <div class="code-header">Terminal</div>
+            <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">node</span> <span class="flag">-v</span>
+v22.x.x
+
+<span class="prompt">$</span> <span class="cmd">npm</span> <span class="flag">-v</span>
+10.x.x</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p>Los paquetes JavaScript del proyecto se listan en <code>package.json</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">package.json — Dependencias principales</div>
+      <pre class="code-body language-json">{
+    <span class="str">"dependencies"</span>: {
+        <span class="str">"vite"</span>:                 <span class="str">"^8.0.0"</span>,        <span class="cmt">// Empaquetador rápido</span>
+        <span class="str">"laravel-vite-plugin"</span>:  <span class="str">"^3.0.0"</span>,        <span class="cmt">// Integración Vite + Laravel</span>
+        <span class="str">"chart.js"</span>:             <span class="str">"^4.5.1"</span>         <span class="cmt">// Gráficos en el dashboard</span>
+    },
+    <span class="str">"devDependencies"</span>: {
+        <span class="str">"tailwindcss"</span>:          <span class="str">"^4.2.2"</span>,        <span class="cmt">// Framework CSS utilitario</span>
+        <span class="str">"@tailwindcss/vite"</span>:    <span class="str">"^4.2.2"</span>         <span class="cmt">// Plugin de Tailwind para Vite</span>
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">¿Qué es Vite?</div>
+      <p>Vite es una herramienta que toma tus archivos CSS y JavaScript, los procesa (compila Tailwind, minimiza código) y genera archivos optimizados para el navegador. Cuando desarrollas, Vite detecta cambios automáticamente y recarga el navegador al instante.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> Crear el Proyecto Laravel</h2>
+
+    <p>Ahora que tenemos todas las herramientas instaladas, vamos a crear el proyecto. Laravel ofrece un instalador que configura todo automáticamente.</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <strong>Instalar el instalador de Laravel</strong>
+          <div class="code-block">
+            <div class="code-header">Terminal de Laragon</div>
+            <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">composer</span> global require laravel/installer</pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <strong>Crear el proyecto</strong>
+          <p>Navega a la carpeta donde Laragon busca proyectos y crea uno nuevo:</p>
+          <div class="code-block">
+            <div class="code-header">Terminal</div>
+            <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">cd</span> C:\laragon\www
+
+<span class="prompt">$</span> <span class="cmd">laravel</span> new sicsal</pre>
+          </div>
+          <p>El instalador te preguntará qué starter kit usar. SICSAL usa <strong>Livewire Starter Kit</strong>.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <strong>Instalar dependencias</strong>
+          <p>El instalador ejecuta <code>composer install</code> automáticamente. Pero si clonas un proyecto existente, necesitas hacerlo manualmente:</p>
+          <div class="code-block">
+            <div class="code-header">Terminal — Dentro de C:\laragon\www\sicsal</div>
+            <pre class="code-body bash"><span class="cmt"># Instalar paquetes PHP</span>
+<span class="prompt">$</span> <span class="cmd">composer</span> install
+
+<span class="cmt"># Instalar paquetes JavaScript</span>
+<span class="prompt">$</span> <span class="cmd">npm</span> install</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Si clonas el proyecto desde Git</div>
+      <p>Cuando clonas un repositorio, la carpeta <code>vendor/</code> y <code>node_modules/</code> NO vienen incluidas (están en <code>.gitignore</code>). Debes ejecutar <code>composer install</code> y <code>npm install</code> para descargar todas las dependencias.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 7 ════════════════════════ -->
+  <div class="section" id="s7">
+    <h2 class="section-title"><span class="number">7</span> Configurar la Base de Datos</h2>
+
+    <p>Laravel guarda toda la configuración sensible en un archivo llamado <code>.env</code> que está en la raíz del proyecto. Este archivo <strong>NUNCA</strong> se sube al repositorio (está en <code>.gitignore</code>).</p>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <strong>Crear la base de datos en MySQL</strong>
+          <p>Abre HeidiSQL (viene con Laragon, botón "Database") o la terminal MySQL:</p>
+          <div class="code-block">
+            <div class="code-header">Terminal MySQL</div>
+            <pre class="code-body bash"><span class="prompt">mysql></span> <span class="cmd">CREATE DATABASE</span> sicsal <span class="cmd">CHARACTER SET</span> utf8mb4 <span class="cmd">COLLATE</span> utf8mb4_unicode_ci;</pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <strong>Editar el archivo .env</strong>
+          <p>Abre <code>.env</code> en VS Code y busca las líneas de la base de datos:</p>
+          <div class="code-block">
+            <div class="code-header">.env — Configuración de base de datos</div>
+            <pre class="code-body"><span class="var">APP_NAME</span><span class="op">=</span><span class="str">SICSAL</span>
+<span class="var">APP_ENV</span><span class="op">=</span><span class="str">local</span>
+<span class="var">APP_DEBUG</span><span class="op">=</span><span class="str">true</span>
+<span class="var">APP_URL</span><span class="op">=</span><span class="str">http://sicsal.test</span>
+
+<span class="var">DB_CONNECTION</span><span class="op">=</span><span class="str">mysql</span>
+<span class="var">DB_HOST</span><span class="op">=</span><span class="str">127.0.0.1</span>
+<span class="var">DB_PORT</span><span class="op">=</span><span class="str">3306</span>
+<span class="var">DB_DATABASE</span><span class="op">=</span><span class="str">sicsal</span>
+<span class="var">DB_USERNAME</span><span class="op">=</span><span class="str">root</span>
+<span class="var">DB_PASSWORD</span><span class="op">=</span><span class="cmt"> (vacío en Laragon por defecto)</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">Regla de seguridad fundamental</div>
+      <p><strong>NUNCA</strong> pongas contraseñas, tokens o credenciales directamente en archivos de código PHP. Siempre usa el archivo <code>.env</code> y accede a ellos con <code>env('NOMBRE_VARIABLE')</code>. Veremos esto en detalle en la Lección 16.</p>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">URL automática con Laragon</div>
+      <p>Laragon crea automáticamente la URL <code>http://sicsal.test</code> para cualquier carpeta en <code>C:\laragon\www\sicsal</code>. No necesitas configurar nada extra. Solo asegúrate de que Apache esté corriendo.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 8 ════════════════════════ -->
+  <div class="section" id="s8">
+    <h2 class="section-title"><span class="number">8</span> Verificar que todo funciona</h2>
+
+    <div class="steps">
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <strong>Ejecutar las migraciones</strong>
+          <p>Las migraciones crean las tablas en la base de datos (lo veremos en detalle en la Lección 3):</p>
+          <div class="code-block">
+            <div class="code-header">Terminal — Dentro del proyecto</div>
+            <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">cd</span> C:\laragon\www\sicsal
+
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate
+
+<span class="output">   INFO  Running migrations.
+
+  2025_01_01_000000_create_users_table ........ DONE
+  2025_01_01_000001_create_cache_table ........ DONE
+  ...</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <strong>Iniciar el servidor de desarrollo</strong>
+          <p>Con Laragon ya tienes Apache corriendo, así que puedes ir directo al navegador. Pero si prefieres el servidor integrado de Laravel:</p>
+          <div class="code-block">
+            <div class="code-header">Terminal</div>
+            <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan serve
+
+<span class="output">   INFO  Server running on [http://127.0.0.1:8000].</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <strong>Compilar assets (CSS y JS)</strong>
+          <p>Abre <strong>otra terminal</strong> y ejecuta Vite en modo desarrollo:</p>
+          <div class="code-block">
+            <div class="code-header">Terminal (segunda ventana)</div>
+            <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">npm</span> run dev
+
+<span class="output">  VITE v8.0.0  ready in 500 ms
+
+  ➜  Local:   http://localhost:5173/
+  ➜  Network: use --host to expose
+  ➜  press h + enter to show help</span></pre>
+          </div>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-content">
+          <strong>Abrir en el navegador</strong>
+          <p>Ve a <code>http://sicsal.test</code> (Laragon) o <code>http://127.0.0.1:8000</code> (artisan serve). Deberías ver la página de bienvenida de Laravel.</p>
+        </div>
+      </div>
+      <div class="step">
+        <div class="step-number">5</div>
+        <div class="step-content">
+          <strong>Verificar el estado de la aplicación</strong>
+          <div class="code-block">
+            <div class="code-header">Terminal</div>
+            <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan about
+
+<span class="output">  Application Name .................. SICSAL
+  Laravel Version ................... 13.3.0
+  PHP Version ....................... 8.3.26
+  Environment ....................... local
+  Debug Mode ........................ ENABLED
+  URL ............................... http://sicsal.test
+  Database .......................... mysql (sicsal)</span></pre>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Vista previa visual: Navegador -->
+    <div style="background: #f8fafc; border: 2px solid var(--gray-200); border-radius: 12px; overflow: hidden; margin: 1.5rem 0;">
+      <div style="background:#e2e8f0; padding:.5rem 1rem; display:flex; align-items:center; gap:.5rem;">
+        <span style="width:10px;height:10px;background:#ef4444;border-radius:50%;display:inline-block;"></span>
+        <span style="width:10px;height:10px;background:#fbbf24;border-radius:50%;display:inline-block;"></span>
+        <span style="width:10px;height:10px;background:#22c55e;border-radius:50%;display:inline-block;"></span>
+        <span style="flex:1;background:white;border-radius:4px;padding:.2rem .6rem;font-size:.75rem;color:#64748b;margin-left:.5rem;">
+          🔒 http://sicsal.test
+        </span>
+      </div>
+      <div style="padding: 3rem 2rem; text-align:center;">
+        <div style="font-size:2.5rem;margin-bottom:.5rem;">🎉</div>
+        <div style="font-size:1.3rem;font-weight:700;color:#0f172a;">SICSAL está funcionando</div>
+        <div style="font-size:.85rem;color:#64748b;margin-top:.3rem;">Laravel 13.3.0 · PHP 8.3.26</div>
+        <div style="margin-top:1rem;display:flex;gap:.5rem;justify-content:center;">
+          <span style="background:#0d9488;color:white;padding:.3rem .8rem;border-radius:6px;font-size:.8rem;">Iniciar sesión</span>
+          <span style="background:#e2e8f0;color:#334155;padding:.3rem .8rem;border-radius:6px;font-size:.8rem;">Registrarse</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 9 ════════════════════════ -->
+  <div class="section" id="s9">
+    <h2 class="section-title"><span class="number">9</span> ¿Qué es cada herramienta? (Resumen)</h2>
+
+    <table class="db-table">
+      <thead>
+        <tr><th>Herramienta</th><th>Qué hace</th><th>Analogía</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Laragon</strong></td>
+          <td>Servidor web local con Apache, PHP y MySQL</td>
+          <td>Como un "edificio" donde vive tu aplicación</td>
+        </tr>
+        <tr>
+          <td><strong>PHP 8.3</strong></td>
+          <td>Lenguaje de programación del backend</td>
+          <td>El idioma en que escribes las instrucciones</td>
+        </tr>
+        <tr>
+          <td><strong>MySQL</strong></td>
+          <td>Base de datos relacional</td>
+          <td>El archivero donde se guardan los datos</td>
+        </tr>
+        <tr>
+          <td><strong>Composer</strong></td>
+          <td>Gestor de paquetes PHP</td>
+          <td>La "tienda de apps" para PHP</td>
+        </tr>
+        <tr>
+          <td><strong>Laravel 13</strong></td>
+          <td>Framework PHP (base del proyecto)</td>
+          <td>Los cimientos de la casa</td>
+        </tr>
+        <tr>
+          <td><strong>Node.js</strong></td>
+          <td>Runtime de JavaScript</td>
+          <td>Motor para ejecutar código JS fuera del navegador</td>
+        </tr>
+        <tr>
+          <td><strong>NPM</strong></td>
+          <td>Gestor de paquetes JavaScript</td>
+          <td>La "tienda de apps" para JavaScript</td>
+        </tr>
+        <tr>
+          <td><strong>Vite</strong></td>
+          <td>Empaquetador de assets (CSS/JS)</td>
+          <td>Un "cocinero" que prepara los ingredientes para el navegador</td>
+        </tr>
+        <tr>
+          <td><strong>Tailwind CSS</strong></td>
+          <td>Framework CSS utilitario</td>
+          <td>LEGO de estilos: piezas pequeñas que combinas</td>
+        </tr>
+        <tr>
+          <td><strong>VS Code</strong></td>
+          <td>Editor de código</td>
+          <td>Tu escritorio de trabajo</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 01</h3>
+    <ul>
+      <li>Instalamos <strong>Laragon</strong> como servidor local (Apache + PHP 8.3 + MySQL).</li>
+      <li>Instalamos <strong>Composer</strong> para gestionar paquetes PHP y <strong>Node.js/NPM</strong> para paquetes JavaScript.</li>
+      <li>Creamos el proyecto con <code>laravel new sicsal</code> usando el Livewire Starter Kit.</li>
+      <li>Configuramos la base de datos en <code>.env</code> (contraseñas NUNCA en código).</li>
+      <li>Verificamos con <code>php artisan migrate</code>, <code>npm run dev</code> y el navegador.</li>
+      <li>Aprendimos qué hace cada herramienta del stack.</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="00-indice.html">← Índice</a>
+    <a href="02-estructura-laravel.html">Lección 02: Estructura de Laravel →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 01: Preparando el Entorno</span>
+    <span>Laravel 13 · PHP 8.3 · Laragon · VS Code</span>
+  </div>
+</div>
+</body>
+</html>

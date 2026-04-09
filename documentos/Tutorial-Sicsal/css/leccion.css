@@ -1,0 +1,1016 @@
+/* ============================================================
+   SICSAL — Estilos de Lecciones
+   Sistema de Información de Salud — Plan de Estudio
+   ============================================================ */
+
+/* ── Variables ─────────────────────────────────────────────── */
+:root {
+  --teal-50:  #f0fdfa;
+  --teal-100: #ccfbf1;
+  --teal-200: #99f6e4;
+  --teal-400: #2dd4bf;
+  --teal-500: #14b8a6;
+  --teal-600: #0d9488;
+  --teal-700: #0f766e;
+  --teal-800: #115e59;
+  --teal-900: #134e4a;
+
+  --cyan-50:  #ecfeff;
+  --cyan-400: #22d3ee;
+  --cyan-500: #06b6d4;
+  --cyan-600: #0891b2;
+
+  --green-500: #22c55e;
+  --green-600: #16a34a;
+  --amber-500: #f59e0b;
+  --amber-600: #d97706;
+  --orange-500: #f97316;
+  --red-500:   #ef4444;
+  --red-600:   #dc2626;
+  --blue-500:  #3b82f6;
+  --blue-600:  #2563eb;
+  --purple-500:#a855f7;
+  --purple-600:#9333ea;
+
+  --gray-50:  #f9fafb;
+  --gray-100: #f3f4f6;
+  --gray-200: #e5e7eb;
+  --gray-300: #d1d5db;
+  --gray-400: #9ca3af;
+  --gray-500: #6b7280;
+  --gray-600: #4b5563;
+  --gray-700: #374151;
+  --gray-800: #1f2937;
+  --gray-900: #111827;
+
+  --dark-bg:  #0f172a;
+  --dark-surface: #1e293b;
+  --dark-border:  #334155;
+
+  --font-sans: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.12), 0 1px 2px rgba(0,0,0,.08);
+  --shadow-md: 0 4px 6px -1px rgba(0,0,0,.1), 0 2px 4px -1px rgba(0,0,0,.06);
+  --shadow-lg: 0 10px 15px -3px rgba(0,0,0,.1), 0 4px 6px -2px rgba(0,0,0,.05);
+}
+
+/* ── Reset básico ──────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; font-size: 16px; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--gray-50);
+  color: var(--gray-800);
+  line-height: 1.65;
+}
+
+a { color: var(--teal-600); text-decoration: none; }
+a:hover { color: var(--teal-700); text-decoration: underline; }
+
+/* ── Layout Principal ──────────────────────────────────────── */
+.page-wrapper {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 0 1.5rem 4rem;
+}
+
+/* ── Top Bar ───────────────────────────────────────────────── */
+.topbar {
+  background: var(--teal-800);
+  color: white;
+  padding: .6rem 1.5rem;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: .85rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  box-shadow: var(--shadow-md);
+}
+
+.topbar-brand {
+  font-weight: 700;
+  letter-spacing: .05em;
+  font-size: .95rem;
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+.topbar-brand .dot {
+  width: 8px; height: 8px;
+  background: var(--teal-400);
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.topbar nav a {
+  color: var(--teal-200);
+  margin-left: 1.2rem;
+  font-size: .82rem;
+}
+.topbar nav a:hover { color: white; }
+
+.topbar-sep     { opacity: .5; margin: 0 .4rem; }
+.topbar-context { color: var(--teal-200); font-size: .82rem; }
+.topbar-page    { color: var(--teal-200); font-size: .82rem; }
+
+/* ── Hero de la Lección ────────────────────────────────────── */
+.lesson-hero {
+  background: linear-gradient(135deg, var(--teal-700) 0%, var(--teal-900) 100%);
+  color: white;
+  padding: 3rem 2rem 2.5rem;
+  margin: 0 -1.5rem 2.5rem;
+  position: relative;
+  overflow: hidden;
+}
+
+.lesson-hero::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 200px; height: 200px;
+  background: rgba(255,255,255,.04);
+  border-radius: 50%;
+}
+
+.lesson-hero::after {
+  content: '';
+  position: absolute;
+  bottom: -60px; left: 40%;
+  width: 280px; height: 280px;
+  background: rgba(255,255,255,.03);
+  border-radius: 50%;
+}
+
+.lesson-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.25);
+  color: var(--teal-100);
+  padding: .3rem .8rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+.lesson-number {
+  font-size: .75rem;
+  color: var(--teal-300);
+  font-weight: 700;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-bottom: .4rem;
+}
+
+.lesson-title {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: .75rem;
+}
+
+.lesson-subtitle {
+  font-size: 1.05rem;
+  color: var(--teal-100);
+  max-width: 600px;
+  opacity: .9;
+}
+
+.lesson-meta {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+}
+
+.lesson-meta-item {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+  font-size: .82rem;
+  color: var(--teal-200);
+}
+
+.lesson-meta-item .icon {
+  width: 14px; height: 14px;
+  opacity: .8;
+}
+
+/* ── Navegación entre lecciones ────────────────────────────── */
+.lesson-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  gap: 1rem;
+}
+
+.lesson-nav-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem 1rem;
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  color: var(--gray-600);
+  font-size: .85rem;
+  box-shadow: var(--shadow-sm);
+  transition: all .2s;
+}
+
+.lesson-nav-btn:hover {
+  background: var(--teal-50);
+  border-color: var(--teal-300);
+  color: var(--teal-700);
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
+}
+
+.lesson-nav-btn.disabled { opacity: .4; pointer-events: none; }
+
+/* ── Tabla de Contenidos ───────────────────────────────────── */
+.toc {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-bottom: 2.5rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.toc-title {
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+  margin-bottom: 1rem;
+}
+
+.toc ol {
+  padding-left: 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: .3rem;
+}
+
+.toc li a {
+  font-size: .9rem;
+  color: var(--gray-600);
+}
+.toc li a:hover { color: var(--teal-600); }
+
+/* ── Secciones y Encabezados ───────────────────────────────── */
+.section {
+  margin-bottom: 2.5rem;
+}
+
+h2.section-title {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 1rem;
+  padding-bottom: .6rem;
+  border-bottom: 2px solid var(--teal-400);
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+}
+
+h2.section-title .number {
+  background: var(--teal-600);
+  color: white;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .8rem;
+  flex-shrink: 0;
+}
+
+h3.subsection-title {
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--gray-700);
+  margin: 1.5rem 0 .75rem;
+}
+
+p { margin-bottom: .9rem; }
+p:last-child { margin-bottom: 0; }
+
+/* ── Cajas informativas ────────────────────────────────────── */
+.callout {
+  padding: 1rem 1.2rem;
+  border-radius: var(--radius-md);
+  margin: 1.2rem 0;
+  display: flex;
+  gap: .75rem;
+  align-items: flex-start;
+  font-size: .92rem;
+  line-height: 1.55;
+}
+
+.callout .callout-icon {
+  font-size: 1.2rem;
+  flex-shrink: 0;
+  margin-top: .05rem;
+}
+
+.callout-tip    { background: var(--teal-50);  border-left: 4px solid var(--teal-400); }
+.callout-info   { background: #eff6ff;          border-left: 4px solid var(--blue-500); }
+.callout-warn   { background: #fffbeb;          border-left: 4px solid var(--amber-500); }
+.callout-danger { background: #fef2f2;          border-left: 4px solid var(--red-500); }
+
+.callout-tip    .callout-icon { color: var(--teal-600); }
+.callout-info   .callout-icon { color: var(--blue-600); }
+.callout-warn   .callout-icon { color: var(--amber-600); }
+.callout-danger .callout-icon { color: var(--red-600); }
+
+.callout strong { display: block; font-weight: 700; margin-bottom: .25rem; }
+
+.callout-title {
+  font-weight: 700;
+  margin-bottom: .25rem;
+}
+.callout-tip    .callout-title { color: var(--teal-700); }
+.callout-info   .callout-title { color: var(--blue-600); }
+.callout-warn   .callout-title { color: var(--amber-600); }
+.callout-danger .callout-title { color: var(--red-600); }
+
+/* Aliases cortos: .callout.tip, .callout.info, .callout.warning, .callout.danger */
+.callout.tip       { background: var(--teal-50);  border-left: 4px solid var(--teal-400); }
+.callout.info      { background: #eff6ff;          border-left: 4px solid var(--blue-500); }
+.callout.warning,
+.callout-warning   { background: #fffbeb;          border-left: 4px solid var(--amber-500); }
+.callout.danger    { background: #fef2f2;          border-left: 4px solid var(--red-500); }
+
+/* ── Pasos numerados ───────────────────────────────────────── */
+.steps { display: flex; flex-direction: column; gap: 1.2rem; margin: 1.2rem 0; }
+
+.step {
+  display: flex;
+  gap: 1rem;
+  align-items: flex-start;
+}
+
+.step-num {
+  background: var(--teal-600);
+  color: white;
+  width: 30px; height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .82rem;
+  font-weight: 700;
+  flex-shrink: 0;
+  margin-top: .1rem;
+}
+
+.step-body { flex: 1; }
+.step-body strong { font-weight: 600; color: var(--gray-900); }
+
+/* ── Tarjetas ──────────────────────────────────────────────── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 1rem;
+  margin: 1.2rem 0;
+}
+
+.card {
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  padding: 1.1rem 1.2rem;
+  box-shadow: var(--shadow-sm);
+}
+
+.card-icon {
+  font-size: 1.5rem;
+  margin-bottom: .5rem;
+}
+
+.card-title {
+  font-weight: 700;
+  font-size: .95rem;
+  color: var(--gray-800);
+  margin-bottom: .3rem;
+}
+
+.card-desc {
+  font-size: .82rem;
+  color: var(--gray-500);
+  line-height: 1.5;
+}
+
+/* ── Diagrama de arquitectura ──────────────────────────────── */
+.arch-diagram {
+  background: var(--dark-bg);
+  border-radius: var(--radius-lg);
+  padding: 2rem;
+  margin: 1.5rem 0;
+  overflow-x: auto;
+}
+
+.arch-row {
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+  justify-content: center;
+  margin: .5rem 0;
+  flex-wrap: wrap;
+}
+
+.arch-box {
+  background: var(--dark-surface);
+  border: 1px solid var(--dark-border);
+  border-radius: var(--radius-sm);
+  padding: .5rem 1rem;
+  font-size: .8rem;
+  color: #e2e8f0;
+  font-family: var(--font-mono);
+  white-space: nowrap;
+}
+
+/* Cajas con fondo claro (inline style) → texto oscuro */
+.arch-box[style] {
+  color: var(--gray-800);
+}
+.arch-box[style] strong {
+  color: var(--gray-900);
+  display: block;
+  margin-bottom: .15rem;
+}
+.arch-box[style] small {
+  color: var(--gray-600);
+  font-size: .75rem;
+}
+
+.arch-box.highlight {
+  border-color: var(--teal-400);
+  background: rgba(20,184,166,.2);
+  color: #ffffff;
+  font-weight: 600;
+}
+
+.arch-box.secondary {
+  border-color: var(--cyan-500);
+  color: #e0f7fa;
+}
+
+.arch-arrow {
+  color: #5eead4;
+  font-size: .85rem;
+  font-family: var(--font-mono);
+  font-weight: 600;
+}
+
+.arch-label {
+  color: #94a3b8;
+  font-size: .72rem;
+  text-align: center;
+  margin-top: .5rem;
+  letter-spacing: .05em;
+}
+
+/* ── Tabla de base de datos ────────────────────────────────── */
+.db-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+  margin: 1rem 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.db-table thead tr {
+  background: var(--teal-700);
+  color: white;
+}
+
+.db-table thead th {
+  padding: .6rem .9rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: .8rem;
+  letter-spacing: .03em;
+}
+
+.db-table tbody tr { background: white; }
+.db-table tbody tr:nth-child(even) { background: var(--gray-50); }
+
+.db-table td {
+  padding: .55rem .9rem;
+  border-bottom: 1px solid var(--gray-100);
+  vertical-align: top;
+}
+
+.db-table td:first-child {
+  font-family: var(--font-mono);
+  font-size: .82rem;
+  color: var(--teal-700);
+  font-weight: 600;
+}
+
+.db-table .type-badge {
+  display: inline-block;
+  background: var(--blue-500);
+  color: white;
+  padding: .1rem .45rem;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: .72rem;
+}
+
+.db-table .pk-badge {
+  background: var(--amber-500);
+}
+.db-table .fk-badge {
+  background: var(--purple-500);
+}
+
+/* ── Relación de archivos ──────────────────────────────────── */
+.file-tree {
+  background: var(--dark-bg);
+  border-radius: var(--radius-md);
+  padding: 1.2rem 1.5rem;
+  font-family: var(--font-mono);
+  font-size: .82rem;
+  line-height: 1.8;
+  margin: 1rem 0;
+  overflow-x: auto;
+  color: var(--gray-300);
+}
+
+.file-tree-title {
+  color: var(--cyan-400);
+  font-weight: 700;
+  font-size: .9rem;
+  margin-bottom: .5rem;
+  padding-bottom: .4rem;
+  border-bottom: 1px solid var(--dark-border);
+}
+
+.file-tree ul { list-style: disc; padding-left: 1.2rem; }
+.file-tree ul ul { list-style: circle; }
+.file-tree li { color: var(--gray-300); }
+.file-tree li::marker { color: var(--gray-500); }
+
+.file-tree .ft-dir  { color: var(--cyan-300); }
+.file-tree .ft-file { color: var(--gray-300); }
+.file-tree .ft-comment { color: var(--gray-500); }
+.file-tree .ft-new { color: var(--green-500); font-weight: 600; }
+
+/* ── Insignias / Tags ──────────────────────────────────────── */
+.tag {
+  display: inline-block;
+  padding: .15rem .55rem;
+  border-radius: 999px;
+  font-size: .72rem;
+  font-weight: 600;
+  letter-spacing: .03em;
+}
+
+.tag-teal   { background: var(--teal-100);   color: var(--teal-800); }
+.tag-blue   { background: #dbeafe;            color: var(--blue-600); }
+.tag-purple { background: #f3e8ff;            color: var(--purple-600); }
+.tag-green  { background: #dcfce7;            color: var(--green-600); }
+.tag-amber  { background: #fef9c3;            color: var(--amber-600); }
+.tag-red    { background: #fee2e2;            color: var(--red-600); }
+
+/* ── Lista estilizada ──────────────────────────────────────── */
+ul.styled, ol.styled {
+  padding-left: 1.4rem;
+  margin: .75rem 0;
+  display: flex;
+  flex-direction: column;
+  gap: .35rem;
+}
+
+ul.styled li::marker { color: var(--teal-500); }
+ol.styled li::marker { color: var(--teal-600); font-weight: 700; }
+
+/* ── Semáforo de coberturas ────────────────────────────────── */
+.semaforo {
+  display: flex;
+  gap: .75rem;
+  align-items: center;
+  margin: .75rem 0;
+  flex-wrap: wrap;
+}
+
+.semaforo-item {
+  display: flex;
+  align-items: center;
+  gap: .4rem;
+  font-size: .82rem;
+}
+
+.semaforo-dot {
+  width: 14px; height: 14px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.dot-green  { background: var(--green-500); }
+.dot-amber  { background: var(--amber-500); }
+.dot-orange { background: var(--orange-500); }
+.dot-red    { background: var(--red-500); }
+
+/* ── Resultado esperado ────────────────────────────────────── */
+.result-box {
+  background: var(--gray-900);
+  border-radius: var(--radius-md);
+  padding: 1rem 1.4rem;
+  font-family: var(--font-mono);
+  font-size: .82rem;
+  color: var(--green-500);
+  margin: 1rem 0;
+  line-height: 1.7;
+  overflow-x: auto;
+}
+
+.result-box .dim { color: var(--gray-500); }
+.result-box .warn { color: var(--amber-500); }
+.result-box .err { color: var(--red-500); }
+.result-box .info { color: var(--cyan-400); }
+
+/* ── Tabla comparativa ─────────────────────────────────────── */
+.compare-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+  margin: 1rem 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.compare-table th {
+  background: var(--gray-800);
+  color: white;
+  padding: .65rem 1rem;
+  text-align: left;
+}
+
+.compare-table td {
+  padding: .6rem 1rem;
+  border-bottom: 1px solid var(--gray-200);
+  vertical-align: top;
+}
+
+.compare-table tr:last-child td { border-bottom: none; }
+.compare-table tr:nth-child(even) td { background: var(--gray-50); }
+
+/* ── Diagrama de flujo CSS ─────────────────────────────────── */
+.flow {
+  display: flex;
+  align-items: center;
+  gap: .5rem;
+  flex-wrap: wrap;
+  margin: 1.2rem 0;
+}
+
+.flow-step {
+  background: white;
+  border: 2px solid var(--teal-400);
+  border-radius: var(--radius-md);
+  padding: .65rem 1.1rem;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--teal-700);
+  text-align: center;
+  min-width: 110px;
+}
+
+.flow-step.dark {
+  background: var(--teal-700);
+  border-color: var(--teal-700);
+  color: white;
+}
+
+.flow-arrow {
+  color: var(--teal-400);
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+/* ── Diagrama de flujo vertical ────────────────────────────── */
+.flow-diagram {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
+  margin: 1.5rem 0;
+  padding: 1.5rem;
+  background: var(--dark-bg);
+  border-radius: var(--radius-lg);
+}
+
+.flow-diagram .flow-step {
+  background: var(--dark-surface);
+  border: 2px solid var(--teal-500);
+  border-radius: var(--radius-md);
+  padding: .6rem 1.4rem;
+  font-size: .85rem;
+  font-weight: 600;
+  color: var(--teal-200);
+  text-align: center;
+  min-width: 200px;
+  max-width: 420px;
+}
+
+.flow-diagram .flow-connector {
+  color: var(--teal-400);
+  font-size: 1.1rem;
+  font-weight: 700;
+  padding: .15rem 0;
+}
+
+/* ── Resumen final ─────────────────────────────────────────── */
+.lesson-summary {
+  background: linear-gradient(135deg, var(--teal-50), var(--teal-100));
+  border: 1px solid var(--teal-200);
+  border-radius: var(--radius-lg);
+  padding: 1.5rem;
+  margin-top: 2.5rem;
+}
+
+.lesson-summary h3 {
+  color: var(--teal-800);
+  font-size: 1rem;
+  font-weight: 700;
+  margin-bottom: .75rem;
+}
+
+.lesson-summary ul { padding-left: 1.2rem; }
+.lesson-summary li { font-size: .9rem; color: var(--teal-700); margin-bottom: .3rem; }
+.lesson-summary li::marker { color: var(--teal-500); }
+
+/* ── Footer ────────────────────────────────────────────────── */
+.lesson-footer {
+  margin-top: 3rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--gray-200);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: .8rem;
+  color: var(--gray-400);
+  flex-wrap: wrap;
+  gap: .5rem;
+}
+
+/* ── Responsive ────────────────────────────────────────────── */
+@media (max-width: 640px) {
+  .lesson-title { font-size: 1.5rem; }
+  .cards { grid-template-columns: 1fr; }
+  .lesson-nav { flex-direction: column; }
+  .flow { flex-direction: column; align-items: flex-start; }
+  .flow-arrow { transform: rotate(90deg); }
+}
+
+/* ============================================================
+   Compatibilidad — Lecciones sin .page-wrapper (38-58)
+   ============================================================ */
+
+/* ── Container automático para hijos directos de body ──── */
+body > div.lesson-nav,
+body > nav.lesson-nav,
+body > nav.toc,
+body > div.toc,
+body > div.section,
+body > section.section,
+body > section[id^="s"],
+body > div.lesson-summary,
+body > section.lesson-summary,
+body > footer,
+body > footer.footer {
+  max-width: 960px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+
+/* ── Hero alternativo ──────────────────────────────────── */
+body > .hero,
+body > section.hero {
+  max-width: 960px;
+  margin: 0 auto 2.5rem;
+  padding: 3rem 2rem 2.5rem;
+  background: linear-gradient(135deg, var(--teal-700) 0%, var(--teal-900) 100%);
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+
+body > .hero::before,
+body > section.hero::before {
+  content: '';
+  position: absolute;
+  top: -40px; right: -40px;
+  width: 200px; height: 200px;
+  background: rgba(255,255,255,.04);
+  border-radius: 50%;
+}
+
+body > .hero::after,
+body > section.hero::after {
+  content: '';
+  position: absolute;
+  bottom: -60px; left: 40%;
+  width: 280px; height: 280px;
+  background: rgba(255,255,255,.03);
+  border-radius: 50%;
+}
+
+/* Badge dentro del hero */
+.hero .badge,
+.hero .hero-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: .4rem;
+  background: rgba(255,255,255,.15);
+  border: 1px solid rgba(255,255,255,.25);
+  color: var(--teal-100);
+  padding: .3rem .8rem;
+  border-radius: 999px;
+  font-size: .78rem;
+  font-weight: 600;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+  margin-bottom: 1rem;
+}
+
+/* Título del hero */
+.hero .hero-title,
+.hero > h1 {
+  font-size: 2rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin-bottom: .75rem;
+  color: white;
+}
+
+.hero .hero-title small {
+  font-size: 1.05rem;
+  font-weight: 400;
+  opacity: .9;
+  display: block;
+  margin-top: .3rem;
+}
+
+/* Subtítulo del hero */
+.hero .hero-subtitle {
+  font-size: 1.05rem;
+  color: var(--teal-100);
+  max-width: 600px;
+  opacity: .9;
+  margin-bottom: 0;
+}
+
+/* Meta info del hero */
+.hero .hero-meta {
+  display: flex;
+  gap: 1.5rem;
+  margin-top: 1.5rem;
+  flex-wrap: wrap;
+  font-size: .82rem;
+  color: var(--teal-200);
+}
+
+.hero .hero-meta span {
+  display: flex;
+  align-items: center;
+  gap: .35rem;
+}
+
+/* ── Nav links sin .lesson-nav-btn ─────────────────────── */
+body > .lesson-nav a:not(.lesson-nav-btn),
+body > nav.lesson-nav a:not(.lesson-nav-btn) {
+  display: inline-flex;
+  align-items: center;
+  gap: .5rem;
+  padding: .5rem 1rem;
+  background: white;
+  border: 1px solid var(--gray-200);
+  border-radius: var(--radius-md);
+  color: var(--gray-600);
+  font-size: .85rem;
+  box-shadow: var(--shadow-sm);
+  transition: all .2s;
+  text-decoration: none;
+}
+
+body > .lesson-nav a:not(.lesson-nav-btn):hover,
+body > nav.lesson-nav a:not(.lesson-nav-btn):hover {
+  background: var(--teal-50);
+  border-color: var(--teal-300);
+  color: var(--teal-700);
+  text-decoration: none;
+  box-shadow: var(--shadow-md);
+}
+
+/* ── TOC como <nav> ────────────────────────────────────── */
+body > nav.toc h2 {
+  font-size: .75rem;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--gray-400);
+  margin-bottom: 1rem;
+  border-bottom: none;
+}
+
+/* ── Secciones — h2 genérico ───────────────────────────── */
+.section > h2,
+section[id^="s"] > h2 {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--gray-900);
+  margin-bottom: 1rem;
+  padding-bottom: .6rem;
+  border-bottom: 2px solid var(--teal-400);
+}
+
+.section > h2 .number,
+.section > h2 .section-number,
+section[id^="s"] > h2 .number,
+section[id^="s"] > h2 .section-number {
+  background: var(--teal-600);
+  color: white;
+  width: 28px; height: 28px;
+  min-width: 28px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: .8rem;
+  flex-shrink: 0;
+  margin-right: .5rem;
+}
+
+/* Secciones sin clase .section (solo id) también necesitan margen */
+body > section[id^="s"]:not(.section) {
+  margin-bottom: 2.5rem;
+}
+
+/* ── Tabla genérica .table-ui ──────────────────────────── */
+.table-ui {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: .88rem;
+  margin: 1rem 0;
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.table-ui thead tr {
+  background: var(--teal-700);
+  color: white;
+}
+
+.table-ui thead th {
+  padding: .6rem .9rem;
+  text-align: left;
+  font-weight: 600;
+  font-size: .8rem;
+  letter-spacing: .03em;
+}
+
+.table-ui tbody tr { background: white; }
+.table-ui tbody tr:nth-child(even) { background: var(--gray-50); }
+
+.table-ui td {
+  padding: .55rem .9rem;
+  border-bottom: 1px solid var(--gray-100);
+  vertical-align: top;
+}
+
+/* ── Footer alternativo ────────────────────────────────── */
+body > footer.footer {
+  max-width: 960px;
+  margin: 3rem auto 0;
+  padding: 1.5rem;
+  border-top: 1px solid var(--gray-200);
+  font-size: .8rem;
+  color: var(--gray-400);
+  text-align: center;
+}

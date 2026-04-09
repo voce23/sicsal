@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 11 — Componentes Livewire | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand"><span class="dot"></span> SICSAL — Lección 11</div>
+  <nav>
+    <a href="10-filament-paginas.html">← Anterior</a>
+    <a href="00-indice.html">Índice</a>
+    <a href="12-alpine-frontend.html">Siguiente →</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 11 de 16</span>
+    <h1>Componentes Livewire</h1>
+    <p>Interfaces interactivas sin escribir JavaScript — pirámide poblacional, informe CAI, blog y comentarios.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos</h2>
+    <table class="db-table">
+      <thead><tr><th>Archivo</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>app/Livewire/Poblacion.php</code></td><td>Pirámide poblacional, coberturas, migración</td></tr>
+        <tr><td><code>app/Livewire/InformeCAI.php</code></td><td>Informe CAI con exportación Excel/PDF/PPTX</td></tr>
+        <tr><td><code>app/Livewire/ComunidadesPoblacion.php</code></td><td>Población desglosada por comunidad</td></tr>
+        <tr><td><code>app/Livewire/CausasConsulta.php</code></td><td>Top 10 causas de consulta externa</td></tr>
+        <tr><td><code>app/Livewire/Blog.php</code></td><td>Blog con búsqueda, categorías y paginación</td></tr>
+        <tr><td><code>app/Livewire/Comentarios.php</code></td><td>Sistema de comentarios con captcha</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. ¿Qué es Livewire?</a></li>
+      <li><a href="#s2">2. Anatomía de un componente</a></li>
+      <li><a href="#s3">3. HasCentroSelector: filtro por centro</a></li>
+      <li><a href="#s4">4. Poblacion: pirámide y coberturas</a></li>
+      <li><a href="#s5">5. InformeCAI: exportar en 3 formatos</a></li>
+      <li><a href="#s6">6. Blog: búsqueda, filtros y paginación</a></li>
+      <li><a href="#s7">7. Comentarios: validación con captcha</a></li>
+      <li><a href="#s8">8. Livewire vs Filament</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es Livewire?</h2>
+
+    <p><strong>Livewire</strong> es un framework de Laravel que permite crear interfaces interactivas usando PHP en lugar de JavaScript. Cuando el usuario hace clic en un botón o escribe en un campo, Livewire envía una petición AJAX al servidor, ejecuta el código PHP y actualiza solo la parte del HTML que cambió.</p>
+
+    <div class="flow-diagram">
+      <div class="flow-step">
+        <div class="flow-icon">👤</div>
+        <div class="flow-label">Usuario cambia un filtro en la página</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">📡</div>
+        <div class="flow-label">Livewire envía petición AJAX al servidor</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">⚙️</div>
+        <div class="flow-label">PHP ejecuta la lógica y re-renderiza el componente</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">🔄</div>
+        <div class="flow-label">Solo el HTML que cambió se actualiza (morphing)</div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Filament usa Livewire por debajo</div>
+      <p>Las Resources de Filament (Lección 08) son componentes Livewire internamente. Pero cuando necesitamos una interfaz que <strong>no es un CRUD</strong> (como una pirámide poblacional o un blog), creamos componentes Livewire "puros".</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> Anatomía de un componente</h2>
+
+    <p>Cada componente tiene <strong>2 archivos</strong>:</p>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-box" style="background: var(--teal-50); border-color: var(--teal-500);">
+          <strong>Clase PHP</strong><br>
+          <code>app/Livewire/Blog.php</code><br>
+          Lógica, datos, acciones
+        </div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box" style="background: var(--cyan-50); border-color: var(--cyan-500);">
+          <strong>Vista Blade</strong><br>
+          <code>resources/views/livewire/blog.blade.php</code><br>
+          HTML con directivas Livewire
+        </div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Ejemplo mínimo: estructura de un componente</div>
+      <pre class="code-body language-php"><span class="cmt">// ═══ Clase PHP ═══</span>
+<span class="kw">namespace</span> <span class="cls">App\Livewire</span>;
+
+<span class="kw">use</span> <span class="cls">Livewire\Component</span>;
+<span class="kw">use</span> <span class="cls">Livewire\Attributes\Url</span>;
+
+<span class="kw">class</span> <span class="cls">MiComponente</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="cmt">// Propiedad pública = sincronizada con la vista Blade</span>
+    <span class="kw">public string</span> <span class="var">$nombre</span> = <span class="str">''</span>;
+
+    <span class="cmt">// #[Url] = la propiedad se refleja en la URL (?tab=piramide)</span>
+    #[<span class="cls">Url</span>]
+    <span class="kw">public string</span> <span class="var">$tab</span> = <span class="str">'piramide'</span>;
+
+    <span class="cmt">// mount() = se ejecuta al cargar el componente (como __construct)</span>
+    <span class="kw">public function</span> <span class="fn">mount</span>(): <span class="kw">void</span>
+    {
+        <span class="var">$this</span>-><span class="var">nombre</span> = <span class="str">'SICSAL'</span>;
+    }
+
+    <span class="cmt">// Computed property: se accede como $this->datos en Blade</span>
+    <span class="kw">public function</span> <span class="fn">getDatosProperty</span>(): <span class="kw">array</span>
+    {
+        <span class="kw">return</span> [<span class="str">'items'</span> => <span class="num">42</span>];
+    }
+
+    <span class="cmt">// render() = devuelve la vista Blade</span>
+    <span class="kw">public function</span> <span class="fn">render</span>()
+    {
+        <span class="kw">return</span> <span class="fn">view</span>(<span class="str">'livewire.mi-componente'</span>)
+            -><span class="fn">layout</span>(<span class="str">'layouts.public'</span>);
+    }
+}</pre>
+    </div>
+
+    <table class="db-table">
+      <thead><tr><th>Concepto</th><th>Qué hace</th><th>Ejemplo SICSAL</th></tr></thead>
+      <tbody>
+        <tr><td><code>public $prop</code></td><td>Propiedad reactiva, se sincroniza con Blade</td><td><code>public string $tab = 'piramide'</code></td></tr>
+        <tr><td><code>#[Url]</code></td><td>Refleja la propiedad en la URL del navegador</td><td><code>?tab=piramide&amp;periodo=cai1</code></td></tr>
+        <tr><td><code>mount()</code></td><td>Inicializa el componente (como un constructor)</td><td>Leer año actual, inicializar centro</td></tr>
+        <tr><td><code>getDatosProperty()</code></td><td>Computed property → accesible como <code>$this->datos</code></td><td>Consultar base de datos bajo demanda</td></tr>
+        <tr><td><code>render()</code></td><td>Devuelve la vista Blade del componente</td><td><code>view('livewire.poblacion')</code></td></tr>
+        <tr><td><code>->layout()</code></td><td>Define el layout HTML que envuelve el componente</td><td><code>'layouts.public'</code> para las páginas públicas</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> HasCentroSelector: filtro por centro</h2>
+
+    <p>5 de los 6 componentes usan el trait <code>HasCentroSelector</code> para filtrar datos por centro de salud:</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Concerns/HasCentroSelector.php — Resumen</div>
+      <pre class="code-body language-php"><span class="kw">trait</span> <span class="cls">HasCentroSelector</span>
+{
+    <span class="kw">public int</span> <span class="var">$centroSaludId</span> = <span class="num">0</span>;
+
+    <span class="kw">public function</span> <span class="fn">mountHasCentroSelector</span>(): <span class="kw">void</span>
+    {
+        <span class="cmt">// Si no es superadmin, forzar su propio centro</span>
+        <span class="kw">if</span> (<span class="fn">auth</span>()-><span class="fn">check</span>() && !<span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>)) {
+            <span class="var">$this</span>-><span class="var">centroSaludId</span> = <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">centro_salud_id</span>;
+        }
+    }
+
+    <span class="cmt">// Propiedad computada: centros disponibles para el select</span>
+    <span class="kw">public function</span> <span class="fn">getCentrosDisponiblesProperty</span>(): <span class="kw">array</span> { ... }
+
+    <span class="cmt">// Seguridad: no permitir que admin/registrador cambien de centro</span>
+    <span class="kw">public function</span> <span class="fn">updatingCentroSaludId</span>(<span class="var">$value</span>): <span class="kw">void</span>
+    {
+        <span class="kw">if</span> (!<span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>)) {
+            <span class="kw">throw new</span> <span class="cls">\Exception</span>(<span class="str">'No autorizado'</span>);
+        }
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">¿Por qué updatingCentroSaludId?</div>
+      <p>Livewire llama automáticamente al método <code>updating{Propiedad}</code> <strong>antes</strong> de cambiar una propiedad pública. Esto nos permite bloquear el cambio si el usuario no tiene permiso. Sin esto, un atacante podría enviar una petición manipulada para ver datos de otro centro.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> Poblacion: pirámide y coberturas</h2>
+
+    <p>El componente más complejo. Tiene 3 pestañas: pirámide, coberturas y migración.</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Livewire/Poblacion.php — Construcción de la pirámide</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">Poblacion</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">use</span> <span class="cls">HasCentroSelector</span>;
+
+    #[<span class="cls">Url</span>]
+    <span class="kw">public string</span> <span class="var">$tab</span> = <span class="str">'piramide'</span>;    <span class="cmt">// Pestaña activa en la URL</span>
+
+    #[<span class="cls">Url</span>]
+    <span class="kw">public string</span> <span class="var">$periodo</span> = <span class="str">'gestion'</span>; <span class="cmt">// cai1 | cai2 | gestion | 1..12</span>
+
+    <span class="kw">protected array</span> <span class="var">$gruposConfig</span> = [
+        [<span class="str">'label'</span> => <span class="str">'&lt;1 año'</span>, <span class="str">'min'</span> => <span class="num">0</span>, <span class="str">'max'</span> => <span class="num">0</span>,   <span class="str">'ine'</span> => [<span class="str">'menor_1'</span>]],
+        [<span class="str">'label'</span> => <span class="str">'1-4'</span>,    <span class="str">'min'</span> => <span class="num">1</span>, <span class="str">'max'</span> => <span class="num">4</span>,   <span class="str">'ine'</span> => [<span class="str">'1_anio'</span>,<span class="str">'2_anios'</span>,...]],
+        [<span class="str">'label'</span> => <span class="str">'5-9'</span>,    <span class="str">'min'</span> => <span class="num">5</span>, <span class="str">'max'</span> => <span class="num">9</span>,   <span class="str">'ine'</span> => [<span class="str">'5_9'</span>]],
+        <span class="cmt">// ... hasta 60+</span>
+    ];
+
+    <span class="kw">private function</span> <span class="fn">buildPiramide</span>(<span class="kw">int</span> <span class="var">$centroId</span>): <span class="kw">array</span>
+    {
+        <span class="cmt">// 1. Metas INE (proyecciones del Instituto Nacional de Estadística)</span>
+        <span class="var">$metasIne</span> = <span class="cls">MetaIne</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+            -><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)-><span class="fn">get</span>();
+
+        <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">gruposConfig</span> <span class="kw">as</span> <span class="var">$grupo</span>) {
+            <span class="cmt">// 2. Contar personas REALES del padrón por edad y sexo</span>
+            <span class="var">$rm</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'M'</span>)
+                -><span class="fn">whereRaw</span>(<span class="str">'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN ? AND ?'</span>,
+                    [<span class="var">$grupo</span>[<span class="str">'min'</span>], <span class="var">$grupo</span>[<span class="str">'max'</span>]])-><span class="fn">count</span>();
+
+            <span class="var">$rf</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)
+                -><span class="fn">whereRaw</span>(...)-><span class="fn">count</span>();
+
+            <span class="cmt">// 3. Calcular diferencia INE vs Real</span>
+            <span class="var">$tablaFilas</span>[] = [
+                <span class="str">'grupo'</span> => <span class="var">$grupo</span>[<span class="str">'label'</span>],
+                <span class="str">'ine_m'</span>  => <span class="var">$im</span>, <span class="str">'ine_f'</span>  => <span class="var">$if</span>,
+                <span class="str">'real_m'</span> => <span class="var">$rm</span>, <span class="str">'real_f'</span> => <span class="var">$rf</span>,
+                <span class="str">'dif_m'</span>  => <span class="var">$rm</span> - <span class="var">$im</span>,
+                <span class="str">'dif_f'</span>  => <span class="var">$rf</span> - <span class="var">$if</span>,
+            ];
+        }
+
+        <span class="kw">return</span> [<span class="str">'labels'</span>=><span class="var">$labels</span>, <span class="str">'ineM'</span>=><span class="var">$ineM</span>, <span class="str">'ineF'</span>=><span class="var">$ineF</span>,
+                <span class="str">'realM'</span>=><span class="var">$realM</span>, <span class="str">'realF'</span>=><span class="var">$realF</span>, <span class="str">'tabla'</span>=><span class="var">$tablaFilas</span>];
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">¿Qué es la pirámide poblacional?</div>
+      <p>Es un gráfico de barras horizontales donde los hombres van a la izquierda y las mujeres a la derecha, agrupados por edad. SICSAL compara la población <strong>estimada por el INE</strong> vs la <strong>real del padrón</strong>. La diferencia revela sub-registro o sobre-registro.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Poblacion.php — Coberturas con factor de periodo</div>
+      <pre class="code-body language-php"><span class="cmt">// El factor depende del periodo seleccionado</span>
+<span class="kw">protected function</span> <span class="fn">getFactorMeta</span>(): <span class="kw">float</span>
+{
+    <span class="kw">return match</span> (<span class="var">$this</span>-><span class="var">periodo</span>) {
+        <span class="str">'cai1'</span>    => <span class="num">4</span> / <span class="num">12</span>,   <span class="cmt">// Ene-Abr = 4/12 de la meta anual</span>
+        <span class="str">'cai2'</span>    => <span class="num">8</span> / <span class="num">12</span>,   <span class="cmt">// Ene-Ago = 8/12</span>
+        <span class="str">'gestion'</span> => <span class="num">1.0</span>,       <span class="cmt">// Año completo</span>
+        <span class="kw">default</span>   => <span class="num">1</span> / <span class="num">12</span>,   <span class="cmt">// Un solo mes</span>
+    };
+}
+
+<span class="cmt">// Meta proporcional al periodo:</span>
+<span class="cmt">// Si meta anual = 120, CAI 1 (4 meses) = 120 × (4/12) = 40</span>
+<span class="var">$metaBcg</span> = <span class="var">$metasIne</span>-><span class="fn">sum</span>(<span class="str">'cantidad'</span>) * <span class="var">$factor</span>;
+
+<span class="cmt">// Cobertura = atendidos / meta × 100</span>
+<span class="var">$coberturaIne</span> = <span class="var">$metaBcg</span> > <span class="num">0</span>
+    ? <span class="fn">round</span>(<span class="var">$atendidos</span> / <span class="var">$metaBcg</span> * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>;</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> InformeCAI: exportar en 3 formatos</h2>
+
+    <p>El componente InformeCAI genera informes para el Comité de Análisis de Información en Excel, PDF y PowerPoint:</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Livewire/InformeCAI.php</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">InformeCAI</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">use</span> <span class="cls">HasCentroSelector</span>;
+
+    #[<span class="cls">Url</span>]
+    <span class="kw">public string</span> <span class="var">$periodo</span> = <span class="str">'cai1'</span>;  <span class="cmt">// cai1 | cai2</span>
+
+    <span class="cmt">// Delega TODO el cálculo al Helper (Lección 14)</span>
+    <span class="kw">public function</span> <span class="fn">getDatosProperty</span>(): ?<span class="kw">array</span>
+    {
+        <span class="kw">return</span> <span class="cls">CaiHelper</span>::<span class="fn">getDatosInforme</span>(
+            <span class="var">$this</span>-><span class="var">centroSaludId</span>, <span class="var">$this</span>-><span class="var">periodo</span>, <span class="var">$this</span>-><span class="var">anio</span>
+        );
+    }
+
+    <span class="cmt">// 3 métodos de exportación</span>
+    <span class="kw">public function</span> <span class="fn">generarExcel</span>()
+    {
+        <span class="var">$datos</span> = <span class="cls">CaiHelper</span>::<span class="fn">getDatosInforme</span>(...);
+        <span class="kw">return</span> <span class="cls">Excel</span>::<span class="fn">download</span>(
+            <span class="kw">new</span> <span class="cls">InformeCAIExport</span>(<span class="var">$datos</span>), <span class="var">$nombre</span>
+        );
+    }
+
+    <span class="kw">public function</span> <span class="fn">generarPdf</span>()
+    {
+        <span class="var">$pdf</span> = <span class="cls">Pdf</span>::<span class="fn">loadView</span>(<span class="str">'pdf.informe-cai'</span>, [<span class="str">'datos'</span> => <span class="var">$datos</span>])
+            -><span class="fn">setPaper</span>(<span class="str">'a4'</span>, <span class="str">'portrait'</span>);
+        <span class="kw">return</span> <span class="fn">response</span>()-><span class="fn">streamDownload</span>(
+            <span class="kw">fn</span> () => <span class="fn">print</span>(<span class="var">$pdf</span>-><span class="fn">output</span>()), <span class="var">$nombre</span>
+        );
+    }
+
+    <span class="kw">public function</span> <span class="fn">generarPptx</span>()
+    {
+        <span class="var">$pptx</span> = <span class="kw">new</span> <span class="cls">PresentacionCAI</span>(<span class="var">$municipioId</span>, <span class="var">$periodo</span>, <span class="var">$anio</span>);
+        <span class="var">$tmpFile</span> = <span class="var">$pptx</span>-><span class="fn">generate</span>();  <span class="cmt">// Genera .pptx temporal</span>
+        <span class="kw">return</span> <span class="fn">response</span>()-><span class="fn">streamDownload</span>(...);
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">streamDownload</div>
+      <p><code>response()->streamDownload()</code> envía un archivo al navegador <strong>sin guardarlo en disco</strong>. El callback genera el contenido al vuelo. Es la forma correcta de entregar archivos generados dinámicamente en Laravel.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> Blog: búsqueda, filtros y paginación</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Livewire/Blog.php — Filtros reactivos</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">Blog</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">use</span> <span class="cls">WithPagination</span>;  <span class="cmt">// Paginación automática de Livewire</span>
+
+    #[<span class="cls">Url</span>(<span class="str">as:</span> <span class="str">'q'</span>)]             <span class="cmt">// ?q=vacunas en la URL</span>
+    <span class="kw">public string</span> <span class="var">$busqueda</span> = <span class="str">''</span>;
+
+    #[<span class="cls">Url</span>(<span class="str">as:</span> <span class="str">'cat'</span>)]
+    <span class="kw">public string</span> <span class="var">$categoria</span> = <span class="str">''</span>;
+
+    #[<span class="cls">Url</span>(<span class="str">as:</span> <span class="str">'tag'</span>)]
+    <span class="kw">public string</span> <span class="var">$etiqueta</span> = <span class="str">''</span>;
+
+    <span class="cmt">// Al cambiar la búsqueda, volver a la página 1</span>
+    <span class="kw">public function</span> <span class="fn">updatingBusqueda</span>(): <span class="kw">void</span>
+    {
+        <span class="var">$this</span>-><span class="fn">resetPage</span>();
+    }
+
+    <span class="kw">public function</span> <span class="fn">render</span>()
+    {
+        <span class="var">$query</span> = <span class="cls">Post</span>::<span class="fn">publicados</span>();  <span class="cmt">// Scope: publicado=true</span>
+
+        <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">busqueda</span>) {
+            <span class="var">$query</span>-><span class="fn">where</span>(<span class="kw">function</span> (<span class="var">$q</span>) {
+                <span class="var">$q</span>-><span class="fn">where</span>(<span class="str">'titulo'</span>, <span class="str">'like'</span>, <span class="str">"%{$this->busqueda}%"</span>)
+                  -><span class="fn">orWhere</span>(<span class="str">'extracto'</span>, <span class="str">'like'</span>, <span class="str">"%{$this->busqueda}%"</span>);
+            });
+        }
+
+        <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">etiqueta</span>) {
+            <span class="cmt">// whereJsonContains busca dentro del array JSON de etiquetas</span>
+            <span class="var">$query</span>-><span class="fn">whereJsonContains</span>(<span class="str">'etiquetas'</span>, <span class="var">$this</span>-><span class="var">etiqueta</span>);
+        }
+
+        <span class="var">$posts</span> = <span class="var">$query</span>-><span class="fn">paginate</span>(<span class="num">9</span>);  <span class="cmt">// 9 posts por página</span>
+
+        <span class="cmt">// Nube de etiquetas</span>
+        <span class="var">$todasEtiquetas</span> = <span class="cls">Post</span>::<span class="fn">publicados</span>()
+            -><span class="fn">pluck</span>(<span class="str">'etiquetas'</span>)-><span class="fn">flatten</span>()-><span class="fn">countBy</span>()
+            -><span class="fn">sortDesc</span>()-><span class="fn">take</span>(<span class="num">20</span>);
+
+        <span class="kw">return</span> <span class="fn">view</span>(<span class="str">'livewire.blog'</span>, [...]);
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">whereJsonContains</div>
+      <p>Las etiquetas se guardan como JSON en la base de datos: <code>["vacunas", "infantil", "BCG"]</code>. El método <code>whereJsonContains</code> busca dentro de ese array sin necesidad de deserializarlo. Funciona en MySQL 5.7+ y PostgreSQL.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 7 ════════════════════════ -->
+  <div class="section" id="s7">
+    <h2 class="section-title"><span class="number">7</span> Comentarios: validación con captcha</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Livewire/Comentarios.php</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">Comentarios</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">public string</span> <span class="var">$pagina</span>;  <span class="cmt">// En qué página se muestra</span>
+
+    #[<span class="cls">Validate</span>(<span class="str">'required|string|max:100'</span>)]
+    <span class="kw">public string</span> <span class="var">$nombre</span> = <span class="str">''</span>;
+
+    #[<span class="cls">Validate</span>(<span class="str">'required|string|min:3|max:2000'</span>)]
+    <span class="kw">public string</span> <span class="var">$contenido</span> = <span class="str">''</span>;
+
+    <span class="kw">public int</span> <span class="var">$captchaA</span> = <span class="num">0</span>;
+    <span class="kw">public int</span> <span class="var">$captchaB</span> = <span class="num">0</span>;
+
+    <span class="kw">public function</span> <span class="fn">publicar</span>(): <span class="kw">void</span>
+    {
+        <span class="var">$this</span>-><span class="fn">validate</span>();
+
+        <span class="cmt">// Captcha matemático: ¿cuánto es 7 + 8?</span>
+        <span class="kw">if</span> ((<span class="kw">int</span>) <span class="var">$this</span>-><span class="var">captchaRespuesta</span> !== (<span class="var">$this</span>-><span class="var">captchaA</span> + <span class="var">$this</span>-><span class="var">captchaB</span>)) {
+            <span class="var">$this</span>-><span class="fn">addError</span>(<span class="str">'captchaRespuesta'</span>, <span class="str">'Respuesta incorrecta.'</span>);
+            <span class="var">$this</span>-><span class="fn">generarCaptcha</span>();
+            <span class="kw">return</span>;
+        }
+
+        <span class="cls">Comentario</span>::<span class="fn">create</span>([
+            <span class="str">'pagina'</span>    => <span class="var">$this</span>-><span class="var">pagina</span>,
+            <span class="str">'nombre'</span>    => <span class="fn">strip_tags</span>(<span class="var">$this</span>-><span class="var">nombre</span>),     <span class="cmt">// Sanitizar HTML</span>
+            <span class="str">'contenido'</span> => <span class="fn">strip_tags</span>(<span class="var">$this</span>-><span class="var">contenido</span>),  <span class="cmt">// Sanitizar HTML</span>
+        ]);
+
+        <span class="var">$this</span>-><span class="fn">reset</span>([<span class="str">'nombre'</span>, <span class="str">'contenido'</span>]);
+        <span class="var">$this</span>-><span class="fn">generarCaptcha</span>();  <span class="cmt">// Nuevo captcha</span>
+        <span class="var">$this</span>-><span class="var">exito</span> = <span class="kw2">true</span>;
+    }
+
+    <span class="cmt">// Computed property para la vista</span>
+    <span class="kw">public function</span> <span class="fn">getComentariosProperty</span>()
+    {
+        <span class="kw">return</span> <span class="cls">Comentario</span>::<span class="fn">where</span>(<span class="str">'pagina'</span>, <span class="var">$this</span>-><span class="var">pagina</span>)
+            -><span class="fn">orderByDesc</span>(<span class="str">'created_at'</span>)-><span class="fn">limit</span>(<span class="num">50</span>)-><span class="fn">get</span>();
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">Seguridad: strip_tags()</div>
+      <p>Siempre sanitiza la entrada del usuario antes de guardar. <code>strip_tags()</code> elimina etiquetas HTML para prevenir ataques XSS. Además, <code>#[Validate]</code> limita la longitud para evitar contenido excesivo.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 8 ════════════════════════ -->
+  <div class="section" id="s8">
+    <h2 class="section-title"><span class="number">8</span> Livewire vs Filament</h2>
+
+    <table class="db-table">
+      <thead><tr><th>Aspecto</th><th>Componente Livewire puro</th><th>Filament (Resource / Page)</th></tr></thead>
+      <tbody>
+        <tr><td>Vista</td><td>Blade libre: tú escribes todo el HTML</td><td>Genera el HTML automáticamente</td></tr>
+        <tr><td>Casos de uso</td><td>Páginas públicas, dashboards custom, reportes</td><td>Panel admin, CRUD de entidades</td></tr>
+        <tr><td>Acceso</td><td>Cualquier visitante (público o autenticado)</td><td>Solo usuarios del panel admin</td></tr>
+        <tr><td>Estilo</td><td>Tu propio CSS / Tailwind</td><td>El theme de Filament</td></tr>
+        <tr><td>Ejemplos SICSAL</td><td>Poblacion, Blog, InformeCAI</td><td>PersonaResource, Prestaciones</td></tr>
+      </tbody>
+    </table>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-box" style="background: var(--teal-50); border-color: var(--teal-500);">
+          <strong>Livewire Puro</strong><br>
+          Poblacion · InformeCAI<br>
+          ComunidadesPoblacion<br>
+          Blog · Comentarios
+        </div>
+        <div class="arch-arrow">ambos usan</div>
+        <div class="arch-box" style="background: var(--gray-100); border-color: var(--gray-400);">
+          <strong>HasCentroSelector</strong><br>
+          Filtro por centro<br>
+          Seguridad de roles
+        </div>
+        <div class="arch-arrow">←</div>
+        <div class="arch-box" style="background: var(--cyan-50); border-color: var(--cyan-500);">
+          <strong>Filament Pages</strong><br>
+          Prestaciones<br>
+          FormularioPai<br>
+          FormularioMaterna
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 11</h3>
+    <ul>
+      <li><strong>Livewire</strong> permite crear interfaces interactivas usando solo PHP — sin JavaScript.</li>
+      <li>Cada componente tiene una <strong>clase PHP</strong> (lógica) y una <strong>vista Blade</strong> (HTML).</li>
+      <li><code>#[Url]</code> sincroniza propiedades con la URL del navegador para compartir links.</li>
+      <li><strong>Computed properties</strong> (<code>getDatosProperty</code>) calculan datos bajo demanda.</li>
+      <li><code>HasCentroSelector</code> es un trait compartido que filtra por centro y bloquea cambios no autorizados.</li>
+      <li><code>Poblacion</code> construye la pirámide poblacional comparando INE vs padrón real.</li>
+      <li><code>InformeCAI</code> genera reportes en Excel, PDF y PPTX con <code>streamDownload</code>.</li>
+      <li><code>Blog</code> usa <code>WithPagination</code> y <code>whereJsonContains</code> para filtrar posts.</li>
+      <li><code>Comentarios</code> implementa captcha matemático y sanitización con <code>strip_tags()</code>.</li>
+    </ul>
+  </div>
+
+  <div class="lesson-nav">
+    <a href="10-filament-paginas.html">← Lección 10: Páginas y Widgets</a>
+    <a href="12-alpine-frontend.html">Lección 12: Alpine.js y Frontend →</a>
+  </div>
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 11: Livewire</span>
+    <span>Component · #[Url] · Computed · HasCentroSelector · WithPagination</span>
+  </div>
+</div>
+</body>
+</html>

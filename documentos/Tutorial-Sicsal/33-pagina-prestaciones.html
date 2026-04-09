@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 33 — Página Prestaciones y FormularioMensualTrait | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 6 — Panel Admin (Filament)</div>
+    <div class="lesson-number">Lección 33 de 58</div>
+    <h1 class="lesson-title">Página Prestaciones y FormularioMensualTrait</h1>
+    <p class="lesson-subtitle">El selector de 12 meses con tarjetas coloreadas por estado, y el trait compartido que maneja cierre/reapertura de meses y justificación de cero.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 3 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~25 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="32-widgets.html" class="lesson-nav-btn">← Lección 32</a>
+    <a href="34-pagina-reportes.html" class="lesson-nav-btn">Lección 34 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#overview">Visión general — el flujo mensual</a></li>
+      <li><a href="#prestaciones">Prestaciones.php — Filament Page con getViewData()</a></li>
+      <li><a href="#blade">Vista Blade — grid de 12 meses</a></li>
+      <li><a href="#trait">FormularioMensualTrait — trait compartido</a></li>
+      <li><a href="#justificacion">Justificación de cero — modal y persistencia</a></li>
+      <li><a href="#cierre">Cierre y reapertura de mes</a></li>
+      <li><a href="#resumen">Resumen</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: OVERVIEW
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="overview">
+    <h2><span class="section-number">1</span> Visión general — el flujo mensual</h2>
+
+    <div class="flow-diagram flow-vertical">
+      <div class="flow-step">Prestaciones (grid 12 meses)<br><small>Cada mes muestra estado: vacío / parcial / cerrado</small></div>
+      <div class="flow-arrow">↓ click en PAI / Materna / Servicios / Causas</div>
+      <div class="flow-step">Formulario específico (FormularioPai, etc.)<br><small>Usa FormularioMensualTrait para mes/anio, cierre, justificación</small></div>
+      <div class="flow-arrow">↓ acción de admin</div>
+      <div class="flow-step">Cerrar / Reabrir mes<br><small>Registradores ya no pueden editar</small></div>
+    </div>
+
+    <div class="file-tree">
+      <div class="file-tree-title">Archivos de esta lección</div>
+      <div class="ft-dir">app/Filament/Pages/
+        <div class="ft-file ft-new">Prestaciones.php</div>
+        <div class="ft-dir">Concerns/
+          <div class="ft-file ft-new">FormularioMensualTrait.php</div>
+        </div>
+      </div>
+      <div class="ft-dir">resources/views/filament/pages/
+        <div class="ft-file ft-new">prestaciones.blade.php</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: PRESTACIONES PAGE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="prestaciones">
+    <h2><span class="section-number">2</span> Prestaciones.php — Filament Page con getViewData()</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Pages/Prestaciones.php</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">Prestaciones</span> <span class="kw">extends</span> <span class="cls">Page</span>
+{
+    <span class="kw">protected</span> <span class="type">string</span> <span class="var">$view</span> <span class="op">=</span> <span class="str">'filament.pages.prestaciones'</span>;
+    <span class="kw">protected static</span> <span class="type">string</span>|<span class="cls">\UnitEnum</span>|<span class="kw">null</span> <span class="var">$navigationGroup</span>
+        <span class="op">=</span> <span class="str">'Prestaciones Mensuales'</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$title</span> <span class="op">=</span> <span class="str">'Prestaciones Mensuales'</span>;
+    <span class="kw">protected static</span> ?<span class="type">int</span> <span class="var">$navigationSort</span> <span class="op">=</span> <span class="num">1</span>;
+
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$anio</span>;
+
+    <span class="kw">public function</span> <span class="fn">mount</span>(): <span class="type">void</span>
+    {
+        <span class="var">$this</span>-&gt;<span class="var">anio</span> <span class="op">=</span> (<span class="type">int</span>) <span class="fn">date</span>(<span class="str">'Y'</span>);
+    }
+
+    <span class="hl"><span class="kw">public function</span> <span class="fn">getViewData</span>(): <span class="type">array</span></span>
+    {
+        <span class="var">$centroId</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()-&gt;<span class="var">centro_salud_id</span>;
+
+        <span class="cmt">// ① Meses que ya se cerraron</span>
+        <span class="var">$mesesCerrados</span> <span class="op">=</span> <span class="cls">MesCerrado</span>::<span class="fn">where</span>(...)
+            -&gt;<span class="fn">pluck</span>(<span class="str">'mes'</span>)-&gt;<span class="fn">toArray</span>();
+
+        <span class="cmt">// ② Meses que tienen ALGÚN dato en 16 tablas prest_*</span>
+        <span class="var">$mesesConDato</span> <span class="op">=</span> <span class="fn">collect</span>();
+        <span class="kw">foreach</span> ([
+            <span class="cls">PrestConsultaExterna</span>::<span class="kw">class</span>,
+            <span class="cls">PrestVacuna</span>::<span class="kw">class</span>,
+            <span class="cls">PrestPrenatal</span>::<span class="kw">class</span>,
+            <span class="cmt">// ... 13 modelos más ...</span>
+            <span class="cls">CausaConsultaExterna</span>::<span class="kw">class</span>,
+        ] <span class="kw">as</span> <span class="var">$model</span>) {
+            <span class="var">$mesesConDato</span> <span class="op">=</span> <span class="var">$mesesConDato</span>-&gt;<span class="fn">merge</span>(
+                <span class="var">$model</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+                    -&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-&gt;<span class="var">anio</span>)
+                    -&gt;<span class="fn">distinct</span>()-&gt;<span class="fn">pluck</span>(<span class="str">'mes'</span>)
+            );
+        }
+        <span class="var">$mesesConDato</span> <span class="op">=</span> <span class="var">$mesesConDato</span>-&gt;<span class="fn">unique</span>()-&gt;<span class="fn">toArray</span>();
+
+        <span class="cmt">// ③ Construir array de 12 meses</span>
+        <span class="kw">for</span> (<span class="var">$m</span> <span class="op">=</span> <span class="num">1</span>; <span class="var">$m</span> <span class="op">&lt;=</span> <span class="num">12</span>; <span class="var">$m</span><span class="op">++</span>) {
+            <span class="var">$cerrado</span> <span class="op">=</span> <span class="fn">in_array</span>(<span class="var">$m</span>, <span class="var">$mesesCerrados</span>);
+            <span class="var">$tieneAlgunDato</span> <span class="op">=</span> <span class="fn">in_array</span>(<span class="var">$m</span>, <span class="var">$mesesConDato</span>);
+
+            <span class="hl"><span class="var">$estado</span> <span class="op">=</span> <span class="var">$cerrado</span>
+                ? <span class="str">'cerrado'</span>
+                : (<span class="var">$tieneAlgunDato</span> ? <span class="str">'parcial'</span> : <span class="str">'vacio'</span>);</span>
+
+            <span class="var">$params</span> <span class="op">=</span> [<span class="str">'mes'</span> <span class="op">=&gt;</span> <span class="var">$m</span>, <span class="str">'anio'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">anio</span>];
+
+            <span class="var">$meses</span>[<span class="var">$m</span>] <span class="op">=</span> [
+                <span class="str">'numero'</span> <span class="op">=&gt;</span> <span class="var">$m</span>,
+                <span class="str">'nombre'</span> <span class="op">=&gt;</span> <span class="var">$nombresMeses</span>[<span class="var">$m</span>],
+                <span class="str">'estado'</span> <span class="op">=&gt;</span> <span class="var">$estado</span>,
+                <span class="str">'cerrado'</span> <span class="op">=&gt;</span> <span class="var">$cerrado</span>,
+                <span class="str">'urls'</span> <span class="op">=&gt;</span> [
+                    [<span class="str">'label'</span> <span class="op">=&gt;</span> <span class="str">'PAI'</span>,
+                     <span class="str">'url'</span> <span class="op">=&gt;</span> <span class="cls">FormularioPai</span>::<span class="fn">getUrl</span>(<span class="var">$params</span>),
+                     <span class="str">'icon'</span> <span class="op">=&gt;</span> <span class="str">'heroicon-o-shield-check'</span>],
+                    [<span class="str">'label'</span> <span class="op">=&gt;</span> <span class="str">'Materna'</span>, ...],
+                    [<span class="str">'label'</span> <span class="op">=&gt;</span> <span class="str">'Servicios'</span>, ...],
+                    [<span class="str">'label'</span> <span class="op">=&gt;</span> <span class="str">'Causas Consulta'</span>, ...],
+                ],
+            ];
+        }
+
+        <span class="kw">return</span> [<span class="str">'meses'</span> <span class="op">=&gt;</span> <span class="var">$meses</span>, <span class="str">'anio'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">anio</span>];
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">getViewData() — pasar datos a Blade</div>
+      <p>En Filament Pages, <code>getViewData()</code> retorna un array que se pasa automáticamente a la vista. Equivale a <code>return view('...', [...]);</code> en controladores. Las variables quedan disponibles como <code>$meses</code> y <code>$anio</code> en el Blade.</p>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Detección de estado en 16 tablas</div>
+      <p>El loop itera sobre 16 modelos <code>Prest*</code> y hace un <code>distinct()->pluck('mes')</code> en cada uno. Si <em>cualquier</em> tabla tiene datos para un mes, ese mes se marca como <strong>"parcial"</strong>. Si está en <code>MesCerrado</code>, es <strong>"cerrado"</strong>.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: BLADE VIEW
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="blade">
+    <h2><span class="section-number">3</span> Vista Blade — grid de 12 meses</h2>
+
+    <div class="code-block">
+      <div class="code-header">resources/views/filament/pages/prestaciones.blade.php</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;x-filament-panels::page&gt;</span>
+  <span class="hl"><span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"grid grid-cols-2 gap-4 sm:grid-cols-3 md:grid-cols-4"</span><span class="dec">&gt;</span></span>
+    <span class="kw">@foreach</span> (<span class="var">$meses</span> <span class="kw">as</span> <span class="var">$mes</span>)
+      <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"relative flex flex-col rounded-xl border p-4
+          <span class="kw">@if</span> ($mes['estado'] === 'cerrado')
+              border-green-300 bg-green-50
+          <span class="kw">@elseif</span> ($mes['estado'] === 'parcial')
+              border-yellow-300 bg-yellow-50
+          <span class="kw">@else</span>
+              border-gray-200 bg-white
+          <span class="kw">@endif</span>"</span><span class="dec">&gt;</span>
+
+        <span class="cmt">&lt;!-- Candado si cerrado --&gt;</span>
+        <span class="kw">@if</span> (<span class="var">$mes</span>[<span class="str">'cerrado'</span>])
+          <span class="dec">&lt;x-heroicon-s-lock-closed</span>
+              <span class="attr">class</span><span class="op">=</span><span class="str">"absolute right-2 top-2 h-4 w-4 text-green-600"</span> <span class="dec">/&gt;</span>
+        <span class="kw">@endif</span>
+
+        <span class="cmt">&lt;!-- Número y nombre del mes --&gt;</span>
+        <span class="dec">&lt;span</span> <span class="attr">class</span><span class="op">=</span><span class="str">"text-2xl font-bold ..."</span><span class="dec">&gt;</span>
+          {{ <span class="fn">str_pad</span>(<span class="var">$mes</span>[<span class="str">'numero'</span>], <span class="num">2</span>, <span class="str">'0'</span>, STR_PAD_LEFT) }}
+        <span class="dec">&lt;/span&gt;</span>
+        <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"text-sm"</span><span class="dec">&gt;</span>{{ <span class="var">$mes</span>[<span class="str">'nombre'</span>] }}<span class="dec">&lt;/div&gt;</span>
+
+        <span class="cmt">&lt;!-- Links a formularios --&gt;</span>
+        <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"mt-auto flex flex-col gap-1"</span><span class="dec">&gt;</span>
+          <span class="kw">@foreach</span> (<span class="var">$mes</span>[<span class="str">'urls'</span>] <span class="kw">as</span> <span class="var">$link</span>)
+            <span class="dec">&lt;a</span> <span class="attr">href</span><span class="op">=</span><span class="str">"{{ $link['url'] }}"</span>
+               <span class="attr">class</span><span class="op">=</span><span class="str">"flex items-center gap-1.5 rounded-lg px-2 py-1.5
+                      text-xs font-medium hover:bg-gray-100"</span><span class="dec">&gt;</span>
+              <span class="hl"><span class="dec">&lt;x-dynamic-component</span> <span class="attr">:component</span><span class="op">=</span><span class="str">"$link['icon']"</span>
+                  <span class="attr">class</span><span class="op">=</span><span class="str">"h-4 w-4"</span> <span class="dec">/&gt;</span></span>
+              {{ <span class="var">$link</span>[<span class="str">'label'</span>] }}
+            <span class="dec">&lt;/a&gt;</span>
+          <span class="kw">@endforeach</span>
+        <span class="dec">&lt;/div&gt;</span>
+      <span class="dec">&lt;/div&gt;</span>
+    <span class="kw">@endforeach</span>
+  <span class="dec">&lt;/div&gt;</span>
+<span class="dec">&lt;/x-filament-panels::page&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">x-dynamic-component — iconos dinámicos</div>
+      <p><code>&lt;x-dynamic-component :component="$link['icon']" /&gt;</code> renderiza un componente Blade cuyo nombre viene de una variable. Así el PHP define qué icono usar y el Blade simplemente lo renderiza.</p>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-title">Tres estados visuales de cada mes</div>
+      <table>
+        <thead><tr><th>Estado</th><th>Borde</th><th>Fondo</th><th>Icono</th></tr></thead>
+        <tbody>
+          <tr><td><strong>cerrado</strong></td><td>verde</td><td>green-50</td><td>🔒 candado</td></tr>
+          <tr><td><strong>parcial</strong></td><td>amarillo</td><td>yellow-50</td><td>—</td></tr>
+          <tr><td><strong>vacío</strong></td><td>gris</td><td>white</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: TRAIT
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="trait">
+    <h2><span class="section-number">4</span> FormularioMensualTrait — trait compartido</h2>
+
+    <p>Los 4 formularios (PAI, Materna, Servicios, CausasConsulta) usan este trait. Define funcionalidad común:</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Pages/Concerns/FormularioMensualTrait.php — propiedades</div>
+      <div class="code-body">
+<pre><span class="kw">trait</span> <span class="cls">FormularioMensualTrait</span>
+{
+    <span class="hl"><span class="dec">#[Url]</span></span>
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$mes</span> <span class="op">=</span> <span class="num">1</span>;
+
+    <span class="dec">#[Url]</span>
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$anio</span> <span class="op">=</span> <span class="num">0</span>;
+
+    <span class="kw">public</span> <span class="type">bool</span> <span class="var">$mesCerrado</span> <span class="op">=</span> <span class="kw">false</span>;
+
+    <span class="cmt">// Para el modal de justificación de cero</span>
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$justIndicador</span> <span class="op">=</span> <span class="str">''</span>;
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$justMotivo</span> <span class="op">=</span> <span class="str">''</span>;
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$justDetalle</span> <span class="op">=</span> <span class="str">''</span>;
+
+    <span class="kw">public function</span> <span class="fn">getTitle</span>(): <span class="type">string</span>
+    {
+        <span class="var">$seccion</span> <span class="op">=</span> <span class="kw">static</span>::<span class="var">SECCION</span> <span class="op">??</span> <span class="str">'Prestaciones'</span>;
+        <span class="kw">return</span> <span class="var">$seccion</span> . <span class="str">' — '</span> . <span class="var">self</span>::<span class="var">$nombresMeses</span>[<span class="var">$this</span>-&gt;<span class="var">mes</span>]
+            . <span class="str">' '</span> . <span class="var">$this</span>-&gt;<span class="var">anio</span>;
+    }
+
+    <span class="kw">public function</span> <span class="fn">mountFormulario</span>(): <span class="type">void</span>
+    {
+        <span class="var">$this</span>-&gt;<span class="var">mes</span> <span class="op">=</span> (<span class="type">int</span>) <span class="fn">request</span>()-&gt;<span class="fn">query</span>(<span class="str">'mes'</span>, <span class="fn">date</span>(<span class="str">'n'</span>));
+        <span class="var">$this</span>-&gt;<span class="var">anio</span> <span class="op">=</span> (<span class="type">int</span>) <span class="fn">request</span>()-&gt;<span class="fn">query</span>(<span class="str">'anio'</span>, <span class="fn">date</span>(<span class="str">'Y'</span>));
+
+        <span class="var">$this</span>-&gt;<span class="var">mesCerrado</span> <span class="op">=</span> <span class="cls">MesCerrado</span>::<span class="fn">where</span>(...)
+            -&gt;<span class="fn">exists</span>();
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">#[Url] — Livewire URL binding</div>
+      <p>El atributo <code>#[Url]</code> sincroniza la propiedad con la URL. Al acceder a <code>/formulario-pai?mes=3&anio=2025</code>, las propiedades <code>$mes</code> y <code>$anio</code> se hidratan automáticamente. Así el enlace desde las tarjetas de Prestaciones pasa los parámetros.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: JUSTIFICACIÓN CERO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="justificacion">
+    <h2><span class="section-number">5</span> Justificación de cero — modal y persistencia</h2>
+
+    <div class="code-block">
+      <div class="code-header">FormularioMensualTrait.php — justificación</div>
+      <div class="code-body">
+<pre><span class="kw">public function</span> <span class="fn">abrirJustificacion</span>(<span class="type">string</span> <span class="var">$indicador</span>): <span class="type">void</span>
+{
+    <span class="var">$this</span>-&gt;<span class="var">justIndicador</span> <span class="op">=</span> <span class="var">$indicador</span>;
+    <span class="var">$this</span>-&gt;<span class="var">justMotivo</span> <span class="op">=</span> <span class="str">''</span>;
+    <span class="var">$this</span>-&gt;<span class="var">justDetalle</span> <span class="op">=</span> <span class="str">''</span>;
+    <span class="hl"><span class="var">$this</span>-&gt;<span class="fn">dispatch</span>(<span class="str">'open-modal'</span>, <span class="var">id</span>: <span class="str">'justificacion-cero'</span>);</span>
+}
+
+<span class="kw">public function</span> <span class="fn">guardarJustificacion</span>(): <span class="type">void</span>
+{
+    <span class="var">$this</span>-&gt;<span class="fn">validate</span>([
+        <span class="str">'justMotivo'</span> <span class="op">=&gt;</span> <span class="str">'required'</span>,
+    ]);
+
+    <span class="hl"><span class="cls">JustificacionCero</span>::<span class="fn">updateOrCreate</span></span>(
+        [
+            <span class="str">'centro_salud_id'</span> <span class="op">=&gt;</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()-&gt;<span class="var">centro_salud_id</span>,
+            <span class="str">'mes'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">mes</span>,
+            <span class="str">'anio'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">anio</span>,
+            <span class="str">'indicador'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">justIndicador</span>,
+        ],
+        [
+            <span class="str">'motivo'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">justMotivo</span>,
+            <span class="str">'detalle'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">justMotivo</span> <span class="op">===</span> <span class="str">'otro'</span>
+                ? <span class="var">$this</span>-&gt;<span class="var">justDetalle</span> : <span class="kw">null</span>,
+            <span class="str">'registrado_por'</span> <span class="op">=&gt;</span> <span class="fn">auth</span>()-&gt;<span class="fn">id</span>(),
+        ]
+    );
+
+    <span class="var">$this</span>-&gt;<span class="fn">dispatch</span>(<span class="str">'close-modal'</span>, <span class="var">id</span>: <span class="str">'justificacion-cero'</span>);
+    <span class="cls">Notification</span>::<span class="fn">make</span>()-&gt;<span class="fn">title</span>(<span class="str">'Justificación de cero registrada'</span>)
+        -&gt;<span class="fn">success</span>()-&gt;<span class="fn">send</span>();
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Regla de negocio: cero justificado</div>
+      <p>Cuando un indicador tiene valor 0, el formulario muestra un botón "Justificar" que abre un modal. El usuario selecciona un motivo (migración, no hubo demanda, etc.) y se guarda en <code>justificaciones_cero</code>. Es obligatorio antes de cerrar el mes — requerimiento del SNIS.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: CIERRE/REAPERTURA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="cierre">
+    <h2><span class="section-number">6</span> Cierre y reapertura de mes</h2>
+
+    <div class="code-block">
+      <div class="code-header">FormularioMensualTrait.php — cerrar/reabrir</div>
+      <div class="code-body">
+<pre><span class="kw">public function</span> <span class="fn">cerrarMes</span>(): <span class="type">void</span>
+{
+    <span class="var">$user</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>();
+    <span class="hl"><span class="kw">if</span> (!<span class="var">$user</span>-&gt;<span class="fn">hasAnyRole</span>([<span class="str">'superadmin'</span>, <span class="str">'admin'</span>])) {
+        <span class="kw">return</span>;
+    }</span>
+
+    <span class="cls">MesCerrado</span>::<span class="fn">updateOrCreate</span>(
+        [<span class="str">'centro_salud_id'</span> <span class="op">=&gt;</span> <span class="var">$user</span>-&gt;<span class="var">centro_salud_id</span>,
+         <span class="str">'mes'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">mes</span>, <span class="str">'anio'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">anio</span>],
+        [<span class="str">'cerrado_por'</span> <span class="op">=&gt;</span> <span class="var">$user</span>-&gt;<span class="var">id</span>, <span class="str">'fecha_cierre'</span> <span class="op">=&gt;</span> <span class="fn">now</span>()]
+    );
+    <span class="var">$this</span>-&gt;<span class="var">mesCerrado</span> <span class="op">=</span> <span class="kw">true</span>;
+}
+
+<span class="kw">public function</span> <span class="fn">reabrirMes</span>(): <span class="type">void</span>
+{
+    <span class="var">$mc</span> <span class="op">=</span> <span class="cls">MesCerrado</span>::<span class="fn">where</span>(...)-&gt;<span class="fn">first</span>();
+    <span class="kw">if</span> (<span class="var">$mc</span>) {
+        <span class="var">$mc</span>-&gt;<span class="fn">update</span>([<span class="str">'reabierto_por'</span> <span class="op">=&gt;</span> <span class="var">$user</span>-&gt;<span class="var">id</span>,
+                      <span class="str">'fecha_reapertura'</span> <span class="op">=&gt;</span> <span class="fn">now</span>()]);
+        <span class="var">$mc</span>-&gt;<span class="fn">delete</span>();
+    }
+    <span class="var">$this</span>-&gt;<span class="var">mesCerrado</span> <span class="op">=</span> <span class="kw">false</span>;
+}</pre>
+      </div>
+    </div>
+
+    <h3>Header Actions — botones condicionales</h3>
+    <div class="code-block">
+      <div class="code-header">FormularioMensualTrait.php — getHeaderActions()</div>
+      <div class="code-body">
+<pre><span class="kw">protected function</span> <span class="fn">getHeaderActions</span>(): <span class="type">array</span>
+{
+    <span class="var">$actions</span> <span class="op">=</span> [];
+
+    <span class="kw">if</span> (<span class="var">$user</span>-&gt;<span class="fn">hasAnyRole</span>([<span class="str">'superadmin'</span>, <span class="str">'admin'</span>])) {
+        <span class="kw">if</span> (<span class="var">$this</span>-&gt;<span class="var">mesCerrado</span>) {
+            <span class="var">$actions</span>[] <span class="op">=</span> <span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'reabrirMes'</span>)
+                -&gt;<span class="fn">label</span>(<span class="str">'Reabrir mes'</span>)
+                -&gt;<span class="fn">icon</span>(<span class="cls">Heroicon</span>::<span class="var">OutlinedLockOpen</span>)
+                -&gt;<span class="fn">color</span>(<span class="str">'warning'</span>)
+                <span class="hl">-&gt;<span class="fn">requiresConfirmation</span>()
+                -&gt;<span class="fn">modalHeading</span>(<span class="str">'¿Reabrir este mes?'</span>)
+                -&gt;<span class="fn">modalDescription</span>(<span class="str">'Esto permitirá editar los datos.'</span>)</span>
+                -&gt;<span class="fn">action</span>(<span class="kw">fn</span> () <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="fn">reabrirMes</span>());
+        } <span class="kw">else</span> {
+            <span class="var">$actions</span>[] <span class="op">=</span> <span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'cerrarMes'</span>)
+                -&gt;<span class="fn">label</span>(<span class="str">'Cerrar mes'</span>)
+                -&gt;<span class="fn">icon</span>(<span class="cls">Heroicon</span>::<span class="var">OutlinedLockClosed</span>)
+                -&gt;<span class="fn">color</span>(<span class="str">'success'</span>)
+                -&gt;<span class="fn">requiresConfirmation</span>();
+        }
+    }
+
+    <span class="var">$actions</span>[] <span class="op">=</span> <span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'volver'</span>)
+        -&gt;<span class="fn">label</span>(<span class="str">'Volver al selector'</span>)
+        -&gt;<span class="fn">url</span>(<span class="cls">Prestaciones</span>::<span class="fn">getUrl</span>());
+
+    <span class="kw">return</span> <span class="var">$actions</span>;
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">requiresConfirmation() — modal de confirmación</div>
+      <p>Filament muestra automáticamente un modal "¿Estás seguro?" con los textos de <code>modalHeading</code> y <code>modalDescription</code>. Solo los admins ven el botón de cerrar/reabrir — los registradores solo ven "Volver al selector".</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RESUMEN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen">
+    <h2><span class="section-number">7</span> Resumen</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos</h3>
+      <ul>
+        <li><strong>Filament Page</strong> — clase PHP con <code>$view</code> y <code>getViewData()</code></li>
+        <li><strong>Grid de 12 meses</strong> — Tailwind responsive grid con colores por estado</li>
+        <li><strong>x-dynamic-component</strong> — renderizar componentes Blade dinámicos</li>
+        <li><strong>FormularioPai::getUrl($params)</strong> — generar URL con parámetros query</li>
+        <li><strong>Trait compartido</strong> — reusar lógica entre 4 formularios</li>
+        <li><strong>#[Url]</strong> — sincronizar propiedades Livewire con URL</li>
+        <li><strong>dispatch('open-modal')</strong> — abrir modales desde PHP</li>
+        <li><strong>updateOrCreate</strong> — insertar o actualizar según claves compuestas</li>
+        <li><strong>requiresConfirmation()</strong> — modal de confirmación en Actions</li>
+        <li><strong>Justificación de cero</strong> — regla de negocio SNIS obligatoria</li>
+        <li><strong>Cierre de mes</strong> — solo admin/superadmin, con auditoría de quién cerró/reabrió</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="32-widgets.html" class="lesson-nav-btn">← Lección 32</a>
+    <a href="34-pagina-reportes.html" class="lesson-nav-btn">Lección 34 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 33 de 58</p>
+</footer>
+
+</body>
+</html>

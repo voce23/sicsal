@@ -1,0 +1,577 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 46 · Blog y PostView — Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL · Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+  <span class="badge">Fase 10 — Livewire Público</span>
+  <h1>Lección 46 · Blog y PostView</h1>
+  <p class="subtitle">El blog de salud pública: listado con filtros en tiempo real, vistas rejilla/lista, nube de etiquetas y detalle de artículo con comentarios y posts relacionados.</p>
+  <p class="meta">Lección 46 de 58 · Tiempo estimado: 30 min</p>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="45-layouts-componentes.html">← Lección 45 · Layouts y Componentes</a>
+  <a href="47-poblacion-piramide.html">Lección 47 · Población y Pirámide →</a>
+</nav>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">El modelo Post — datos, constantes y helpers</a></li>
+    <li><a href="#s2">Blog.php — el componente Livewire del listado</a></li>
+    <li><a href="#s3">Filtros reactivos con URL binding</a></li>
+    <li><a href="#s4">La vista blog.blade.php — rejilla y lista</a></li>
+    <li><a href="#s5">Barra lateral — búsqueda, categorías, etiquetas</a></li>
+    <li><a href="#s6">PostView.php — detalle del artículo</a></li>
+    <li><a href="#s7">La vista post-view.blade.php — hero dinámico y prosa</a></li>
+    <li><a href="#s8">Comentarios embebidos y posts relacionados</a></li>
+    <li><a href="#s9">Patrones y técnicas destacadas</a></li>
+  </ol>
+</nav>
+
+<!-- ───── Secciones ───── -->
+
+<!-- ───── S1 ───── -->
+<section id="s1">
+  <h2>1 · El modelo Post — datos, constantes y helpers</h2>
+
+  <p>El modelo <code>Post</code> (97 líneas) es la base del blog. Tiene campos para contenido, categorización y métricas:</p>
+
+  <pre><code><span class="cmt">// app/Models/Post.php</span>
+<span class="kw">class</span> <span class="cls">Post</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [
+        <span class="str">'titulo'</span>, <span class="str">'slug'</span>, <span class="str">'extracto'</span>, <span class="str">'contenido'</span>,
+        <span class="str">'imagen_portada'</span>, <span class="str">'categoria'</span>, <span class="str">'etiquetas'</span>,
+        <span class="str">'publicado'</span>, <span class="str">'publicado_at'</span>, <span class="str">'autor_nombre'</span>, <span class="str">'vistas'</span>,
+    ];
+
+    <span class="kw">protected</span> <span class="var">$casts</span> = [
+        <span class="str">'etiquetas'</span>    => <span class="str">'array'</span>,      <span class="cmt">// JSON → array PHP</span>
+        <span class="str">'publicado'</span>    => <span class="str">'boolean'</span>,
+        <span class="str">'publicado_at'</span> => <span class="str">'datetime'</span>,
+    ];
+}</code></pre>
+
+  <h3>Constantes de categoría</h3>
+  <p>Tres mapas estáticos definen el universo de categorías y su presentación visual:</p>
+
+  <pre><code><span class="cmt">// 7 categorías de salud predefinidas</span>
+<span class="kw">public const</span> <span class="var">CATEGORIAS</span> = [
+    <span class="str">'vacunacion'</span>     => <span class="str">'Vacunación PAI'</span>,
+    <span class="str">'salud_materna'</span>  => <span class="str">'Salud Materna'</span>,
+    <span class="str">'nutricion'</span>      => <span class="str">'Nutrición'</span>,
+    <span class="str">'programas'</span>      => <span class="str">'Programas de Salud'</span>,
+    <span class="str">'comunidad'</span>      => <span class="str">'Salud Comunitaria'</span>,
+    <span class="str">'informes'</span>       => <span class="str">'Informes CAI'</span>,
+    <span class="str">'general'</span>        => <span class="str">'General'</span>,
+];
+
+<span class="cmt">// Color de badge por categoría</span>
+<span class="kw">public const</span> <span class="var">COLORES_CATEGORIA</span> = [
+    <span class="str">'vacunacion'</span>    => <span class="str">'bg-cyan-600'</span>,
+    <span class="str">'salud_materna'</span> => <span class="str">'bg-pink-600'</span>,
+    <span class="str">'nutricion'</span>     => <span class="str">'bg-orange-500'</span>,
+    <span class="cmt">// ... cada categoría con color único</span>
+];
+
+<span class="cmt">// Gradiente para portada sin imagen</span>
+<span class="kw">public const</span> <span class="var">GRADIENTES</span> = [
+    <span class="str">'vacunacion'</span>    => <span class="str">'from-cyan-50 to-cyan-100'</span>,
+    <span class="str">'salud_materna'</span> => <span class="str">'from-pink-50 to-rose-100'</span>,
+    <span class="cmt">// ... gradiente suave como fallback visual</span>
+];</code></pre>
+
+  <h3>Helpers del modelo</h3>
+  <pre><code><span class="cmt">// Scope para posts publicados, ordenados por fecha</span>
+<span class="kw">public function</span> <span class="fn">scopePublicados</span>(<span class="var">$query</span>)
+{
+    <span class="kw">return</span> <span class="var">$query</span>-><span class="fn">where</span>(<span class="str">'publicado'</span>, <span class="kw">true</span>)
+                 -><span class="fn">orderByDesc</span>(<span class="str">'publicado_at'</span>);
+}
+
+<span class="cmt">// Slug único con incremento automático</span>
+<span class="kw">public static function</span> <span class="fn">generarSlug</span>(<span class="type">string</span> <span class="var">$titulo</span>, ?<span class="type">int</span> <span class="var">$excludeId</span> = <span class="kw">null</span>): <span class="type">string</span>
+{
+    <span class="var">$base</span> = <span class="cls">Str</span>::<span class="fn">slug</span>(<span class="var">$titulo</span>);
+    <span class="var">$slug</span> = <span class="var">$base</span>;
+    <span class="var">$i</span>    = <span class="num">1</span>;
+    <span class="kw">while</span> (<span class="kw">static</span>::<span class="fn">where</span>(<span class="str">'slug'</span>, <span class="var">$slug</span>)
+            -><span class="fn">when</span>(<span class="var">$excludeId</span>, <span class="kw">fn</span> (<span class="var">$q</span>) => <span class="var">$q</span>-><span class="fn">where</span>(<span class="str">'id'</span>, <span class="str">'!='</span>, <span class="var">$excludeId</span>))
+            -><span class="fn">exists</span>()) {
+        <span class="var">$slug</span> = <span class="str">"{$base}-{$i}"</span>;
+        <span class="var">$i</span>++;
+    }
+    <span class="kw">return</span> <span class="var">$slug</span>;
+}
+
+<span class="cmt">// Tiempo estimado de lectura (200 palabras/min)</span>
+<span class="kw">public function</span> <span class="fn">tiempoLectura</span>(): <span class="type">int</span>
+{
+    <span class="var">$palabras</span> = <span class="fn">str_word_count</span>(<span class="fn">strip_tags</span>(<span class="var">$this</span>-><span class="var">contenido</span> ?? <span class="str">''</span>));
+    <span class="kw">return</span> <span class="fn">max</span>(<span class="num">1</span>, (<span class="type">int</span>) <span class="fn">ceil</span>(<span class="var">$palabras</span> / <span class="num">200</span>));
+}</code></pre>
+
+  <div class="callout tip">
+    <strong>Patrón constantes-en-modelo</strong>: Las categorías, colores y gradientes están en el modelo (no en config ni en base de datos). Esto simplifica el acceso desde Blade sin queries extra y centraliza la configuración visual.
+  </div>
+</section>
+
+<!-- ───── S2 ───── -->
+<section id="s2">
+  <h2>2 · Blog.php — el componente Livewire del listado</h2>
+
+  <p>El componente <code>Blog</code> (96 líneas) es un Livewire full-page con paginación, búsqueda y filtros por categoría/etiqueta:</p>
+
+  <pre><code><span class="cmt">// app/Livewire/Blog.php</span>
+<span class="kw">class</span> <span class="cls">Blog</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">use</span> <span class="cls">WithPagination</span>;
+
+    <span class="cmt">// Propiedades reactivas sincronizadas con la URL</span>
+    #[<span class="cls">Url</span>(<span class="attr">as</span>: <span class="str">'q'</span>)]
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$busqueda</span> = <span class="str">''</span>;
+
+    #[<span class="cls">Url</span>(<span class="attr">as</span>: <span class="str">'cat'</span>)]
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$categoria</span> = <span class="str">''</span>;
+
+    #[<span class="cls">Url</span>(<span class="attr">as</span>: <span class="str">'tag'</span>)]
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$etiqueta</span> = <span class="str">''</span>;
+
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$vista</span> = <span class="str">'rejilla'</span>; <span class="cmt">// 'rejilla' | 'lista'</span>
+}</code></pre>
+
+  <h3>URL binding con #[Url]</h3>
+  <p>El atributo <code>#[Url(as: 'q')]</code> sincroniza la propiedad <code>$busqueda</code> con el parámetro <code>?q=</code> de la URL. Esto permite:</p>
+  <ul>
+    <li><strong>URLs compartibles</strong>: <code>/blog?q=vacunas&cat=vacunacion&tag=PAI</code> reproduce los filtros exactos.</li>
+    <li><strong>Navegación con historial</strong>: El usuario puede usar atrás/adelante del navegador.</li>
+    <li><strong>SEO</strong>: Los buscadores indexan las URLs con filtros.</li>
+  </ul>
+
+  <h3>Reset de paginación</h3>
+  <pre><code><span class="cmt">// Cada vez que cambia un filtro, volver a página 1</span>
+<span class="kw">public function</span> <span class="fn">updatingBusqueda</span>(): <span class="type">void</span>
+{
+    <span class="var">$this</span>-><span class="fn">resetPage</span>();
+}
+
+<span class="kw">public function</span> <span class="fn">updatingCategoria</span>(): <span class="type">void</span>
+{
+    <span class="var">$this</span>-><span class="fn">resetPage</span>();
+}
+
+<span class="cmt">// Toggle: click en categoría activa → la desactiva</span>
+<span class="kw">public function</span> <span class="fn">setCategoria</span>(<span class="type">string</span> <span class="var">$cat</span>): <span class="type">void</span>
+{
+    <span class="var">$this</span>-><span class="var">categoria</span> = <span class="var">$this</span>-><span class="var">categoria</span> === <span class="var">$cat</span> ? <span class="str">''</span> : <span class="var">$cat</span>;
+    <span class="var">$this</span>-><span class="fn">resetPage</span>();
+}</code></pre>
+</section>
+
+<!-- ───── S3 ───── -->
+<section id="s3">
+  <h2>3 · Filtros reactivos con URL binding</h2>
+
+  <p>El método <code>render()</code> construye la query dinámicamente según los filtros activos:</p>
+
+  <pre><code><span class="kw">public function</span> <span class="fn">render</span>()
+{
+    <span class="cmt">// 1. Query base: solo publicados</span>
+    <span class="var">$query</span> = <span class="cls">Post</span>::<span class="fn">publicados</span>();
+
+    <span class="cmt">// 2. Filtro de búsqueda por título o extracto</span>
+    <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">busqueda</span>) {
+        <span class="var">$query</span>-><span class="fn">where</span>(<span class="kw">function</span> (<span class="var">$q</span>) {
+            <span class="var">$q</span>-><span class="fn">where</span>(<span class="str">'titulo'</span>,   <span class="str">'like'</span>, <span class="str">"%{$this->busqueda}%"</span>)
+              -><span class="fn">orWhere</span>(<span class="str">'extracto'</span>, <span class="str">'like'</span>, <span class="str">"%{$this->busqueda}%"</span>);
+        });
+    }
+
+    <span class="cmt">// 3. Filtro por categoría exacta</span>
+    <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">categoria</span>) {
+        <span class="var">$query</span>-><span class="fn">where</span>(<span class="str">'categoria'</span>, <span class="var">$this</span>-><span class="var">categoria</span>);
+    }
+
+    <span class="cmt">// 4. Filtro por etiqueta (JSON contains)</span>
+    <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">etiqueta</span>) {
+        <span class="var">$query</span>-><span class="fn">whereJsonContains</span>(<span class="str">'etiquetas'</span>, <span class="var">$this</span>-><span class="var">etiqueta</span>);
+    }
+
+    <span class="cmt">// 5. Paginar 9 posts por página</span>
+    <span class="var">$posts</span> = <span class="var">$query</span>-><span class="fn">paginate</span>(<span class="num">9</span>);</code></pre>
+
+  <h3>Datos de la barra lateral</h3>
+  <pre><code>    <span class="cmt">// Categorías con conteo</span>
+    <span class="var">$categorias</span> = <span class="cls">Post</span>::<span class="fn">publicados</span>()
+        -><span class="fn">selectRaw</span>(<span class="str">'categoria, count(*) as total'</span>)
+        -><span class="fn">groupBy</span>(<span class="str">'categoria'</span>)
+        -><span class="fn">reorder</span>()     <span class="cmt">// Quita el orderByDesc del scope</span>
+        -><span class="fn">pluck</span>(<span class="str">'total'</span>, <span class="str">'categoria'</span>);
+
+    <span class="cmt">// 5 artículos recientes (mini-preview)</span>
+    <span class="var">$recientes</span> = <span class="cls">Post</span>::<span class="fn">publicados</span>()
+        -><span class="fn">limit</span>(<span class="num">5</span>)
+        -><span class="fn">get</span>([<span class="str">'id'</span>, <span class="str">'titulo'</span>, <span class="str">'slug'</span>, <span class="str">'publicado_at'</span>, <span class="str">'imagen_portada'</span>]);
+
+    <span class="cmt">// Nube de etiquetas — top 20 más usadas</span>
+    <span class="var">$todasEtiquetas</span> = <span class="cls">Post</span>::<span class="fn">publicados</span>()
+        -><span class="fn">whereNotNull</span>(<span class="str">'etiquetas'</span>)
+        -><span class="fn">pluck</span>(<span class="str">'etiquetas'</span>)    <span class="cmt">// Collection de arrays</span>
+        -><span class="fn">flatten</span>()           <span class="cmt">// Un solo array plano</span>
+        -><span class="fn">filter</span>()            <span class="cmt">// Quita nulls/vacíos</span>
+        -><span class="fn">countBy</span>()           <span class="cmt">// ['PAI' => 5, 'nutrición' => 3]</span>
+        -><span class="fn">sortDesc</span>()
+        -><span class="fn">take</span>(<span class="num">20</span>);
+
+    <span class="kw">return</span> <span class="fn">view</span>(<span class="str">'livewire.blog'</span>, [...])
+        -><span class="fn">layout</span>(<span class="str">'layouts.public'</span>, [<span class="str">'title'</span> => <span class="str">'Blog de Salud — SIMUES'</span>]);
+}</code></pre>
+
+  <div class="callout info">
+    <strong>whereJsonContains</strong>: MySQL busca dentro del array JSON de etiquetas. Si <code>etiquetas = ["PAI", "vacunas"]</code>, <code>whereJsonContains('etiquetas', 'PAI')</code> lo encuentra. No necesitas JSON_EXTRACT manual.
+  </div>
+</section>
+
+<!-- ───── S4 ───── -->
+<section id="s4">
+  <h2>4 · La vista blog.blade.php — rejilla y lista</h2>
+
+  <p>La vista (<strong>310 líneas</strong>) tiene dos modos de presentación controlados por <code>$vista</code>:</p>
+
+  <h3>Hero del blog</h3>
+  <pre><code><span class="cmt">&lt;!-- Hero con gradiente teal --&gt;</span>
+<span class="kw">&lt;section</span> <span class="attr">class</span>=<span class="str">"bg-linear-to-r from-teal-700 to-cyan-600 text-white"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;h1&gt;</span>Blog de Salud<span class="kw">&lt;/h1&gt;</span>
+    <span class="kw">&lt;p&gt;</span>Noticias, artículos y recursos sobre salud comunitaria<span class="kw">&lt;/p&gt;</span>
+<span class="kw">&lt;/section&gt;</span></code></pre>
+
+  <h3>Toggle rejilla / lista</h3>
+  <pre><code><span class="cmt">&lt;!-- Botones SVG para cambiar vista --&gt;</span>
+<span class="kw">&lt;button</span> <span class="attr">wire:click</span>=<span class="str">"setVista('rejilla')"</span>
+    <span class="attr">class</span>=<span class="str">"{{ $vista === 'rejilla'
+        ? 'bg-teal-600 text-white'
+        : 'text-gray-400 hover:text-teal-600' }}"</span><span class="kw">&gt;</span>
+    <span class="cmt">&lt;!-- SVG grid icon --&gt;</span>
+<span class="kw">&lt;/button&gt;</span>
+<span class="kw">&lt;button</span> <span class="attr">wire:click</span>=<span class="str">"setVista('lista')"</span><span class="kw">&gt;</span>
+    <span class="cmt">&lt;!-- SVG list icon --&gt;</span>
+<span class="kw">&lt;/button&gt;</span></code></pre>
+
+  <h3>Vista rejilla (grid 3 columnas)</h3>
+  <pre><code>@<span class="fn">elseif</span>(<span class="var">$vista</span> === <span class="str">'rejilla'</span>)
+  <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"grid gap-6 sm:grid-cols-2 xl:grid-cols-3"</span><span class="kw">&gt;</span>
+    @<span class="fn">foreach</span>(<span class="var">$posts</span> <span class="kw">as</span> <span class="var">$post</span>)
+      <span class="kw">&lt;article</span> <span class="attr">class</span>=<span class="str">"group flex flex-col rounded-xl border shadow-sm
+                       transition hover:shadow-md"</span><span class="kw">&gt;</span>
+        <span class="cmt">&lt;!-- Imagen o gradiente fallback --&gt;</span>
+        <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('blog.post', $post->slug) }}"</span>
+           <span class="attr">class</span>=<span class="str">"block aspect-video overflow-hidden"</span><span class="kw">&gt;</span>
+          @<span class="fn">if</span>(<span class="var">$post</span>-><span class="var">imagen_portada</span>)
+            <span class="kw">&lt;img</span> ... <span class="attr">class</span>=<span class="str">"group-hover:scale-105"</span><span class="kw">&gt;</span>
+          @<span class="fn">else</span>
+            <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"bg-linear-to-br {{ $post->gradientePortada() }}"</span><span class="kw">&gt;</span>
+              <span class="cmt">&lt;!-- SVG placeholder --&gt;</span>
+            <span class="kw">&lt;/div&gt;</span>
+          @<span class="fn">endif</span>
+        <span class="kw">&lt;/a&gt;</span>
+
+        <span class="cmt">&lt;!-- Badge categoría + tiempo lectura + título + extracto --&gt;</span>
+        <span class="kw">&lt;span</span> <span class="attr">class</span>=<span class="str">"rounded-full {{ $post->colorCategoria() }} ..."</span><span class="kw">&gt;</span>
+          {{ <span class="var">$post</span>-><span class="fn">labelCategoria</span>() }}
+        <span class="kw">&lt;/span&gt;</span>
+        <span class="kw">&lt;span&gt;</span>{{ <span class="var">$post</span>-><span class="fn">tiempoLectura</span>() }} min lectura<span class="kw">&lt;/span&gt;</span>
+      <span class="kw">&lt;/article&gt;</span>
+    @<span class="fn">endforeach</span>
+  <span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <h3>Vista lista (horizontal con miniatura)</h3>
+  <pre><code>@<span class="fn">else</span>
+  <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"space-y-4"</span><span class="kw">&gt;</span>
+    @<span class="fn">foreach</span>(<span class="var">$posts</span> <span class="kw">as</span> <span class="var">$post</span>)
+      <span class="kw">&lt;article</span> <span class="attr">class</span>=<span class="str">"group flex gap-4 rounded-xl ..."</span><span class="kw">&gt;</span>
+        <span class="cmt">&lt;!-- Miniatura 96x96 / 128x128 --&gt;</span>
+        <span class="kw">&lt;img</span> ... <span class="attr">class</span>=<span class="str">"size-24 rounded-lg sm:size-32"</span><span class="kw">&gt;</span>
+
+        <span class="cmt">&lt;!-- Info: categoría, título, extracto, vistas --&gt;</span>
+        <span class="kw">&lt;span&gt;</span>{{ <span class="fn">number_format</span>(<span class="var">$post</span>-><span class="var">vistas</span>) }} vistas<span class="kw">&lt;/span&gt;</span>
+      <span class="kw">&lt;/article&gt;</span>
+    @<span class="fn">endforeach</span>
+  <span class="kw">&lt;/div&gt;</span>
+@<span class="fn">endif</span></code></pre>
+
+  <div class="callout tip">
+    <strong>group-hover:scale-105</strong>: Tailwind aplica zoom suave a la imagen cuando el cursor pasa sobre la tarjeta completa (gracias a la clase <code>group</code> en el <code>&lt;article&gt;</code>). Es CSS puro, sin JavaScript.
+  </div>
+</section>
+
+<!-- ───── S5 ───── -->
+<section id="s5">
+  <h2>5 · Barra lateral — búsqueda, categorías, etiquetas</h2>
+
+  <p>La barra lateral (<code>&lt;aside&gt;</code>) tiene cuatro widgets:</p>
+
+  <h3>Búsqueda con debounce</h3>
+  <pre><code><span class="kw">&lt;input</span> <span class="attr">type</span>=<span class="str">"search"</span>
+    <span class="attr">wire:model.live.debounce.400ms</span>=<span class="str">"busqueda"</span>
+    <span class="attr">placeholder</span>=<span class="str">"Buscar artículos..."</span>
+    <span class="attr">class</span>=<span class="str">"w-full rounded-xl border ..."</span><span class="kw">&gt;</span></code></pre>
+  <p><code>wire:model.live.debounce.400ms</code> envía la búsqueda al servidor 400ms después de que el usuario deja de escribir. Evita consultas en cada tecla.</p>
+
+  <h3>Categorías con conteo</h3>
+  <pre><code>@<span class="fn">foreach</span>(<span class="cls">\App\Models\Post</span>::<span class="var">CATEGORIAS</span> <span class="kw">as</span> <span class="var">$key</span> => <span class="var">$label</span>)
+  <span class="kw">&lt;button</span> <span class="attr">wire:click</span>=<span class="str">"setCategoria('{{ $key }}')"</span>
+      <span class="attr">class</span>=<span class="str">"{{ $categoria === $key
+          ? 'bg-teal-50 font-semibold text-teal-700'
+          : 'text-gray-600 hover:bg-gray-50' }}"</span><span class="kw">&gt;</span>
+    {{ <span class="var">$label</span> }}
+    <span class="cmt">&lt;!-- Badge con conteo --&gt;</span>
+    <span class="kw">&lt;span&gt;</span>{{ <span class="var">$categorias</span>[<span class="var">$key</span>] ?? <span class="num">0</span> }}<span class="kw">&lt;/span&gt;</span>
+  <span class="kw">&lt;/button&gt;</span>
+@<span class="fn">endforeach</span></code></pre>
+
+  <h3>Nube de etiquetas</h3>
+  <pre><code>@<span class="fn">foreach</span>(<span class="var">$todasEtiquetas</span> <span class="kw">as</span> <span class="var">$tag</span> => <span class="var">$count</span>)
+  <span class="kw">&lt;button</span> <span class="attr">wire:click</span>=<span class="str">"setEtiqueta('{{ $tag }}')"</span>
+      <span class="attr">class</span>=<span class="str">"rounded-full border px-3 py-1 text-xs
+          {{ $etiqueta === $tag
+              ? 'border-teal-500 bg-teal-500 text-white'
+              : 'border-gray-200 bg-gray-50 text-gray-600' }}"</span><span class="kw">&gt;</span>
+    {{ <span class="var">$tag</span> }} <span class="kw">&lt;span&gt;</span>({{ <span class="var">$count</span> }})<span class="kw">&lt;/span&gt;</span>
+  <span class="kw">&lt;/button&gt;</span>
+@<span class="fn">endforeach</span></code></pre>
+
+  <h3>Artículos recientes</h3>
+  <p>Lista compacta de los 5 posts más recientes con miniatura 56×56, título truncado con <code>line-clamp-2</code> y fecha.</p>
+
+  <div class="callout info">
+    <strong>Reactividad sin JavaScript</strong>: Toda la interacción (búsqueda, filtros, paginación, toggle de vista) es Livewire puro. El servidor re-renderiza el HTML y Livewire aplica las diferencias al DOM. No hay JavaScript custom.
+  </div>
+</section>
+
+<!-- ───── S6 ───── -->
+<section id="s6">
+  <h2>6 · PostView.php — detalle del artículo</h2>
+
+  <p>El componente <code>PostView</code> (36 líneas) es extremadamente elegante:</p>
+
+  <pre><code><span class="cmt">// app/Livewire/PostView.php</span>
+<span class="kw">class</span> <span class="cls">PostView</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">public</span> <span class="cls">Post</span> <span class="var">$post</span>;
+
+    <span class="kw">public function</span> <span class="fn">mount</span>(<span class="type">string</span> <span class="var">$slug</span>): <span class="type">void</span>
+    {
+        <span class="cmt">// Buscar post publicado por slug, o 404</span>
+        <span class="var">$this</span>-><span class="var">post</span> = <span class="cls">Post</span>::<span class="fn">where</span>(<span class="str">'slug'</span>, <span class="var">$slug</span>)
+            -><span class="fn">where</span>(<span class="str">'publicado'</span>, <span class="kw">true</span>)
+            -><span class="fn">firstOrFail</span>();
+
+        <span class="cmt">// Incrementar vistas SIN tocar timestamps</span>
+        <span class="cls">Post</span>::<span class="fn">withoutTimestamps</span>(<span class="kw">function</span> () {
+            <span class="var">$this</span>-><span class="var">post</span>-><span class="fn">increment</span>(<span class="str">'vistas'</span>);
+        });
+    }
+
+    <span class="kw">public function</span> <span class="fn">render</span>()
+    {
+        <span class="cmt">// 3 posts relacionados (misma categoría, diferente ID)</span>
+        <span class="var">$relacionados</span> = <span class="cls">Post</span>::<span class="fn">publicados</span>()
+            -><span class="fn">where</span>(<span class="str">'categoria'</span>, <span class="var">$this</span>-><span class="var">post</span>-><span class="var">categoria</span>)
+            -><span class="fn">where</span>(<span class="str">'id'</span>, <span class="str">'!='</span>, <span class="var">$this</span>-><span class="var">post</span>-><span class="var">id</span>)
+            -><span class="fn">limit</span>(<span class="num">3</span>)
+            -><span class="fn">get</span>([<span class="str">'id'</span>, <span class="str">'titulo'</span>, <span class="str">'slug'</span>, <span class="str">'imagen_portada'</span>,
+                  <span class="str">'publicado_at'</span>, <span class="str">'extracto'</span>]);
+
+        <span class="kw">return</span> <span class="fn">view</span>(<span class="str">'livewire.post-view'</span>, [...])
+            -><span class="fn">layout</span>(<span class="str">'layouts.public'</span>, [<span class="str">'title'</span> => <span class="var">$this</span>-><span class="var">post</span>-><span class="var">titulo</span> . <span class="str">' — SIMUES'</span>]);
+    }
+}</code></pre>
+
+  <h3>Técnica: withoutTimestamps</h3>
+  <p><code>Post::withoutTimestamps()</code> incrementa el contador de vistas sin modificar <code>updated_at</code>. Sin esto, cada visita actualizaría la fecha de modificación del post, alterando el orden de "recientes".</p>
+</section>
+
+<!-- ───── S7 ───── -->
+<section id="s7">
+  <h2>7 · La vista post-view.blade.php — hero dinámico y prosa</h2>
+
+  <p>La vista (197 líneas) del detalle tiene un hero que se adapta según si el post tiene imagen de portada:</p>
+
+  <h3>Hero con imagen overlay</h3>
+  <pre><code><span class="kw">&lt;section</span> <span class="attr">class</span>=<span class="str">"relative overflow-hidden
+    {{ $post->imagen_portada ? '' : 'bg-linear-to-br ' . $post->gradientePortada() }}"</span><span class="kw">&gt;</span>
+
+  @<span class="fn">if</span>(<span class="var">$post</span>-><span class="var">imagen_portada</span>)
+    <span class="cmt">&lt;!-- Imagen de fondo con overlay oscuro --&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"absolute inset-0"</span><span class="kw">&gt;</span>
+      <span class="kw">&lt;img</span> ... <span class="attr">class</span>=<span class="str">"size-full object-cover"</span><span class="kw">&gt;</span>
+      <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"absolute inset-0 bg-black/55"</span><span class="kw">&gt;&lt;/div&gt;</span>
+    <span class="kw">&lt;/div&gt;</span>
+  @<span class="fn">endif</span>
+
+  <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"relative"</span><span class="kw">&gt;</span>  <span class="cmt">&lt;!-- z-index sobre overlay --&gt;</span>
+    <span class="cmt">&lt;!-- Breadcrumb --&gt;</span>
+    <span class="kw">&lt;nav&gt;</span>Blog / {{ <span class="var">$post</span>-><span class="fn">labelCategoria</span>() }}<span class="kw">&lt;/nav&gt;</span>
+
+    <span class="cmt">&lt;!-- Título --&gt;</span>
+    <span class="kw">&lt;h1</span> <span class="attr">class</span>=<span class="str">"{{ $post->imagen_portada ? 'text-white' : 'text-gray-800' }}"</span><span class="kw">&gt;</span>
+      {{ <span class="var">$post</span>-><span class="var">titulo</span> }}
+    <span class="kw">&lt;/h1&gt;</span>
+
+    <span class="cmt">&lt;!-- Meta: categoría badge, autor, fecha, tiempo lectura, vistas --&gt;</span>
+  <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/section&gt;</span></code></pre>
+
+  <h3>Contenido con Tailwind Typography</h3>
+  <pre><code><span class="cmt">&lt;!-- Renderiza HTML del editor rich-text --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"prose prose-teal max-w-none
+    prose-headings:font-bold prose-headings:text-gray-800
+    prose-a:text-teal-600 prose-a:underline
+    prose-img:rounded-xl prose-img:shadow-sm
+    prose-blockquote:border-teal-500 prose-blockquote:bg-teal-50
+    prose-code:rounded prose-code:bg-gray-100
+    prose-pre:rounded-xl prose-pre:bg-gray-900"</span><span class="kw">&gt;</span>
+
+    {!! <span class="var">$post</span>-><span class="var">contenido</span> !!}
+
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <div class="callout warning">
+    <strong>{!! !!} implica confianza</strong>: Se usa <code>{!! !!}</code> (sin escape) porque el contenido viene de un editor administrado por admins. En un blog con contribuidores externos, sería necesario sanitizar con <code>Purifier</code> o similar para prevenir XSS.
+  </div>
+
+  <h3>Etiquetas como links de filtro</h3>
+  <pre><code>@<span class="fn">foreach</span>(<span class="var">$post</span>-><span class="var">etiquetas</span> <span class="kw">as</span> <span class="var">$tag</span>)
+  <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('blog') }}?tag={{ urlencode($tag) }}"</span>
+     <span class="attr">class</span>=<span class="str">"rounded-full bg-gray-100 px-3 py-1 text-xs ..."</span><span class="kw">&gt;</span>
+    {{ <span class="var">$tag</span> }}
+  <span class="kw">&lt;/a&gt;</span>
+@<span class="fn">endforeach</span></code></pre>
+  <p>Click en una etiqueta → navega al listado del blog con <code>?tag=valor</code> pre-filtrado.</p>
+</section>
+
+<!-- ───── S8 ───── -->
+<section id="s8">
+  <h2>8 · Comentarios embebidos y posts relacionados</h2>
+
+  <h3>Comentarios Livewire</h3>
+  <pre><code><span class="cmt">&lt;!-- Embebe el componente Comentarios con contexto --&gt;</span>
+<span class="kw">&lt;livewire:comentarios</span> <span class="attr">pagina</span>=<span class="str">"blog-{{ $post->slug }}"</span> <span class="kw">/&gt;</span></code></pre>
+  <p>El componente <code>Comentarios</code> (que veremos en la Lección 50) recibe un identificador <code>pagina</code>. El prefijo <code>blog-</code> más el slug del post permite que cada artículo tenga su propio hilo de comentarios.</p>
+
+  <h3>Sidebar: artículos relacionados</h3>
+  <pre><code><span class="cmt">&lt;!-- 3 posts de la misma categoría --&gt;</span>
+@<span class="fn">if</span>(<span class="var">$relacionados</span>-><span class="fn">isNotEmpty</span>())
+  @<span class="fn">foreach</span>(<span class="var">$relacionados</span> <span class="kw">as</span> <span class="var">$r</span>)
+    <span class="kw">&lt;li</span> <span class="attr">class</span>=<span class="str">"flex gap-3 py-3"</span><span class="kw">&gt;</span>
+      <span class="cmt">&lt;!-- Miniatura 64x64 --&gt;</span>
+      <span class="kw">&lt;a</span> <span class="attr">href</span>=<span class="str">"{{ route('blog.post', $r->slug) }}"</span><span class="kw">&gt;</span>
+        {{ <span class="var">$r</span>-><span class="var">titulo</span> }}
+      <span class="kw">&lt;/a&gt;</span>
+      <span class="kw">&lt;p&gt;</span>{{ <span class="var">$r</span>-><span class="var">extracto</span> }}<span class="kw">&lt;/p&gt;</span>
+    <span class="kw">&lt;/li&gt;</span>
+  @<span class="fn">endforeach</span>
+@<span class="fn">endif</span></code></pre>
+
+  <h3>Sidebar: info del artículo</h3>
+  <p>Un panel compacto muestra categoría (como badge con color), autor, fecha de publicación, tiempo de lectura y conteo de vistas en formato tabla clave-valor.</p>
+</section>
+
+<!-- ───── S9 ───── -->
+<section id="s9">
+  <h2>9 · Patrones y técnicas destacadas</h2>
+
+  <table>
+    <thead>
+      <tr><th>Patrón</th><th>Implementación</th><th>Beneficio</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>#[Url] binding</strong></td>
+        <td><code>#[Url(as: 'q')]</code> en propiedades</td>
+        <td>URLs compartibles, historial del navegador</td>
+      </tr>
+      <tr>
+        <td><strong>Toggle filtro</strong></td>
+        <td><code>$this->cat === $cat ? '' : $cat</code></td>
+        <td>Click repite → desactiva filtro</td>
+      </tr>
+      <tr>
+        <td><strong>Debounce 400ms</strong></td>
+        <td><code>wire:model.live.debounce.400ms</code></td>
+        <td>Menos requests, mejor UX en búsqueda</td>
+      </tr>
+      <tr>
+        <td><strong>countBy en Collection</strong></td>
+        <td><code>flatten→filter→countBy→sortDesc→take</code></td>
+        <td>Nube de etiquetas sin SQL complejo</td>
+      </tr>
+      <tr>
+        <td><strong>withoutTimestamps</strong></td>
+        <td><code>Post::withoutTimestamps(fn() => ...)</code></td>
+        <td>Incrementa vistas sin alterar updated_at</td>
+      </tr>
+      <tr>
+        <td><strong>Constantes visuales</strong></td>
+        <td><code>CATEGORIAS / COLORES / GRADIENTES</code></td>
+        <td>Centraliza presentación en el modelo</td>
+      </tr>
+      <tr>
+        <td><strong>Prose typography</strong></td>
+        <td><code>prose prose-teal</code> + overrides</td>
+        <td>Contenido HTML con estilos consistentes</td>
+      </tr>
+      <tr>
+        <td><strong>Layout público</strong></td>
+        <td><code>->layout('layouts.public', [...])</code></td>
+        <td>Full-page Livewire en shell público</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───── Resumen ───── -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li>El <strong>modelo Post</strong> centraliza categorías, colores y gradientes como constantes, con helpers (<code>generarSlug</code>, <code>tiempoLectura</code>, <code>scopePublicados</code>).</li>
+    <li><strong>Blog.php</strong> usa <code>#[Url]</code> para filtros en la URL, <code>WithPagination</code> con 9 posts/página, y construye 4 queries paralelas (posts, categorías, recientes, etiquetas).</li>
+    <li>La vista del blog tiene <strong>dos modos</strong> (rejilla/lista), barra lateral con búsqueda debounce, categorías con conteo y nube de etiquetas top 20.</li>
+    <li><strong>PostView.php</strong> carga por slug, incrementa vistas con <code>withoutTimestamps</code>, y muestra 3 relacionados de la misma categoría.</li>
+    <li>El hero del post se adapta: <strong>overlay oscuro</strong> sobre imagen, o <strong>gradiente suave</strong> como fallback. El contenido usa <code>prose prose-teal</code> para tipografía automática.</li>
+    <li>Los <strong>comentarios</strong> se embeben como <code>&lt;livewire:comentarios&gt;</code> con prefijo <code>blog-</code> único por artículo.</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Próxima lección</strong>: En la Lección 47 exploraremos <strong>Población y Pirámide Poblacional</strong> — el componente Livewire que genera la pirámide Chart.js con datos demográficos y proyecciones INE.
+  </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="45-layouts-componentes.html">← Lección 45 · Layouts y Componentes</a>
+  <a href="47-poblacion-piramide.html">Lección 47 · Población y Pirámide →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+  Tutorial SICSAL · <span id="year"></span>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</footer>
+
+</body>
+</html>

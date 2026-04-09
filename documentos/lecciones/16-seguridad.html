@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 16 — Seguridad y buenas prácticas | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand"><span class="dot"></span> SICSAL — Lección 16</div>
+  <nav>
+    <a href="15-importar-ves.html">← Anterior</a>
+    <a href="00-indice.html">Índice</a>
+    <a href="00-indice.html">Volver al Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 16 de 16</span>
+    <h1>Seguridad y buenas prácticas</h1>
+    <p>Proteger datos de salud: secretos en .env, CSRF, autorización, validación, y todas las capas de defensa de SICSAL.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos</h2>
+    <table class="db-table">
+      <thead><tr><th>Archivo</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>.env</code></td><td>Secretos y configuración sensible</td></tr>
+        <tr><td><code>app/Http/Middleware/RequireAprobado.php</code></td><td>Bloquear usuarios no aprobados</td></tr>
+        <tr><td><code>app/Concerns/HasCentroSelector.php</code></td><td>Autorización de centro de salud</td></tr>
+        <tr><td><code>app/Services/VesMdbReader.php</code></td><td>Whitelist contra inyección de comandos</td></tr>
+        <tr><td><code>database/migrations/*_unique_constraints.php</code></td><td>Restricciones UNIQUE en BD</td></tr>
+        <tr><td><code>database/migrations/*_performance_indexes.php</code></td><td>Índices de rendimiento</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. Secretos en .env (nunca en código)</a></li>
+      <li><a href="#s2">2. Protección CSRF</a></li>
+      <li><a href="#s3">3. Middleware RequireAprobado</a></li>
+      <li><a href="#s4">4. Autorización por centro de salud</a></li>
+      <li><a href="#s5">5. Validación de entrada</a></li>
+      <li><a href="#s6">6. Restricciones en base de datos</a></li>
+      <li><a href="#s7">7. Defensa en profundidad: todas las capas</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> Secretos en .env (nunca en código)</h2>
+
+    <div class="code-block">
+      <div class="code-header">.env — Variables sensibles</div>
+      <pre class="code-body language-bash"><span class="cmt"># Base de datos</span>
+<span class="var">DB_PASSWORD</span>=<span class="str">mi_contraseña_segura</span>
+
+<span class="cmt"># Passwords de seeders (para desarrollo)</span>
+<span class="var">SUPERADMIN_PASSWORD</span>=<span class="str">cambiar_en_produccion</span>
+<span class="var">ADMIN_PASSWORD</span>=<span class="str">cambiar_en_produccion</span>
+
+<span class="cmt"># Clave de la aplicación (generada por Laravel)</span>
+<span class="var">APP_KEY</span>=<span class="str">base64:xxxxxxxxxxxxxxxxxxxxxxxxxxx</span></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">UserSeeder.php — Usar env() en vez de hardcoded</div>
+      <pre class="code-body language-php"><span class="cmt">// ❌ MAL: contraseña visible en el código fuente</span>
+<span class="str">'password'</span> => <span class="cls">Hash</span>::<span class="fn">make</span>(<span class="str">'admin123'</span>),
+
+<span class="cmt">// ✅ BIEN: leer de variable de entorno</span>
+<span class="str">'password'</span> => <span class="cls">Hash</span>::<span class="fn">make</span>(<span class="fn">env</span>(<span class="str">'ADMIN_PASSWORD'</span>, <span class="str">'changeme'</span>)),</pre>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">Regla de oro</div>
+      <p>El archivo <code>.env</code> <strong>nunca se sube al repositorio</strong> (está en <code>.gitignore</code>). Cada servidor tiene su propio <code>.env</code> con sus propias credenciales. Si alguien ve tu código en GitHub, no podrá ver tus contraseñas.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> Protección CSRF</h2>
+
+    <div class="code-block">
+      <div class="code-header">Blade — Token CSRF en formularios</div>
+      <pre class="code-body language-php"><span class="cmt">&lt;!-- Laravel incluye esto automáticamente en formularios Blade --&gt;</span>
+<span class="kw">&lt;form</span> <span class="var">method</span>=<span class="str">"POST"</span> <span class="var">action</span>=<span class="str">"/ruta"</span><span class="kw">&gt;</span>
+    <span class="fn">@csrf</span>   <span class="cmt">&lt;!-- Genera un token oculto único por sesión --&gt;</span>
+    ...
+<span class="kw">&lt;/form&gt;</span>
+
+<span class="cmt">&lt;!-- Se convierte en: --&gt;</span>
+<span class="kw">&lt;input</span> <span class="var">type</span>=<span class="str">"hidden"</span> <span class="var">name</span>=<span class="str">"_token"</span> <span class="var">value</span>=<span class="str">"abc123xyz..."</span> <span class="kw">/&gt;</span></pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">¿Qué es CSRF?</div>
+      <p><strong>Cross-Site Request Forgery</strong>: un atacante engaña a un usuario autenticado para que envíe un formulario malicioso. El token <code>@csrf</code> de Laravel verifica que el formulario fue generado por tu propia aplicación. Livewire lo maneja automáticamente.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> Middleware RequireAprobado</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Http/Middleware/RequireAprobado.php</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">RequireAprobado</span>
+{
+    <span class="kw">public function</span> <span class="fn">handle</span>(<span class="cls">Request</span> <span class="var">$request</span>, <span class="cls">Closure</span> <span class="var">$next</span>)
+    {
+        <span class="cmt">// Si el usuario no está activo → redirigir a /pendiente</span>
+        <span class="kw">if</span> (<span class="fn">auth</span>()-><span class="fn">check</span>() && !<span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">activo</span>) {
+            <span class="kw">return</span> <span class="fn">redirect</span>(<span class="str">'/pendiente'</span>);
+        }
+        <span class="kw">return</span> <span class="var">$next</span>(<span class="var">$request</span>);
+    }
+}</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">bootstrap/app.php — Registrar el middleware</div>
+      <pre class="code-body language-php"><span class="kw">return</span> <span class="cls">Application</span>::<span class="fn">configure</span>(...)
+    -><span class="fn">withMiddleware</span>(<span class="kw">function</span> (<span class="cls">Middleware</span> <span class="var">$middleware</span>) {
+        <span class="var">$middleware</span>-><span class="fn">alias</span>([
+            <span class="str">'aprobado'</span> => <span class="cls">RequireAprobado</span>::<span class="kw">class</span>,
+        ]);
+    });</pre>
+    </div>
+
+    <div class="flow-diagram">
+      <div class="flow-step">Usuario se registra → activo = false</div>
+      <div class="flow-connector">↓</div>
+      <div class="flow-step">Intenta acceder al panel → middleware 'aprobado'</div>
+      <div class="flow-connector">↓</div>
+      <div class="flow-step">¿activo == false? → Redirige a /pendiente</div>
+      <div class="flow-connector">↓</div>
+      <div class="flow-step">Admin activa al usuario → activo = true</div>
+      <div class="flow-connector">↓</div>
+      <div class="flow-step">Ahora puede acceder al panel normalmente</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> Autorización por centro de salud</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Concerns/HasCentroSelector.php</div>
+      <pre class="code-body language-php"><span class="kw">trait</span> <span class="cls">HasCentroSelector</span>
+{
+    <span class="kw">public</span> <span class="var">$centroSaludId</span>;
+
+    <span class="cmt">// Al cambiar centro, verificar que el usuario tenga permiso</span>
+    <span class="kw">public function</span> <span class="fn">updatingCentroSaludId</span>(<span class="var">$value</span>)
+    {
+        <span class="var">$user</span> = <span class="fn">auth</span>()-><span class="fn">user</span>();
+
+        <span class="cmt">// Superadmin puede ver cualquier centro</span>
+        <span class="kw">if</span> (<span class="var">$user</span>-><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>)) <span class="kw">return</span>;
+
+        <span class="cmt">// Admin/Registrador solo pueden ver SU centro</span>
+        <span class="kw">if</span> (<span class="var">$value</span> != <span class="var">$user</span>-><span class="var">centro_salud_id</span>) {
+            <span class="fn">abort</span>(<span class="num">403</span>, <span class="str">'No autorizado para este centro.'</span>);
+        }
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Defensa contra manipulación</div>
+      <p>Sin este guard, un usuario podría cambiar el centro de salud en la URL o con DevTools y ver datos de otro centro. El <code>updatingCentroSaludId</code> se ejecuta automáticamente cada vez que Livewire intenta cambiar esa propiedad.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> Validación de entrada</h2>
+
+    <div class="code-block">
+      <div class="code-header">Filament — Validación automática en formularios</div>
+      <pre class="code-body language-php"><span class="cmt">// Los campos de Filament validan automáticamente</span>
+<span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'nombre'</span>)
+    -><span class="fn">required</span>()               <span class="cmt">// No puede estar vacío</span>
+    -><span class="fn">maxLength</span>(<span class="num">255</span>)           <span class="cmt">// Máximo 255 caracteres</span>
+    -><span class="fn">rules</span>([<span class="str">'alpha_spaces'</span>]) <span class="cmt">// Solo letras y espacios</span>
+
+<span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'centro_salud_id'</span>)
+    -><span class="fn">required</span>()
+    -><span class="fn">relationship</span>(<span class="str">'centroSalud'</span>, <span class="str">'nombre'</span>) <span class="cmt">// Verifica que exista en BD</span></pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Livewire — Validación con atributos PHP 8</div>
+      <pre class="code-body language-php"><span class="cmt">// En Comentarios.php</span>
+<span class="kw">#[Validate('required|max:500')]</span>
+<span class="kw">public string</span> <span class="var">$contenido</span> = <span class="str">''</span>;
+
+<span class="kw">public function</span> <span class="fn">guardar</span>()
+{
+    <span class="var">$this</span>-><span class="fn">validate</span>();  <span class="cmt">// Valida todas las propiedades con #[Validate]</span>
+
+    <span class="cmt">// Sanitizar HTML para prevenir XSS</span>
+    <span class="var">$texto</span> = <span class="fn">strip_tags</span>(<span class="var">$this</span>-><span class="var">contenido</span>);
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">strip_tags() contra XSS</div>
+      <p><strong>XSS</strong> (Cross-Site Scripting) es cuando un atacante inyecta JavaScript malicioso en tu página. <code>strip_tags()</code> elimina todas las etiquetas HTML del texto del usuario, previniendo que inyecte <code>&lt;script&gt;</code>.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> Restricciones en base de datos</h2>
+
+    <div class="code-block">
+      <div class="code-header">Migration — Restricciones UNIQUE</div>
+      <pre class="code-body language-php"><span class="cmt">// Evitar duplicados a nivel de base de datos</span>
+<span class="cls">Schema</span>::<span class="fn">table</span>(<span class="str">'personas'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="cmt">// Una persona solo puede tener un CI en un centro</span>
+    <span class="var">$table</span>-><span class="fn">unique</span>(
+        [<span class="str">'ci'</span>, <span class="str">'centro_salud_id'</span>],
+        <span class="str">'personas_ci_centro_unique'</span>
+    );
+});
+
+<span class="cls">Schema</span>::<span class="fn">table</span>(<span class="str">'centros_salud'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="cmt">// Cada centro tiene un código SNIS único</span>
+    <span class="var">$table</span>-><span class="fn">unique</span>(<span class="str">'codigo_snis'</span>);
+});</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Migration — Índices de rendimiento</div>
+      <pre class="code-body language-php"><span class="cmt">// Acelerar consultas frecuentes</span>
+<span class="cls">Schema</span>::<span class="fn">table</span>(<span class="str">'personas'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span>-><span class="fn">index</span>(<span class="str">'estado'</span>);  <span class="cmt">// Filtrar por activo/migrado/fallecido</span>
+});
+
+<span class="cls">Schema</span>::<span class="fn">table</span>(<span class="str">'centros_salud'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span>-><span class="fn">index</span>(<span class="str">'codigo_snis'</span>); <span class="cmt">// Buscar centro por código</span>
+});</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">¿Por qué restricciones en BD?</div>
+      <p>La validación en PHP atrapa el 99% de los errores. Pero si hay un bug, una condición de carrera, o alguien accede directamente a la BD, las restricciones UNIQUE e índices son la <strong>última línea de defensa</strong>.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 7 ════════════════════════ -->
+  <div class="section" id="s7">
+    <h2 class="section-title"><span class="number">7</span> Defensa en profundidad: todas las capas</h2>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-box" style="background: #ffebee; border-color: #E53935;">
+          <strong>Capa 1: Secretos</strong><br>
+          .env (no en repo)<br>
+          env() para credentials
+        </div>
+        <div class="arch-box" style="background: #fff3e0; border-color: #FF9800;">
+          <strong>Capa 2: Middleware</strong><br>
+          RequireAprobado<br>
+          CSRF token
+        </div>
+        <div class="arch-box" style="background: #e8f5e9; border-color: #43A047;">
+          <strong>Capa 3: Autorización</strong><br>
+          Spatie Roles<br>
+          HasCentroSelector
+        </div>
+      </div>
+      <div class="arch-row" style="margin-top: 1rem;">
+        <div class="arch-box" style="background: #e3f2fd; border-color: #1E88E5;">
+          <strong>Capa 4: Validación</strong><br>
+          Filament required/rules<br>
+          #[Validate] · strip_tags
+        </div>
+        <div class="arch-box" style="background: #f3e5f5; border-color: #8E24AA;">
+          <strong>Capa 5: BD</strong><br>
+          UNIQUE constraints<br>
+          Índices · FK cascade
+        </div>
+        <div class="arch-box" style="background: #eceff1; border-color: #546E7A;">
+          <strong>Capa 6: Shell</strong><br>
+          Whitelist (VesMdbReader)<br>
+          No shell_exec sin validar
+        </div>
+      </div>
+    </div>
+
+    <table class="db-table">
+      <thead>
+        <tr><th>Amenaza</th><th>Protección en SICSAL</th><th>Capa</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Contraseñas expuestas</td><td><code>env()</code> + <code>.gitignore</code></td><td>Secretos</td></tr>
+        <tr><td>CSRF (formularios falsos)</td><td><code>@csrf</code> + Livewire auto</td><td>Middleware</td></tr>
+        <tr><td>Acceso sin aprobar</td><td><code>RequireAprobado</code> middleware</td><td>Middleware</td></tr>
+        <tr><td>Ver datos de otro centro</td><td><code>HasCentroSelector</code> + abort(403)</td><td>Autorización</td></tr>
+        <tr><td>Acceso a rutas prohibidas</td><td>Spatie roles + <code>canAccessPanel()</code></td><td>Autorización</td></tr>
+        <tr><td>XSS (inyección JavaScript)</td><td><code>strip_tags()</code> + Blade escaping</td><td>Validación</td></tr>
+        <tr><td>Datos duplicados</td><td>UNIQUE constraints en BD</td><td>Base de datos</td></tr>
+        <tr><td>Inyección de comandos</td><td>Whitelist en <code>VesMdbReader</code></td><td>Shell</td></tr>
+        <tr><td>SQL injection</td><td>Eloquent (queries parametrizados)</td><td>Framework</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 16</h3>
+    <ul>
+      <li><strong>Secretos</strong>: Siempre en <code>.env</code>, nunca hardcoded. <code>.env</code> está en <code>.gitignore</code>.</li>
+      <li><strong>CSRF</strong>: <code>@csrf</code> en formularios Blade. Livewire lo maneja automáticamente.</li>
+      <li><strong>Middleware</strong>: <code>RequireAprobado</code> bloquea usuarios no activados.</li>
+      <li><strong>Autorización</strong>: <code>HasCentroSelector</code> usa <code>abort(403)</code> si intentan cambiar de centro.</li>
+      <li><strong>Validación</strong>: Filament + <code>#[Validate]</code> + <code>strip_tags()</code> contra XSS.</li>
+      <li><strong>Base de datos</strong>: UNIQUE constraints como última línea de defensa.</li>
+      <li><strong>Shell</strong>: Whitelist de 56 tablas en <code>VesMdbReader</code> contra inyección de comandos.</li>
+      <li>La seguridad funciona en <strong>capas</strong>: si una falla, las demás siguen protegiendo.</li>
+    </ul>
+  </div>
+
+  <div class="lesson-nav">
+    <a href="15-importar-ves.html">← Lección 15: Importar VES</a>
+    <a href="00-indice.html">Volver al Índice</a>
+  </div>
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 16: Seguridad</span>
+    <span>.env · CSRF · RequireAprobado · HasCentroSelector · strip_tags · UNIQUE · whitelist</span>
+  </div>
+</div>
+</body>
+</html>

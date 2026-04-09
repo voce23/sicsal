@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 49 · ComunidadesPoblacion y CausasConsulta — Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL · Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+  <span class="badge">Fase 10 — Livewire Público</span>
+  <h1>Lección 49 · ComunidadesPoblacion y CausasConsulta</h1>
+  <p class="subtitle">Dos componentes Livewire públicos: el censo poblacional con 3 tablas + planilla de campo, y las 10 principales causas de consulta externa con matriz etáreo-sexo.</p>
+  <p class="meta">Lección 49 de 58 · Tiempo estimado: 25 min</p>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="48-informe-cai-livewire.html">← Lección 48 · Informe CAI Livewire</a>
+  <a href="50-comentarios-logout.html">Lección 50 · Comentarios y Logout →</a>
+</nav>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">ComunidadesPoblacion — arquitectura (336 líneas)</a></li>
+    <li><a href="#s2">Constantes: GRUPOS, PLANILLA_GRUPOS y RATIO_MASCULINIDAD</a></li>
+    <li><a href="#s3">getDatosProperty — 3 datasets en un computed</a></li>
+    <li><a href="#s4">getPlanillaProperty — la planilla de campo</a></li>
+    <li><a href="#s5">Vista: tab Resumen con 3 tablas</a></li>
+    <li><a href="#s6">Vista: tab Planilla de Campo (11 grupos × M/F)</a></li>
+    <li><a href="#s7">CausasConsulta — lean delegator (46 líneas)</a></li>
+    <li><a href="#s8">Vista: matriz de causas con barras visuales</a></li>
+  </ol>
+</nav>
+
+<!-- ───── Secciones ───── -->
+
+<!-- ───── S1 ───── -->
+<section id="s1">
+  <h2>1 · ComunidadesPoblacion — arquitectura (336 líneas)</h2>
+
+  <p>Es el componente público más largo del proyecto. Combina <strong>dos vistas tabuladas</strong> en un mismo componente:</p>
+
+  <pre><code><span class="cmt">// app/Livewire/ComunidadesPoblacion.php</span>
+<span class="kw">class</span> <span class="cls">ComunidadesPoblacion</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">use</span> <span class="cls">HasCentroSelector</span>;
+
+    #[<span class="cls">Url</span>]
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$tab</span> = <span class="str">'resumen'</span>;    <span class="cmt">// 'resumen' | 'planilla'</span>
+
+    <span class="kw">public function</span> <span class="fn">render</span>()
+    {
+        <span class="kw">return</span> <span class="fn">view</span>(<span class="str">'livewire.comunidades-poblacion'</span>)
+            -><span class="fn">layout</span>(<span class="str">'layouts.public'</span>, [<span class="str">'title'</span> => <span class="str">'Comunidades — SIMUES'</span>]);
+    }
+}</code></pre>
+
+  <table>
+    <thead>
+      <tr><th>Tab</th><th>Computed</th><th>Tablas</th><th>Descargas</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Resumen</td><td><code>$this->datos</code></td><td>3 (resumen, detalle M/F, consolidado INE vs Real)</td><td>Excel, PDF</td></tr>
+      <tr><td>Planilla</td><td><code>$this->planilla</code></td><td>1 (censo con 11 grupos × M/F + embarazadas)</td><td>Excel, PDF</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───── S2 ───── -->
+<section id="s2">
+  <h2>2 · Constantes: GRUPOS, PLANILLA_GRUPOS y RATIO_MASCULINIDAD</h2>
+
+  <p>El componente define <strong>tres constantes privadas</strong> que controlan la estructura de los datos:</p>
+
+  <h3>GRUPOS — 9 rangos para el tab Resumen</h3>
+  <pre><code><span class="kw">private const</span> <span class="var">GRUPOS</span> = [
+    <span class="str">'menor_1'</span>  => <span class="str">'&lt;1'</span>,
+    <span class="str">'1_4'</span>      => <span class="str">'1-4'</span>,
+    <span class="str">'5_9'</span>      => <span class="str">'5-9'</span>,
+    <span class="str">'10_14'</span>    => <span class="str">'10-14'</span>,
+    <span class="str">'15_19'</span>    => <span class="str">'15-19'</span>,
+    <span class="str">'20_39'</span>    => <span class="str">'20-39'</span>,
+    <span class="str">'40_49'</span>    => <span class="str">'40-49'</span>,
+    <span class="str">'50_59'</span>    => <span class="str">'50-59'</span>,
+    <span class="str">'mayor_60'</span> => <span class="str">'60+'</span>,
+];</code></pre>
+
+  <h3>PLANILLA_GRUPOS — 11 rangos más finos para campo</h3>
+  <pre><code><span class="kw">private const</span> <span class="var">PLANILLA_GRUPOS</span> = [
+    <span class="str">'menor_1'</span> => [
+        <span class="str">'label'</span>  => <span class="str">'&lt;1 año'</span>,
+        <span class="str">'filter'</span> => <span class="str">'fecha_nacimiento > DATE_SUB(CURDATE(), INTERVAL 1 YEAR)'</span>,
+    ],
+    <span class="str">'1_2'</span>     => [<span class="str">'label'</span> => <span class="str">'1-2'</span>,  <span class="str">'filter'</span> => <span class="str">'TIMESTAMPDIFF(YEAR, ...) BETWEEN 1 AND 2'</span>],
+    <span class="str">'3_5'</span>     => [<span class="str">'label'</span> => <span class="str">'3-5'</span>,  <span class="str">'filter'</span> => <span class="str">'... BETWEEN 3 AND 5'</span>],
+    <span class="cmt">// ... hasta 'mayor_60'</span>
+];</code></pre>
+
+  <h3>RATIO_MASCULINIDAD — para split INE "ambos"</h3>
+  <pre><code><span class="kw">private const</span> <span class="var">RATIO_MASCULINIDAD</span> = [
+    <span class="str">'menor_1'</span> => <span class="num">1.05</span>,   <span class="cmt">// 105 varones por 100 mujeres</span>
+    <span class="str">'1_4'</span>     => <span class="num">1.05</span>,
+    <span class="str">'5_9'</span>     => <span class="num">1.04</span>,
+    <span class="str">'20_39'</span>   => <span class="num">0.96</span>,   <span class="cmt">// Emigración masculina invierte ratio</span>
+    <span class="str">'50_59'</span>   => <span class="num">0.92</span>,
+    <span class="str">'mayor_60'</span>=> <span class="num">0.88</span>,   <span class="cmt">// Mayor longevidad femenina</span>
+];</code></pre>
+
+  <div class="callout info">
+    <strong>¿Por qué 2 sets de grupos?</strong> El INE (Instituto Nacional de Estadística) usa 9 rangos estándar para metas poblacionales. La planilla de campo necesita 11 rangos más granulares para el censo casa-por-casa (ej. separar 1-2 y 3-5 en lugar de agrupar como 1-4).
+  </div>
+</section>
+
+<!-- ───── S3 ───── -->
+<section id="s3">
+  <h2>3 · getDatosProperty — 3 datasets en un computed</h2>
+
+  <p>El computed más complejo del proyecto genera <strong>tres estructuras simultáneas</strong> en un solo recorrido de comunidades:</p>
+
+  <pre><code><span class="kw">public function</span> <span class="fn">getDatosProperty</span>(): <span class="type">array</span>
+{
+    <span class="var">$centroId</span> = <span class="var">$this</span>-><span class="fn">getCentroId</span>();
+    <span class="kw">if</span> (<span class="var">$centroId</span> === <span class="num">0</span>) <span class="kw">return</span> <span class="var">$emptyState</span>;
+
+    <span class="var">$comunidades</span> = <span class="cls">Comunidad</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -><span class="fn">orderBy</span>(<span class="str">'nombre'</span>)-><span class="fn">get</span>();
+
+    <span class="kw">foreach</span> (<span class="var">$comunidades</span> <span class="kw">as</span> <span class="var">$com</span>) {
+        <span class="var">$base</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+            -><span class="fn">where</span>(<span class="str">'comunidad_id'</span>, <span class="var">$com</span>-><span class="var">id</span>)
+            -><span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>);
+
+        <span class="var">$baseNoMig</span> = (<span class="kw">clone</span> <span class="var">$base</span>)-><span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'!='</span>, <span class="str">'migrado'</span>);
+
+        <span class="cmt">// Dataset 1: Resumen (total/H/M + 9 grupos + migrantes)</span>
+        <span class="var">$total</span>    = (<span class="kw">clone</span> <span class="var">$baseNoMig</span>)-><span class="fn">count</span>();
+        <span class="var">$hombres</span>  = (<span class="kw">clone</span> <span class="var">$baseNoMig</span>)-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'M'</span>)-><span class="fn">count</span>();
+        <span class="var">$grupoVals</span>[<span class="str">'menor_1'</span>] = (<span class="kw">clone</span> <span class="var">$baseNoMig</span>)
+            -><span class="fn">where</span>(<span class="str">'fecha_nacimiento'</span>, <span class="str">'>'</span>, <span class="fn">now</span>()-><span class="fn">subYear</span>())-><span class="fn">count</span>();
+        <span class="cmt">// ... 8 más con whereRaw(TIMESTAMPDIFF)</span>
+
+        <span class="cmt">// Dataset 2: Detalle M/F por grupo por comunidad</span>
+        <span class="kw">foreach</span> (<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$g</span>) {
+            <span class="var">$filtro</span> = <span class="var">$this</span>-><span class="fn">getAgeFilter</span>(<span class="var">$g</span>);
+            <span class="var">$m</span> = (<span class="kw">clone</span> <span class="var">$baseNoMig</span>)-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'M'</span>)-><span class="fn">whereRaw</span>(<span class="var">$filtro</span>)-><span class="fn">count</span>();
+            <span class="var">$f</span> = (<span class="kw">clone</span> <span class="var">$baseNoMig</span>)-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)-><span class="fn">whereRaw</span>(<span class="var">$filtro</span>)-><span class="fn">count</span>();
+            <span class="var">$comDetalle</span>[<span class="var">$g</span>] = [<span class="str">'M'</span> => <span class="var">$m</span>, <span class="str">'F'</span> => <span class="var">$f</span>];
+        }
+    }
+
+    <span class="cmt">// Dataset 3: Consolidado INE vs Real</span>
+    <span class="var">$metaIneRows</span> = <span class="cls">MetaIne</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-><span class="fn">get</span>();
+
+    <span class="kw">foreach</span> (<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$g</span>) {
+        <span class="var">$meta</span> = <span class="var">$metaIneRows</span>-><span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="var">$g</span>);
+        <span class="cmt">// Si sexo='ambos', aplicar RATIO_MASCULINIDAD para split</span>
+        <span class="kw">if</span> (<span class="var">$metaAmbos</span>) {
+            <span class="var">$ratio</span>  = <span class="kw">self</span>::<span class="var">RATIO_MASCULINIDAD</span>[<span class="var">$g</span>] ?? <span class="num">1.0</span>;
+            <span class="var">$ineM</span>   = (<span class="type">int</span>) <span class="fn">round</span>(<span class="var">$totalIne</span> * <span class="var">$ratio</span> / (<span class="num">1</span> + <span class="var">$ratio</span>));
+            <span class="var">$ineF</span>   = <span class="var">$totalIne</span> - <span class="var">$ineM</span>;
+        }
+        <span class="var">$dif</span> = <span class="var">$realTotal</span> - <span class="var">$ineTotal</span>;
+        <span class="var">$pct</span> = <span class="var">$ineTotal</span> > <span class="num">0</span> ? <span class="fn">round</span>(<span class="var">$realTotal</span> / <span class="var">$ineTotal</span> * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>;
+    }
+}</code></pre>
+
+  <div class="callout warning">
+    <strong>Patrón clone intensivo</strong>: Este método hace ~15 clones del query builder por comunidad. Con 20 comunidades son ~300 queries. Es un trade-off aceptable para datos públicos que se acceden con poca frecuencia, pero escalaría mal para miles de comunidades. En ese caso, se migraría a una sola query con <code>selectRaw(SUM(CASE WHEN...))</code>.
+  </div>
+
+  <p>El retorno contiene 9 claves:</p>
+  <table>
+    <thead>
+      <tr><th>Clave</th><th>Tipo</th><th>Uso</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>filas</code></td><td>array[]</td><td>Tabla 1: resumen por comunidad</td></tr>
+      <tr><td><code>totales</code></td><td>array</td><td>Fila TOTAL de tabla 1</td></tr>
+      <tr><td><code>detalle</code></td><td>array[]</td><td>Tabla 2: M/F por grupo por comunidad</td></tr>
+      <tr><td><code>detalleTotales</code></td><td>array</td><td>Fila TOTAL de tabla 2</td></tr>
+      <tr><td><code>consolidado</code></td><td>array[]</td><td>Tabla 3: INE vs Real por grupo</td></tr>
+      <tr><td><code>metaIne</code></td><td>int</td><td>Total Meta INE</td></tr>
+      <tr><td><code>diferencia</code></td><td>int</td><td>Real − INE</td></tr>
+      <tr><td><code>centro</code></td><td>CentroSalud</td><td>Modelo con relación municipio</td></tr>
+      <tr><td><code>grupos</code></td><td>array</td><td>Labels de los 9 grupos</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───── S4 ───── -->
+<section id="s4">
+  <h2>4 · getPlanillaProperty — la planilla de campo</h2>
+
+  <p>Un segundo computed genera los datos para la planilla de censo con <strong>11 grupos más granulares</strong>:</p>
+
+  <pre><code><span class="kw">public function</span> <span class="fn">getPlanillaProperty</span>(): <span class="type">array</span>
+{
+    <span class="kw">foreach</span> (<span class="var">$comunidades</span> <span class="kw">as</span> <span class="var">$com</span>) {
+        <span class="var">$base</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(...)-><span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'!='</span>, <span class="str">'migrado'</span>);
+
+        <span class="kw">foreach</span> (<span class="kw">self</span>::<span class="var">PLANILLA_GRUPOS</span> <span class="kw">as</span> <span class="var">$key</span> => <span class="var">$cfg</span>) {
+            <span class="var">$m</span> = (<span class="kw">clone</span> <span class="var">$base</span>)-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'M'</span>)
+                -><span class="fn">whereRaw</span>(<span class="var">$cfg</span>[<span class="str">'filter'</span>])-><span class="fn">count</span>();
+            <span class="var">$f</span> = (<span class="kw">clone</span> <span class="var">$base</span>)-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)
+                -><span class="fn">whereRaw</span>(<span class="var">$cfg</span>[<span class="str">'filter'</span>])-><span class="fn">count</span>();
+        }
+
+        <span class="cmt">// Dato especial: embarazadas (MEF 15-49 con estado='embarazada')</span>
+        <span class="var">$embarazadas</span> = (<span class="kw">clone</span> <span class="var">$base</span>)-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)
+            -><span class="fn">whereRaw</span>(<span class="str">'TIMESTAMPDIFF(YEAR, ...) BETWEEN 15 AND 49'</span>)
+            -><span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'embarazada'</span>)-><span class="fn">count</span>();
+    }
+
+    <span class="kw">return</span> [<span class="str">'filas'</span>, <span class="str">'totales'</span>, <span class="str">'centro'</span>, <span class="str">'grupos'</span> => <span class="kw">self</span>::<span class="var">PLANILLA_GRUPOS</span>];
+}</code></pre>
+
+  <p>Las descargas aceptan ambos datasets:</p>
+  <pre><code><span class="cmt">// Excel: pasa ambos datasets al Export</span>
+<span class="kw">public function</span> <span class="fn">generarPlanillaExcel</span>()
+{
+    <span class="var">$planilla</span> = <span class="var">$this</span>-><span class="var">planilla</span>;
+    <span class="kw">return</span> <span class="cls">Excel</span>::<span class="fn">download</span>(
+        <span class="kw">new</span> <span class="cls">ComunidadesPoblacionExport</span>(<span class="var">$this</span>-><span class="var">datos</span>, <span class="var">$planilla</span>),
+        <span class="var">$nombre</span>
+    );
+}
+
+<span class="cmt">// PDF: usa vista específica en landscape-legal</span>
+<span class="kw">public function</span> <span class="fn">generarPlanillaPdf</span>()
+{
+    <span class="var">$pdf</span> = <span class="cls">Pdf</span>::<span class="fn">loadView</span>(<span class="str">'pdf.planilla-censo'</span>, [<span class="str">'planilla'</span> => <span class="var">$planilla</span>])
+        -><span class="fn">setPaper</span>(<span class="str">'legal'</span>, <span class="str">'landscape'</span>)  <span class="cmt">// Legal landscape = más columnas</span>
+        -><span class="fn">setOption</span>(<span class="str">'margin-left'</span>, <span class="num">5</span>);  <span class="cmt">// Márgenes reducidos</span>
+}</code></pre>
+
+  <div class="callout tip">
+    <strong>Legal landscape</strong>: Con 11 grupos × 2 columnas (M/F) + extras = ~25 columnas. El papel Legal (8.5×14") en landscape da más espacio horizontal que A4.
+  </div>
+</section>
+
+<!-- ───── S5 ───── -->
+<section id="s5">
+  <h2>5 · Vista: tab Resumen con 3 tablas</h2>
+
+  <p>La vista <code>comunidades-poblacion.blade.php</code> (319 líneas) usa tabs Livewire:</p>
+
+  <pre><code><span class="cmt">&lt;!-- Tabs con wire:click y estilo underline --&gt;</span>
+<span class="kw">&lt;nav</span> <span class="attr">class</span>=<span class="str">"-mb-px flex gap-6"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;button</span> <span class="attr">wire:click</span>=<span class="str">"$set('tab', 'resumen')"</span>
+        <span class="attr">class</span>=<span class="str">"border-b-2 px-1 pb-3 text-sm font-medium
+            {{ $tab === 'resumen'
+                ? 'border-teal-600 text-teal-600'
+                : 'border-transparent text-gray-500' }}"</span><span class="kw">&gt;</span>
+        Resumen Poblacional
+    <span class="kw">&lt;/button&gt;</span>
+    <span class="kw">&lt;button</span> <span class="attr">wire:click</span>=<span class="str">"$set('tab', 'planilla')"</span><span class="kw">&gt;</span>
+        Planilla de Campo
+    <span class="kw">&lt;/button&gt;</span>
+<span class="kw">&lt;/nav&gt;</span></code></pre>
+
+  <h3>Tabla 1 — Resumen por Comunidad</h3>
+  <p>Usa header de 2 filas con <code>rowspan/colspan</code> y colores de fondo por sección:</p>
+  <pre><code><span class="kw">&lt;tr</span> <span class="attr">class</span>=<span class="str">"border-b-2 text-left"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;th</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Comunidad<span class="kw">&lt;/th&gt;</span>
+    <span class="kw">&lt;th</span> <span class="attr">class</span>=<span class="str">"bg-blue-50"</span> <span class="attr">colspan</span>=<span class="str">"3"</span><span class="kw">&gt;</span>Demografía<span class="kw">&lt;/th&gt;</span>
+    <span class="kw">&lt;th</span> <span class="attr">class</span>=<span class="str">"bg-green-50"</span> <span class="attr">colspan</span>=<span class="str">"9"</span><span class="kw">&gt;</span>Grupos etáreos<span class="kw">&lt;/th&gt;</span>
+    <span class="kw">&lt;th</span> <span class="attr">class</span>=<span class="str">"bg-amber-50"</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Migr.<span class="kw">&lt;/th&gt;</span>
+<span class="kw">&lt;/tr&gt;</span></code></pre>
+
+  <p>El footer incluye tres filas especiales:</p>
+  <ul>
+    <li><strong>TOTAL REAL</strong>: Suma de todas las comunidades.</li>
+    <li><strong>META INE</strong>: <code>number_format($datos['metaIne'])</code>.</li>
+    <li><strong>DIFERENCIA</strong>: Real − INE con color rojo/verde y porcentaje.</li>
+  </ul>
+
+  <h3>Tabla 3 — Consolidado INE vs Real</h3>
+  <p>Usa <strong>semáforo de 3 niveles</strong> para la cobertura:</p>
+  <pre><code><span class="kw">&lt;td</span> <span class="attr">class</span>=<span class="str">"{{
+    $row['cobertura'] >= 100 ? 'text-green-600' :
+    ($row['cobertura'] >= 80  ? 'text-amber-600' :
+                                 'text-red-500')
+}}"</span><span class="kw">&gt;</span>{{ <span class="var">$row</span>[<span class="str">'cobertura'</span>] }}%<span class="kw">&lt;/td&gt;</span></code></pre>
+</section>
+
+<!-- ───── S6 ───── -->
+<section id="s6">
+  <h2>6 · Vista: tab Planilla de Campo (11 grupos × M/F)</h2>
+
+  <pre><code><span class="cmt">&lt;!-- Tab Planilla: 11 groups × M/F + embarazadas --&gt;</span>
+@<span class="fn">php</span> <span class="var">$planilla</span> = <span class="var">$this</span>-><span class="var">planilla</span>; <span class="var">$pGrupos</span> = <span class="var">$planilla</span>[<span class="str">'grupos'</span>]; @<span class="fn">endphp</span>
+
+<span class="kw">&lt;table</span> <span class="attr">class</span>=<span class="str">"w-full text-xs"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;thead&gt;</span>
+        <span class="kw">&lt;tr&gt;</span>
+            <span class="kw">&lt;th</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Comunidad<span class="kw">&lt;/th&gt;</span>
+            <span class="kw">&lt;th</span> <span class="attr">class</span>=<span class="str">"bg-blue-50"</span> <span class="attr">colspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Pob. Total<span class="kw">&lt;/th&gt;</span>
+            @<span class="fn">foreach</span> (<span class="var">$pGrupos</span> <span class="kw">as</span> <span class="var">$key</span> => <span class="var">$cfg</span>)
+                <span class="kw">&lt;th</span> <span class="attr">class</span>=<span class="str">"bg-green-50"</span> <span class="attr">colspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>{{ <span class="var">$cfg</span>[<span class="str">'label'</span>] }}<span class="kw">&lt;/th&gt;</span>
+            @<span class="fn">endforeach</span>
+            <span class="kw">&lt;th</span> <span class="attr">class</span>=<span class="str">"bg-pink-50"</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Embar.<span class="kw">&lt;/th&gt;</span>
+        <span class="kw">&lt;/tr&gt;</span>
+    <span class="kw">&lt;/thead&gt;</span>
+<span class="kw">&lt;/table&gt;</span></code></pre>
+
+  <p>La planilla está diseñada para imprimir y llevar al campo. Los encargados de salud la usan durante el <strong>censo comunitario anual</strong> para comparar los datos del sistema con lo que encuentran en terreno.</p>
+
+  <div class="callout info">
+    <strong>Auto-generada</strong>: La planilla NO es un formulario vacío — viene pre-llenada con los datos actuales del sistema. El personal de campo puede verificar y ajustar en terreno.
+  </div>
+</section>
+
+<!-- ───── S7 ───── -->
+<section id="s7">
+  <h2>7 · CausasConsulta — lean delegator (46 líneas)</h2>
+
+  <p>El componente más compacto del proyecto, con solo <strong>46 líneas</strong>:</p>
+
+  <pre><code><span class="kw">class</span> <span class="cls">CausasConsulta</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">use</span> <span class="cls">HasCentroSelector</span>;
+
+    #[<span class="cls">Url</span>]
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$anio</span> = <span class="num">0</span>;
+
+    #[<span class="cls">Url</span>]
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$mes</span> = <span class="num">0</span>;  <span class="cmt">// 0 = todo el año</span>
+
+    <span class="kw">public function</span> <span class="fn">getDatosProperty</span>(): ?<span class="type">array</span>
+    {
+        <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">centroSaludId</span> === <span class="num">0</span>) <span class="kw">return null</span>;
+        <span class="kw">return</span> <span class="cls">CausasConsultaHelper</span>::<span class="fn">getTop10</span>(
+            <span class="var">$this</span>-><span class="var">centroSaludId</span>,
+            <span class="var">$this</span>-><span class="var">anio</span>,
+            <span class="var">$this</span>-><span class="var">mes</span>
+        );
+    }
+
+    <span class="kw">public function</span> <span class="fn">getCentrosProperty</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> <span class="cls">CentroSalud</span>::<span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>)
+            -><span class="fn">orderBy</span>(<span class="str">'nombre'</span>)
+            -><span class="fn">pluck</span>(<span class="str">'nombre'</span>, <span class="str">'id'</span>)
+            -><span class="fn">toArray</span>();
+    }
+}</code></pre>
+
+  <p>Toda la lógica de agregación está en <code>CausasConsultaHelper::getTop10()</code> (ver Lección 43). El componente solo define: estado URL-bound, lista de centros, y computed de datos.</p>
+
+  <div class="callout tip">
+    <strong>$mes = 0</strong>: Convención para "todo el año". El helper interpreta 0 como "sin filtro de mes", sumando todos los meses de la gestión.
+  </div>
+</section>
+
+<!-- ───── S8 ───── -->
+<section id="s8">
+  <h2>8 · Vista: matriz de causas con barras visuales</h2>
+
+  <p>La vista <code>causas-consulta.blade.php</code> (264 líneas) tiene una identidad visual distinta con gradiente <strong>rose/red</strong>:</p>
+
+  <h3>Tabla principal — 10 grupos × M/F</h3>
+  <pre><code><span class="cmt">&lt;!-- Header bicolor 2 filas --&gt;</span>
+<span class="kw">&lt;tr</span> <span class="attr">class</span>=<span class="str">"bg-rose-700 text-white"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;th</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>N°<span class="kw">&lt;/th&gt;</span>
+    <span class="kw">&lt;th</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Diagnóstico<span class="kw">&lt;/th&gt;</span>
+    @<span class="fn">foreach</span>(<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$g</span> => <span class="var">$label</span>)
+        <span class="kw">&lt;th</span> <span class="attr">colspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>{{ <span class="var">$label</span> }}<span class="kw">&lt;/th&gt;</span> <span class="cmt">&lt;!-- 10 grupos --&gt;</span>
+    @<span class="fn">endforeach</span>
+    <span class="kw">&lt;th</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Tot. M<span class="kw">&lt;/th&gt;</span>
+    <span class="kw">&lt;th</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Tot. F<span class="kw">&lt;/th&gt;</span>
+    <span class="kw">&lt;th</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>Total<span class="kw">&lt;/th&gt;</span>
+    <span class="kw">&lt;th</span> <span class="attr">rowspan</span>=<span class="str">"2"</span><span class="kw">&gt;</span>%<span class="kw">&lt;/th&gt;</span>
+<span class="kw">&lt;/tr&gt;</span>
+<span class="kw">&lt;tr</span> <span class="attr">class</span>=<span class="str">"bg-rose-600 text-white"</span><span class="kw">&gt;</span>
+    @<span class="fn">foreach</span>(<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$g</span> => <span class="var">$label</span>)
+        <span class="kw">&lt;th&gt;</span>M<span class="kw">&lt;/th&gt;&lt;th&gt;</span>F<span class="kw">&lt;/th&gt;</span>
+    @<span class="fn">endforeach</span>
+<span class="kw">&lt;/tr&gt;</span></code></pre>
+
+  <h3>Celdas con guión para ceros</h3>
+  <pre><code><span class="cmt">&lt;!-- Muestra '–' en lugar de 0 para legibilidad --&gt;</span>
+<span class="kw">&lt;td&gt;</span>{{ <span class="var">$causa</span>[<span class="str">'grupos'</span>][<span class="var">$g</span>][<span class="str">'m'</span>] ?? <span class="num">0</span> ?: <span class="str">'–'</span> }}<span class="kw">&lt;/td&gt;</span></code></pre>
+
+  <h3>Filas vacías hasta completar 10</h3>
+  <pre><code><span class="cmt">&lt;!-- Si hay <10 causas, llenar con filas grises --&gt;</span>
+@<span class="fn">for</span>(<span class="var">$i</span> = <span class="fn">count</span>(<span class="var">$datos</span>[<span class="str">'causas'</span>]); <span class="var">$i</span> &lt; <span class="num">10</span>; <span class="var">$i</span>++)
+    <span class="kw">&lt;tr</span> <span class="attr">class</span>=<span class="str">"border-b"</span><span class="kw">&gt;</span>
+        <span class="kw">&lt;td</span> <span class="attr">class</span>=<span class="str">"text-gray-300"</span><span class="kw">&gt;</span>{{ <span class="var">$i</span> + <span class="num">1</span> }}<span class="kw">&lt;/td&gt;</span>
+        <span class="kw">&lt;td</span> <span class="attr">class</span>=<span class="str">"text-gray-300"</span><span class="kw">&gt;</span>—<span class="kw">&lt;/td&gt;</span>
+        <span class="cmt">&lt;!-- celdas vacías --&gt;</span>
+    <span class="kw">&lt;/tr&gt;</span>
+@<span class="fn">endfor</span></code></pre>
+
+  <h3>Barras horizontales de distribución</h3>
+  <pre><code><span class="cmt">&lt;!-- Barra visual con gradiente y ancho porcentual --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"h-4 overflow-hidden rounded-full bg-gray-100"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"h-4 rounded-full bg-linear-to-r from-rose-600 to-red-400
+                transition-all duration-500"</span>
+         <span class="attr">style</span>=<span class="str">"width: {{ $causa['porcentaje'] }}%"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <h3>Badges de porcentaje con 3 niveles</h3>
+  <pre><code><span class="cmt">&lt;!-- ≥20% rose, ≥10% orange, <10% gray --&gt;</span>
+<span class="kw">&lt;span</span> <span class="attr">class</span>=<span class="str">"rounded-full px-2 py-0.5
+    {{ $causa['porcentaje'] >= 20 ? 'bg-rose-100 text-rose-700' :
+       ($causa['porcentaje'] >= 10 ? 'bg-orange-100 text-orange-700'
+                                   : 'bg-gray-100 text-gray-700') }}"</span><span class="kw">&gt;</span>
+    {{ <span class="var">$causa</span>[<span class="str">'porcentaje'</span>] }}%
+<span class="kw">&lt;/span&gt;</span></code></pre>
+</section>
+
+<!-- ───── Resumen ───── -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li><strong>ComunidadesPoblacion</strong> (336 líneas) es el componente público más extenso — genera 3 datasets (resumen, detalle M/F, consolidado INE vs Real) + planilla de campo con 11 grupos.</li>
+    <li>Usa <strong>2 constantes de grupos</strong>: GRUPOS (9, para INE) y PLANILLA_GRUPOS (11, para campo) + RATIO_MASCULINIDAD para split de "ambos".</li>
+    <li>El <strong>patrón clone intensivo</strong> ejecuta ~300 queries para 20 comunidades — aceptable para uso esporádico.</li>
+    <li>Las descargas usan <strong>Legal landscape</strong> para acomodar ~25 columnas.</li>
+    <li><strong>CausasConsulta</strong> (46 líneas) es un delegator puro a CausasConsultaHelper, con filtro por mes (0 = gestión completa).</li>
+    <li>Su vista (264 líneas) usa <strong>identidad rose/red</strong>, tabla de 2-filas header con 10 grupos × M/F, filas vacías hasta 10, y barras horizontales de distribución.</li>
+    <li>Ambos componentes incluyen <code>livewire:comentarios</code> en la parte inferior.</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Próxima lección</strong>: En la Lección 50 exploraremos el componente <strong>Comentarios</strong> — el sistema de comentarios reutilizable con paginación y Alpine modals — y la lógica de <strong>Logout</strong>.
+  </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="48-informe-cai-livewire.html">← Lección 48 · Informe CAI Livewire</a>
+  <a href="50-comentarios-logout.html">Lección 50 · Comentarios y Logout →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+  Tutorial SICSAL · <span id="year"></span>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 47 · Población y Pirámide Poblacional — Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL · Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+  <span class="badge">Fase 10 — Livewire Público</span>
+  <h1>Lección 47 · Población y Pirámide Poblacional</h1>
+  <p class="subtitle">El componente Livewire que compara datos demográficos INE con población real, genera pirámides con Chart.js y calcula coberturas duales por programa de salud.</p>
+  <p class="meta">Lección 47 de 58 · Tiempo estimado: 30 min</p>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="46-blog-postview.html">← Lección 46 · Blog y PostView</a>
+  <a href="48-informe-cai-livewire.html">Lección 48 · Informe CAI Livewire →</a>
+</nav>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">Arquitectura del componente Poblacion</a></li>
+    <li><a href="#s2">Grupos etareos y la configuración de la pirámide</a></li>
+    <li><a href="#s3">buildPiramide() — INE vs. Real</a></li>
+    <li><a href="#s4">La pirámide Chart.js — barras horizontales negativas</a></li>
+    <li><a href="#s5">Tab INE vs Real — periodos y migración</a></li>
+    <li><a href="#s6">Cobertura dual — 21 indicadores de salud</a></li>
+    <li><a href="#s7">La vista Blade — tabs, tablas y semáforo</a></li>
+    <li><a href="#s8">Patrones técnicos destacados</a></li>
+  </ol>
+</nav>
+
+<!-- ───── Secciones ───── -->
+
+<!-- ───── S1 ───── -->
+<section id="s1">
+  <h2>1 · Arquitectura del componente Poblacion</h2>
+
+  <p>El componente <code>Poblacion</code> (222 líneas) es uno de los más ricos en lógica de negocio. Tiene dos pestañas principales y usa computed properties de Livewire:</p>
+
+  <pre><code><span class="cmt">// app/Livewire/Poblacion.php</span>
+<span class="kw">class</span> <span class="cls">Poblacion</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">use</span> <span class="cls">HasCentroSelector</span>;
+
+    #[<span class="cls">Url</span>]
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$tab</span> = <span class="str">'piramide'</span>;       <span class="cmt">// 'piramide' | 'ine-vs-real'</span>
+
+    #[<span class="cls">Url</span>]
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$periodo</span> = <span class="str">'gestion'</span>;    <span class="cmt">// '1'-'12', 'cai1', 'cai2', 'gestion'</span>
+
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$anio</span>;
+    <span class="kw">public</span> <span class="type">array</span> <span class="var">$piramideData</span> = [];
+}</code></pre>
+
+  <table>
+    <thead>
+      <tr><th>Propiedad</th><th>Tipo</th><th>Descripción</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>$tab</code></td><td>URL-bound</td><td>Pestaña activa (piramide / ine-vs-real)</td></tr>
+      <tr><td><code>$periodo</code></td><td>URL-bound</td><td>Periodo de análisis (mes, CAI, gestión)</td></tr>
+      <tr><td><code>$piramideData</code></td><td>array</td><td>Datos pre-calculados para Chart.js</td></tr>
+      <tr><td><code>$centroSaludId</code></td><td>trait</td><td>Del trait HasCentroSelector</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Computed properties (Livewire lazy)</h3>
+  <pre><code><span class="cmt">// Accesibles en Blade como $this->migracion, $this->cobertura</span>
+<span class="kw">public function</span> <span class="fn">getMigracionProperty</span>(): <span class="type">array</span> { ... }
+<span class="kw">public function</span> <span class="fn">getCoberturaProperty</span>(): <span class="type">array</span> { ... }
+<span class="kw">public function</span> <span class="fn">getNombrePeriodoProperty</span>(): <span class="type">string</span> { ... }</code></pre>
+  <p>Las computed properties se evalúan solo cuando se accede a ellas, y Livewire las cachea durante el ciclo de render.</p>
+</section>
+
+<!-- ───── S2 ───── -->
+<section id="s2">
+  <h2>2 · Grupos etareos y la configuración de la pirámide</h2>
+
+  <p>La pirámide usa 9 grupos de edad estándar del sistema de salud boliviano:</p>
+
+  <pre><code><span class="kw">protected</span> <span class="type">array</span> <span class="var">$gruposConfig</span> = [
+    [<span class="str">'label'</span> => <span class="str">'&lt;1 año'</span>,  <span class="str">'min'</span> => <span class="num">0</span>,  <span class="str">'max'</span> => <span class="num">0</span>,   <span class="str">'ine'</span> => [<span class="str">'menor_1'</span>]],
+    [<span class="str">'label'</span> => <span class="str">'1-4'</span>,     <span class="str">'min'</span> => <span class="num">1</span>,  <span class="str">'max'</span> => <span class="num">4</span>,   <span class="str">'ine'</span> => [<span class="str">'1_anio'</span>, <span class="str">'2_anios'</span>, <span class="str">'3_anios'</span>, <span class="str">'4_anios'</span>]],
+    [<span class="str">'label'</span> => <span class="str">'5-9'</span>,     <span class="str">'min'</span> => <span class="num">5</span>,  <span class="str">'max'</span> => <span class="num">9</span>,   <span class="str">'ine'</span> => [<span class="str">'5_9'</span>]],
+    [<span class="str">'label'</span> => <span class="str">'10-14'</span>,   <span class="str">'min'</span> => <span class="num">10</span>, <span class="str">'max'</span> => <span class="num">14</span>,  <span class="str">'ine'</span> => [<span class="str">'10_14'</span>]],
+    [<span class="str">'label'</span> => <span class="str">'15-19'</span>,   <span class="str">'min'</span> => <span class="num">15</span>, <span class="str">'max'</span> => <span class="num">19</span>,  <span class="str">'ine'</span> => [<span class="str">'15_19'</span>]],
+    [<span class="str">'label'</span> => <span class="str">'20-39'</span>,   <span class="str">'min'</span> => <span class="num">20</span>, <span class="str">'max'</span> => <span class="num">39</span>,  <span class="str">'ine'</span> => [<span class="str">'20_39'</span>]],
+    [<span class="str">'label'</span> => <span class="str">'40-49'</span>,   <span class="str">'min'</span> => <span class="num">40</span>, <span class="str">'max'</span> => <span class="num">49</span>,  <span class="str">'ine'</span> => [<span class="str">'40_49'</span>]],
+    [<span class="str">'label'</span> => <span class="str">'50-59'</span>,   <span class="str">'min'</span> => <span class="num">50</span>, <span class="str">'max'</span> => <span class="num">59</span>,  <span class="str">'ine'</span> => [<span class="str">'50_59'</span>]],
+    [<span class="str">'label'</span> => <span class="str">'60+'</span>,     <span class="str">'min'</span> => <span class="num">60</span>, <span class="str">'max'</span> => <span class="num">200</span>, <span class="str">'ine'</span> => [<span class="str">'mayor_60'</span>]],
+];</code></pre>
+
+  <p>Cada grupo tiene:</p>
+  <ul>
+    <li><strong>label</strong>: Texto visible en el gráfico y la tabla.</li>
+    <li><strong>min/max</strong>: Rango de edad para queries de personas reales (<code>TIMESTAMPDIFF</code>).</li>
+    <li><strong>ine</strong>: Campos del modelo <code>MetaIne</code> para consultar proyecciones INE.</li>
+  </ul>
+
+  <div class="callout info">
+    <strong>1-4 años desagregados</strong>: El INE tiene datos por año individual (1_anio, 2_anios, etc.) para menores de 5, pero agrupados para mayores. La configuración maneja ambos casos con el array <code>ine</code>.
+  </div>
+</section>
+
+<!-- ───── S3 ───── -->
+<section id="s3">
+  <h2>3 · buildPiramide() — INE vs. Real</h2>
+
+  <p>El método <code>buildPiramide()</code> construye los datos para ambas pirámides en una sola pasada:</p>
+
+  <pre><code><span class="kw">private function</span> <span class="fn">buildPiramide</span>(<span class="type">int</span> <span class="var">$centroId</span>): <span class="type">array</span>
+{
+    <span class="cmt">// 1. Cargar TODAS las metas INE del centro/año en memoria</span>
+    <span class="var">$metasIne</span> = <span class="cls">MetaIne</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)-><span class="fn">get</span>();
+
+    <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">gruposConfig</span> <span class="kw">as</span> <span class="var">$grupo</span>) {
+        <span class="cmt">// 2. Datos INE — filtrar de la colección en memoria</span>
+        <span class="var">$grupoIne</span>    = <span class="var">$metasIne</span>-><span class="fn">whereIn</span>(<span class="str">'grupo_etareo'</span>, <span class="var">$grupo</span>[<span class="str">'ine'</span>]);
+        <span class="var">$imExplicito</span> = <span class="var">$grupoIne</span>-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'M'</span>)-><span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+        <span class="var">$ifExplicito</span> = <span class="var">$grupoIne</span>-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)-><span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+        <span class="var">$ambos</span>       = <span class="var">$grupoIne</span>-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'ambos'</span>)-><span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+
+        <span class="cmt">// 3. Fallback ambos → split M/F</span>
+        <span class="var">$im</span> = <span class="var">$imExplicito</span> > <span class="num">0</span> ? <span class="var">$imExplicito</span> : (<span class="type">int</span>) <span class="fn">ceil</span>(<span class="var">$ambos</span> / <span class="num">2</span>);
+        <span class="var">$if</span> = <span class="var">$ifExplicito</span> > <span class="num">0</span> ? <span class="var">$ifExplicito</span> : (<span class="type">int</span>) <span class="fn">floor</span>(<span class="var">$ambos</span> / <span class="num">2</span>);
+
+        <span class="cmt">// 4. Población real — queries a tabla personas</span>
+        <span class="var">$queryBase</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+            -><span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>)
+            -><span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'!='</span>, <span class="str">'migrado'</span>);
+
+        <span class="kw">if</span> (<span class="var">$grupo</span>[<span class="str">'max'</span>] === <span class="num">0</span>) {
+            <span class="cmt">// Menores de 1 año: fecha_nacimiento > hace 1 año</span>
+            <span class="var">$rm</span> = (<span class="kw">clone</span> <span class="var">$queryBase</span>)-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'M'</span>)
+                -><span class="fn">where</span>(<span class="str">'fecha_nacimiento'</span>, <span class="str">'>'</span>, <span class="fn">now</span>()-><span class="fn">subYear</span>())-><span class="fn">count</span>();
+        } <span class="kw">else</span> {
+            <span class="cmt">// Otros grupos: TIMESTAMPDIFF entre min y max</span>
+            <span class="var">$rm</span> = (<span class="kw">clone</span> <span class="var">$queryBase</span>)-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'M'</span>)
+                -><span class="fn">whereRaw</span>(<span class="str">'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE())
+                     BETWEEN ? AND ?'</span>, [<span class="var">$grupo</span>[<span class="str">'min'</span>], <span class="var">$grupo</span>[<span class="str">'max'</span>]])
+                -><span class="fn">count</span>();
+        }
+    }</code></pre>
+
+  <h3>Estructura de retorno</h3>
+  <pre><code><span class="kw">return</span> [
+    <span class="str">'labels'</span> => [<span class="str">'&lt;1 año'</span>, <span class="str">'1-4'</span>, ...],  <span class="cmt">// Eje Y del gráfico</span>
+    <span class="str">'ineM'</span>   => [<span class="num">45</span>, <span class="num">180</span>, ...],            <span class="cmt">// INE masculino</span>
+    <span class="str">'ineF'</span>   => [<span class="num">43</span>, <span class="num">175</span>, ...],            <span class="cmt">// INE femenino</span>
+    <span class="str">'realM'</span>  => [<span class="num">38</span>, <span class="num">160</span>, ...],            <span class="cmt">// Real masculino</span>
+    <span class="str">'realF'</span>  => [<span class="num">40</span>, <span class="num">162</span>, ...],            <span class="cmt">// Real femenino</span>
+    <span class="str">'tabla'</span>  => [                            <span class="cmt">// Para la tabla HTML</span>
+        [<span class="str">'grupo'</span> => <span class="str">'&lt;1 año'</span>, <span class="str">'ine_m'</span> => <span class="num">45</span>, <span class="str">'ine_f'</span> => <span class="num">43</span>,
+         <span class="str">'real_m'</span> => <span class="num">38</span>, <span class="str">'real_f'</span> => <span class="num">40</span>,
+         <span class="str">'dif_m'</span> => <span class="num">-7</span>, <span class="str">'dif_f'</span> => <span class="num">-3</span>],
+        ...
+    ],
+];</code></pre>
+
+  <div class="callout warning">
+    <strong>clone $queryBase</strong>: Sin <code>clone</code>, cada iteración del loop modificaría el mismo builder, acumulando condiciones WHERE. El patrón <code>(clone $queryBase)->where(...)->count()</code> garantiza queries aislados.
+  </div>
+</section>
+
+<!-- ───── S4 ───── -->
+<section id="s4">
+  <h2>4 · La pirámide Chart.js — barras horizontales negativas</h2>
+
+  <p>La técnica para crear una pirámide poblacional con Chart.js es usar un <strong>gráfico de barras horizontales apiladas</strong> donde los valores masculinos son negativos:</p>
+
+  <pre><code><span class="cmt">// Inicialización en Blade con @script + Alpine</span>
+<span class="kw">window</span>.<span class="var">_crearPiramide</span> = <span class="kw">function</span>(<span class="var">windowKey</span>, <span class="var">canvasId</span>, <span class="var">labels</span>, <span class="var">dataM</span>, <span class="var">dataF</span>) {
+    <span class="cmt">// Destruir gráfico previo si existe (para re-renders)</span>
+    <span class="kw">if</span> (<span class="kw">window</span>[<span class="var">windowKey</span>]) {
+        <span class="kw">window</span>[<span class="var">windowKey</span>].<span class="fn">destroy</span>();
+    }
+
+    <span class="kw">window</span>[<span class="var">windowKey</span>] = <span class="kw">new</span> <span class="cls">Chart</span>(<span class="fn">document</span>.<span class="fn">getElementById</span>(<span class="var">canvasId</span>), {
+        <span class="attr">type</span>: <span class="str">'bar'</span>,
+        <span class="attr">data</span>: {
+            <span class="var">labels</span>,  <span class="cmt">// ['&lt;1 año', '1-4', '5-9', ...]</span>
+            <span class="attr">datasets</span>: [
+                {
+                    <span class="attr">label</span>: <span class="str">'Masculino'</span>,
+                    <span class="attr">data</span>: <span class="var">dataM</span>.<span class="fn">map</span>(<span class="var">v</span> => -<span class="var">v</span>),  <span class="cmt">// ← NEGATIVO</span>
+                    <span class="attr">backgroundColor</span>: <span class="str">'rgba(59,130,246,0.7)'</span>,  <span class="cmt">// Azul</span>
+                },
+                {
+                    <span class="attr">label</span>: <span class="str">'Femenino'</span>,
+                    <span class="attr">data</span>: <span class="var">dataF</span>,                <span class="cmt">// ← POSITIVO</span>
+                    <span class="attr">backgroundColor</span>: <span class="str">'rgba(236,72,153,0.7)'</span>, <span class="cmt">// Rosa</span>
+                },
+            ],
+        },
+        <span class="attr">options</span>: {
+            <span class="attr">indexAxis</span>: <span class="str">'y'</span>,           <span class="cmt">// Barras horizontales</span>
+            <span class="attr">responsive</span>: <span class="kw">true</span>,
+            <span class="attr">scales</span>: {
+                <span class="attr">x</span>: {
+                    <span class="attr">stacked</span>: <span class="kw">true</span>,
+                    <span class="attr">ticks</span>: { <span class="fn">callback</span>: <span class="var">v</span> => <span class="cls">Math</span>.<span class="fn">abs</span>(<span class="var">v</span>) }  <span class="cmt">// Mostrar valor absoluto</span>
+                },
+                <span class="attr">y</span>: {
+                    <span class="attr">stacked</span>: <span class="kw">true</span>,
+                    <span class="attr">reverse</span>: <span class="kw">true</span>  <span class="cmt">// Menores arriba, mayores abajo</span>
+                }
+            },
+            <span class="attr">plugins</span>: {
+                <span class="attr">tooltip</span>: {
+                    <span class="attr">callbacks</span>: {
+                        <span class="fn">label</span>: <span class="var">c</span> => <span class="var">c</span>.<span class="var">dataset</span>.<span class="var">label</span> + <span class="str">': '</span> + <span class="cls">Math</span>.<span class="fn">abs</span>(<span class="var">c</span>.<span class="var">parsed</span>.<span class="var">x</span>)
+                    }
+                }
+            }
+        }
+    });
+};</code></pre>
+
+  <h3>¿Por qué valores negativos?</h3>
+  <p>Chart.js no tiene un tipo "pirámide" nativo. El truco es:</p>
+  <ol>
+    <li>Hombres con valores <strong>negativos</strong> → barras hacia la izquierda.</li>
+    <li>Mujeres con valores <strong>positivos</strong> → barras hacia la derecha.</li>
+    <li><code>Math.abs()</code> en ticks y tooltips para mostrar números positivos.</li>
+    <li><code>reverse: true</code> en Y para que los grupos más jóvenes estén arriba.</li>
+  </ol>
+
+  <h3>Inicialización con Alpine + data attribute</h3>
+  <pre><code><span class="cmt">&lt;!-- Los datos PHP se pasan como JSON en un data-attribute --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">data-pir</span>=<span class="str">'@json($pir)'</span>
+     <span class="attr">x-data</span>
+     <span class="attr">x-init</span>=<span class="str">"$nextTick(() => {
+         const d = JSON.parse($el.dataset.pir);
+         window._crearPiramide('_ine',  'piramideIne',  d.labels, d.ineM, d.ineF);
+         window._crearPiramide('_real', 'piramideReal', d.labels, d.realM, d.realF);
+     })"</span><span class="kw">&gt;</span>
+
+  <span class="kw">&lt;canvas</span> <span class="attr">id</span>=<span class="str">"piramideIne"</span>  <span class="attr">height</span>=<span class="str">"300"</span><span class="kw">&gt;&lt;/canvas&gt;</span>
+  <span class="kw">&lt;canvas</span> <span class="attr">id</span>=<span class="str">"piramideReal"</span> <span class="attr">height</span>=<span class="str">"300"</span><span class="kw">&gt;&lt;/canvas&gt;</span>
+
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <div class="callout tip">
+    <strong>$nextTick</strong>: Espera a que Alpine termine de procesar el DOM antes de crear los gráficos. Sin esto, los <code>&lt;canvas&gt;</code> podrían no estar disponibles aún.
+  </div>
+</section>
+
+<!-- ───── S5 ───── -->
+<section id="s5">
+  <h2>5 · Tab INE vs Real — periodos y migración</h2>
+
+  <h3>Selector de periodo</h3>
+  <p>15 botones pill permiten elegir mes individual, CAI acumulado o gestión completa:</p>
+
+  <pre><code><span class="cmt">&lt;!-- 12 meses + CAI 1 + CAI 2 + Gestión --&gt;</span>
+@<span class="fn">foreach</span> ([
+    <span class="str">'1'</span> => <span class="str">'Ene'</span>, <span class="str">'2'</span> => <span class="str">'Feb'</span>, ... <span class="str">'12'</span> => <span class="str">'Dic'</span>,
+    <span class="str">'cai1'</span> => <span class="str">'CAI 1'</span>, <span class="str">'cai2'</span> => <span class="str">'CAI 2'</span>, <span class="str">'gestion'</span> => <span class="str">'Gestión'</span>,
+] <span class="kw">as</span> <span class="var">$val</span> => <span class="var">$label</span>)
+    <span class="kw">&lt;button</span> <span class="attr">wire:click</span>=<span class="str">"$set('periodo', '{{ $val }}')"</span>
+        <span class="attr">class</span>=<span class="str">"{{ $periodo === (string)$val
+            ? 'bg-teal-600 text-white'
+            : 'bg-gray-100 text-gray-700' }}"</span><span class="kw">&gt;</span>
+        {{ <span class="var">$label</span> }}
+    <span class="kw">&lt;/button&gt;</span>
+@<span class="fn">endforeach</span></code></pre>
+
+  <h3>Computed: getMeses / getFactorMeta</h3>
+  <pre><code><span class="cmt">// Meses que incluye cada periodo</span>
+<span class="kw">protected function</span> <span class="fn">getMeses</span>(): <span class="type">array</span>
+{
+    <span class="kw">return match</span> (<span class="var">$this</span>-><span class="var">periodo</span>) {
+        <span class="str">'cai1'</span>    => <span class="fn">range</span>(<span class="num">1</span>, <span class="num">4</span>),    <span class="cmt">// Ene-Abr</span>
+        <span class="str">'cai2'</span>    => <span class="fn">range</span>(<span class="num">1</span>, <span class="num">8</span>),    <span class="cmt">// Ene-Ago</span>
+        <span class="str">'gestion'</span> => <span class="fn">range</span>(<span class="num">1</span>, <span class="num">12</span>),   <span class="cmt">// Ene-Dic</span>
+        <span class="kw">default</span>   => [(<span class="type">int</span>) <span class="var">$this</span>-><span class="var">periodo</span>],  <span class="cmt">// Mes individual</span>
+    };
+}
+
+<span class="cmt">// Factor para ajustar metas anuales al periodo</span>
+<span class="kw">protected function</span> <span class="fn">getFactorMeta</span>(): <span class="type">float</span>
+{
+    <span class="kw">return match</span> (<span class="var">$this</span>-><span class="var">periodo</span>) {
+        <span class="str">'cai1'</span>    => <span class="num">4</span> / <span class="num">12</span>,   <span class="cmt">// 33.3%</span>
+        <span class="str">'cai2'</span>    => <span class="num">8</span> / <span class="num">12</span>,   <span class="cmt">// 66.7%</span>
+        <span class="str">'gestion'</span> => <span class="num">1.0</span>,     <span class="cmt">// 100%</span>
+        <span class="kw">default</span>   => <span class="num">1</span> / <span class="num">12</span>,  <span class="cmt">// 8.3%</span>
+    };
+}</code></pre>
+
+  <h3>Panel de migración</h3>
+  <pre><code><span class="kw">public function</span> <span class="fn">getMigracionProperty</span>(): <span class="type">array</span>
+{
+    <span class="cmt">// Conteos de personas por estado de migración</span>
+    <span class="var">$totalPadron</span>    = <span class="cls">Persona</span>::...-><span class="fn">count</span>();
+    <span class="var">$totalMigrantes</span> = <span class="cls">Persona</span>::...-><span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'migrado'</span>)-><span class="fn">count</span>();
+
+    <span class="cmt">// MEF (Mujeres en Edad Fértil) = F, 15-49 años</span>
+    <span class="var">$mefActivas</span>  = <span class="cls">Persona</span>::...-><span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)
+        -><span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'!='</span>, <span class="str">'migrado'</span>)
+        -><span class="fn">whereRaw</span>(<span class="str">'TIMESTAMPDIFF(YEAR, ...) BETWEEN 15 AND 49'</span>)-><span class="fn">count</span>();
+
+    <span class="var">$mefMigradas</span> = <span class="cls">Persona</span>::...-><span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'migrado'</span>)...;
+
+    <span class="kw">return</span> [
+        <span class="str">'mef_activas'</span>     => <span class="var">$mefActivas</span>,
+        <span class="str">'mef_migradas'</span>    => <span class="var">$mefMigradas</span>,
+        <span class="str">'pct_mef'</span>         => <span class="fn">round</span>(...),
+        <span class="str">'total_migrantes'</span> => <span class="var">$totalMigrantes</span>,
+        <span class="str">'pct_migrantes'</span>   => <span class="fn">round</span>(...),
+        <span class="str">'hombres_migrados'</span> => ...,
+    ];
+}</code></pre>
+
+  <p>Si más del 10% del padrón es migrante, aparece una alerta amber explicando el impacto en coberturas de salud materna, vacunación y planificación familiar.</p>
+</section>
+
+<!-- ───── S6 ───── -->
+<section id="s6">
+  <h2>6 · Cobertura dual — 21 indicadores de salud</h2>
+
+  <p>La computed property <code>getCoberturaProperty()</code> calcula la <strong>doble cobertura</strong> (INE y real) para cada programa:</p>
+
+  <pre><code><span class="cmt">// 15 vacunas con meta = nacimientos_esperados * factor</span>
+<span class="var">$vacunasIndicadores</span> = [
+    <span class="str">'BCG'</span> => <span class="str">'BCG'</span>,
+    <span class="str">'Pentavalente 1ra'</span> => <span class="str">'Pentavalente_1'</span>,
+    <span class="str">'Pentavalente 2da'</span> => <span class="str">'Pentavalente_2'</span>,
+    <span class="str">'Pentavalente 3ra'</span> => <span class="str">'Pentavalente_3'</span>,
+    <span class="cmt">// ... 11 más...</span>
+    <span class="str">'SRP 1ra'</span> => <span class="str">'SRP_1'</span>,
+];
+
+<span class="kw">foreach</span> (<span class="var">$vacunasIndicadores</span> <span class="kw">as</span> <span class="var">$nombre</span> => <span class="var">$tipo</span>) {
+    <span class="var">$atendidos</span> = <span class="cls">PrestVacuna</span>::...
+        -><span class="fn">where</span>(<span class="str">'tipo_vacuna'</span>, <span class="var">$tipo</span>)
+        -><span class="fn">selectRaw</span>(<span class="str">'SUM(dentro_m + dentro_f + fuera_m + fuera_f) as total'</span>)
+        -><span class="fn">value</span>(<span class="str">'total'</span>) ?? <span class="num">0</span>;
+
+    <span class="var">$programas</span>[] = <span class="var">$this</span>-><span class="fn">buildFila</span>(<span class="var">$nombre</span>, <span class="var">$metaMenor1</span>, <span class="var">$menores1</span>, <span class="var">$atendidos</span>);
+}
+
+<span class="cmt">// + Antiamarílica (meta = 1_anio, rango 1-2 años)</span>
+<span class="cmt">// + Control prenatal (meta = embarazos_esperados)</span>
+<span class="cmt">// + Partos calificados (meta = partos_esperados)</span>
+<span class="cmt">// + Crecimiento infantil (meta = menores de 5)</span>
+<span class="cmt">// + Micronutrientes</span></code></pre>
+
+  <h3>buildFila() — cálculo de doble cobertura</h3>
+  <pre><code><span class="kw">protected function</span> <span class="fn">buildFila</span>(<span class="type">string</span> <span class="var">$nombre</span>, <span class="type">float</span> <span class="var">$metaIne</span>,
+                              <span class="type">int</span> <span class="var">$pobReal</span>, <span class="type">int</span> <span class="var">$atendidos</span>): <span class="type">array</span>
+{
+    <span class="kw">return</span> [
+        <span class="str">'nombre'</span>   => <span class="var">$nombre</span>,
+        <span class="str">'meta_ine'</span> => <span class="fn">round</span>(<span class="var">$metaIne</span>),
+        <span class="str">'pob_real'</span> => <span class="var">$pobReal</span>,
+        <span class="str">'atendidos'</span> => <span class="var">$atendidos</span>,
+        <span class="str">'cob_ine'</span>  => <span class="var">$metaIne</span> > <span class="num">0</span>
+            ? <span class="fn">round</span>(<span class="var">$atendidos</span> / <span class="var">$metaIne</span> * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>,
+        <span class="str">'cob_real'</span> => <span class="var">$pobReal</span> > <span class="num">0</span>
+            ? <span class="fn">round</span>(<span class="var">$atendidos</span> / <span class="var">$pobReal</span> * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>,
+    ];
+}</code></pre>
+
+  <div class="callout info">
+    <strong>Doble cobertura = la innovación de SICSAL</strong>: La cobertura INE puede ser >100% porque la meta no refleja la población real (migración). La cobertura real divide por personas realmente activas, dando una cifra más útil para la gestión local.
+  </div>
+</section>
+
+<!-- ───── S7 ───── -->
+<section id="s7">
+  <h2>7 · La vista Blade — tabs, tablas y semáforo</h2>
+
+  <h3>Tabs con wire:click</h3>
+  <pre><code><span class="kw">&lt;button</span> <span class="attr">wire:click</span>=<span class="str">"$set('tab', 'piramide')"</span>
+    <span class="attr">class</span>=<span class="str">"border-b-2 {{ $tab === 'piramide'
+        ? 'border-teal-600 text-teal-600'
+        : 'border-transparent text-gray-500' }}"</span><span class="kw">&gt;</span>
+    Pirámide Poblacional
+<span class="kw">&lt;/button&gt;</span></code></pre>
+
+  <h3>Tabla comparativa con colores de diferencia</h3>
+  <pre><code><span class="cmt">&lt;!-- Verde si diferencia positiva, rojo si negativa --&gt;</span>
+<span class="kw">&lt;td</span> <span class="attr">class</span>=<span class="str">"{{ $fila['dif_m'] < 0
+    ? 'text-red-500' : 'text-green-600' }}"</span><span class="kw">&gt;</span>
+    {{ <span class="var">$fila</span>[<span class="str">'dif_m'</span>] >= <span class="num">0</span> ? <span class="str">'+'</span> : <span class="str">''</span> }}{{ <span class="var">$fila</span>[<span class="str">'dif_m'</span>] }}
+<span class="kw">&lt;/td&gt;</span></code></pre>
+
+  <h3>Tabla de cobertura con semáforo</h3>
+  <pre><code><span class="cmt">&lt;!-- Semáforo: verde ≥80%, amarillo ≥50%, rojo &lt;50% --&gt;</span>
+<span class="kw">&lt;td</span> <span class="attr">class</span>=<span class="str">"{{ $fila['cob_ine'] >= 80
+    ? 'text-green-600'
+    : ($fila['cob_ine'] >= 50
+        ? 'text-yellow-600'
+        : 'text-red-500') }}"</span><span class="kw">&gt;</span>
+    {{ <span class="var">$fila</span>[<span class="str">'cob_ine'</span>] }}%
+<span class="kw">&lt;/td&gt;</span></code></pre>
+
+  <p>La tabla tiene 6 columnas: Programa, Meta INE, Pob. Real Activa, Atendidos, Cob. INE %, Cob. Real %. Cada porcentaje se colorea con semáforo.</p>
+</section>
+
+<!-- ───── S8 ───── -->
+<section id="s8">
+  <h2>8 · Patrones técnicos destacados</h2>
+
+  <table>
+    <thead>
+      <tr><th>Patrón</th><th>Dónde</th><th>Por qué</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>clone $queryBase</strong></td>
+        <td>buildPiramide()</td>
+        <td>Evita acumulación de WHERE en el loop</td>
+      </tr>
+      <tr>
+        <td><strong>Colección en memoria</strong></td>
+        <td>$metasIne->whereIn</td>
+        <td>Una sola query SQL, filtrado en PHP</td>
+      </tr>
+      <tr>
+        <td><strong>Fallback ambos→M/F</strong></td>
+        <td>ceil/floor</td>
+        <td>Datos INE sin desagregación por sexo</td>
+      </tr>
+      <tr>
+        <td><strong>TIMESTAMPDIFF</strong></td>
+        <td>whereRaw</td>
+        <td>Cálculo preciso de edad en MySQL</td>
+      </tr>
+      <tr>
+        <td><strong>Valores negativos</strong></td>
+        <td>Chart.js pyramid</td>
+        <td>Barras bidireccionales sin plugin</td>
+      </tr>
+      <tr>
+        <td><strong>@json + data-attr</strong></td>
+        <td>Blade→Alpine</td>
+        <td>Paso seguro de datos PHP a JavaScript</td>
+      </tr>
+      <tr>
+        <td><strong>Computed properties</strong></td>
+        <td>getMigracion/Cobertura</td>
+        <td>Evaluación lazy, cacheadas por render</td>
+      </tr>
+      <tr>
+        <td><strong>Semáforo visual</strong></td>
+        <td>Clases Tailwind condicionales</td>
+        <td>Feedback inmediato sobre coberturas</td>
+      </tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───── Resumen ───── -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li>El componente <strong>Poblacion</strong> (222 líneas) tiene dos tabs: pirámide poblacional y análisis INE vs Real con doble cobertura.</li>
+    <li>La <strong>pirámide</strong> usa Chart.js con barras horizontales apiladas, valores masculinos negativos y <code>Math.abs()</code> en labels/tooltips.</li>
+    <li><strong>buildPiramide()</strong> carga MetaIne en memoria una vez y filtra en PHP, pero hace queries individuales a Persona por grupo/sexo.</li>
+    <li>El tab <strong>INE vs Real</strong> calcula 21 indicadores de cobertura dual usando 5 modelos diferentes (vacunas, prenatales, partos, crecimiento, micronutrientes).</li>
+    <li>La <strong>migración</strong> contextualiza coberturas bajas: si >10% del padrón migró, se muestra una alerta explicativa.</li>
+    <li>El <strong>semáforo visual</strong> (verde ≥80%, amarillo ≥50%, rojo <50%) da feedback inmediato sobre el estado de cada programa.</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Próxima lección</strong>: En la Lección 48 veremos el <strong>Informe CAI Livewire</strong> — el componente que genera el informe completo descargable en Excel, PowerPoint y PDF.
+  </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="46-blog-postview.html">← Lección 46 · Blog y PostView</a>
+  <a href="48-informe-cai-livewire.html">Lección 48 · Informe CAI Livewire →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+  Tutorial SICSAL · <span id="year"></span>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</footer>
+
+</body>
+</html>

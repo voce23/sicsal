@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 28 — Resource: Defunción | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 6 — Panel Admin (Filament)</div>
+    <div class="lesson-number">Lección 28 de 58</div>
+    <h1 class="lesson-title">Resource: Defunción</h1>
+    <p class="lesson-subtitle">Auto-llenado de campos desde el padrón con getSearchResultsUsing() + afterStateUpdated(), tabla con defaultSort y grupo etáreo.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 6 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~25 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="27-resource-persona.html" class="lesson-nav-btn">← Lección 27</a>
+    <a href="29-resource-meta-ine.html" class="lesson-nav-btn">Lección 29 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#resource">DefuncionResource — misma estructura</a></li>
+      <li><a href="#form-vinculacion">Formulario: vinculación al padrón (auto-fill)</a></li>
+      <li><a href="#form-datos">Formulario: datos del fallecido + defunción</a></li>
+      <li><a href="#table">Tabla: 8 columnas, grupo etáreo, defaultSort</a></li>
+      <li><a href="#pages">Pages estándar</a></li>
+      <li><a href="#resumen">Resumen</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: RESOURCE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resource">
+    <h2><span class="section-number">1</span> DefuncionResource — misma estructura</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/Defuncions/DefuncionResource.php</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">DefuncionResource</span> <span class="kw">extends</span> <span class="cls">Resource</span>
+{
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$model</span> <span class="op">=</span> <span class="cls">Defuncion</span>::<span class="kw">class</span>;
+    <span class="kw">protected static</span> <span class="type">string</span>|<span class="cls">BackedEnum</span>|<span class="kw">null</span> <span class="var">$navigationIcon</span>
+        <span class="op">=</span> <span class="cls">Heroicon</span>::<span class="var">OutlinedDocumentText</span>;
+    <span class="kw">protected static</span> <span class="type">string</span>|<span class="cls">\UnitEnum</span>|<span class="kw">null</span> <span class="var">$navigationGroup</span>
+        <span class="op">=</span> <span class="str">'Padrón Poblacional'</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$navigationLabel</span> <span class="op">=</span> <span class="str">'Defunciones'</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$modelLabel</span>      <span class="op">=</span> <span class="str">'Defunción'</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$pluralModelLabel</span> <span class="op">=</span> <span class="str">'Defunciones'</span>;
+    <span class="kw">protected static</span> ?<span class="type">int</span>    <span class="var">$navigationSort</span>   <span class="op">=</span> <span class="num">2</span>;
+
+    <span class="cmt">// Mismo patrón: filtrado por centro</span>
+    <span class="kw">public static function</span> <span class="fn">getEloquentQuery</span>(): <span class="cls">Builder</span>
+    {
+        <span class="var">$query</span> <span class="op">=</span> <span class="kw">parent</span>::<span class="fn">getEloquentQuery</span>();
+        <span class="var">$user</span>  <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>();
+        <span class="kw">if</span> (<span class="var">$user</span> <span class="op">&amp;&amp;</span> !<span class="var">$user</span>-&gt;<span class="fn">hasRole</span>(<span class="str">'superadmin'</span>)) {
+            <span class="var">$query</span>-&gt;<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$user</span>-&gt;<span class="var">centro_salud_id</span>);
+        }
+        <span class="kw">return</span> <span class="var">$query</span>;
+    }
+
+    <span class="cmt">// Delega a Form y Table separados</span>
+    <span class="kw">public static function</span> <span class="fn">form</span>(<span class="cls">Schema</span> <span class="var">$schema</span>): <span class="cls">Schema</span>
+    { <span class="kw">return</span> <span class="cls">DefuncionForm</span>::<span class="fn">configure</span>(<span class="var">$schema</span>); }
+
+    <span class="kw">public static function</span> <span class="fn">table</span>(<span class="cls">Table</span> <span class="var">$table</span>): <span class="cls">Table</span>
+    { <span class="kw">return</span> <span class="cls">DefuncionsTable</span>::<span class="fn">configure</span>(<span class="var">$table</span>); }
+}</pre>
+      </div>
+    </div>
+
+    <p>Mismo grupo de navegación (<code>Padrón Poblacional</code>) con sort 2. Defunciones aparece justo debajo de Personas en el sidebar.</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: FORM — VINCULACIÓN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="form-vinculacion">
+    <h2><span class="section-number">2</span> Formulario: vinculación al padrón (auto-fill)</h2>
+
+    <p>La gran novedad de este Resource: un Select de búsqueda que al elegir una persona del padrón, <strong>auto-llena 5 campos</strong> del formulario.</p>
+
+    <div class="flow-diagram">
+      <div class="flow-step">Usuario escribe nombre en "Buscar en el padrón"</div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">getSearchResultsUsing() → busca por nombres/apellidos/ci</div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">afterStateUpdated() → auto-llena nombres, apellidos, fecha_nacimiento, sexo, comunidad_id</div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">Usuario solo complementa: fecha_defuncion, lugar, causa</div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">DefuncionForm.php — Sección vinculación</div>
+      <div class="code-body">
+<pre><span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Vinculación al padrón'</span>)
+    -&gt;<span class="fn">schema</span>([
+        <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'persona_id'</span>)
+            -&gt;<span class="fn">label</span>(<span class="str">'Buscar en el padrón (opcional)'</span>)
+            -&gt;<span class="fn">searchable</span>()
+            <span class="hl">-&gt;<span class="fn">getSearchResultsUsing</span>(<span class="kw">fn</span> (<span class="type">string</span> <span class="var">$search</span>) <span class="op">=&gt;</span></span>
+            <span class="hl">    <span class="cls">Persona</span>::<span class="fn">query</span>()</span>
+            <span class="hl">        -&gt;<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()?-&gt;<span class="var">centro_salud_id</span>)</span>
+            <span class="hl">        -&gt;<span class="fn">where</span>(<span class="kw">function</span> (<span class="var">$q</span>) <span class="kw">use</span> (<span class="var">$search</span>) {</span>
+            <span class="hl">            <span class="var">$q</span>-&gt;<span class="fn">where</span>(<span class="str">'nombres'</span>, <span class="str">'like'</span>, <span class="str">"%{<span class="var">$search</span>}%"</span>)</span>
+            <span class="hl">              -&gt;<span class="fn">orWhere</span>(<span class="str">'apellidos'</span>, <span class="str">'like'</span>, <span class="str">"%{<span class="var">$search</span>}%"</span>)</span>
+            <span class="hl">              -&gt;<span class="fn">orWhere</span>(<span class="str">'ci'</span>, <span class="str">'like'</span>, <span class="str">"%{<span class="var">$search</span>}%"</span>);</span>
+            <span class="hl">        })</span>
+            <span class="hl">        -&gt;<span class="fn">limit</span>(<span class="num">20</span>)</span>
+            <span class="hl">        -&gt;<span class="fn">get</span>()</span>
+            <span class="hl">        -&gt;<span class="fn">mapWithKeys</span>(<span class="kw">fn</span> (<span class="cls">Persona</span> <span class="var">$p</span>) <span class="op">=&gt;</span></span>
+            <span class="hl">            [<span class="var">$p</span>-&gt;<span class="var">id</span> <span class="op">=&gt;</span> <span class="str">"{<span class="var">$p</span>-&gt;<span class="var">nombres</span>} {<span class="var">$p</span>-&gt;<span class="var">apellidos</span>} ({<span class="var">$p</span>-&gt;<span class="var">ci</span>})"</span>]</span>
+            <span class="hl">        )-&gt;<span class="fn">toArray</span>()</span>
+            <span class="hl">)</span>
+            -&gt;<span class="fn">getOptionLabelUsing</span>(<span class="kw">fn</span> (<span class="var">$value</span>) <span class="op">=&gt;</span>
+                <span class="cls">Persona</span>::<span class="fn">find</span>(<span class="var">$value</span>)?-&gt;<span class="var">nombre_completo</span> <span class="op">??</span> <span class="var">$value</span>
+            )
+            -&gt;<span class="fn">live</span>()
+            <span class="hl">-&gt;<span class="fn">afterStateUpdated</span>(<span class="kw">function</span> (<span class="var">$state</span>, <span class="cls">Set</span> <span class="var">$set</span>) {</span>
+            <span class="hl">    <span class="kw">if</span> (!<span class="var">$state</span>) <span class="kw">return</span>;</span>
+            <span class="hl">    <span class="var">$persona</span> <span class="op">=</span> <span class="cls">Persona</span>::<span class="fn">find</span>(<span class="var">$state</span>);</span>
+            <span class="hl">    <span class="kw">if</span> (!<span class="var">$persona</span>) <span class="kw">return</span>;</span>
+            <span class="hl">    <span class="var">$set</span>(<span class="str">'nombres'</span>, <span class="var">$persona</span>-&gt;<span class="var">nombres</span>);</span>
+            <span class="hl">    <span class="var">$set</span>(<span class="str">'apellidos'</span>, <span class="var">$persona</span>-&gt;<span class="var">apellidos</span>);</span>
+            <span class="hl">    <span class="var">$set</span>(<span class="str">'fecha_nacimiento'</span>, <span class="var">$persona</span>-&gt;<span class="var">fecha_nacimiento</span>?-&gt;<span class="fn">format</span>(<span class="str">'Y-m-d'</span>));</span>
+            <span class="hl">    <span class="var">$set</span>(<span class="str">'sexo'</span>, <span class="var">$persona</span>-&gt;<span class="var">sexo</span>);</span>
+            <span class="hl">    <span class="var">$set</span>(<span class="str">'comunidad_id'</span>, <span class="var">$persona</span>-&gt;<span class="var">comunidad_id</span>);</span>
+            <span class="hl">})</span>,
+    ]),</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">getSearchResultsUsing() — búsqueda personalizada</div>
+      <p>En lugar de <code>relationship()</code>, este Select usa <code>getSearchResultsUsing()</code> para implementar una búsqueda <strong>totalmente personalizada</strong>:</p>
+      <ul>
+        <li>Filtra por <code>centro_salud_id</code> del usuario (seguridad)</li>
+        <li>Busca en 3 campos: nombres, apellidos, CI</li>
+        <li>Limita a 20 resultados para rendimiento</li>
+        <li>Formatea la opción: "Juan Mamani (1234567)"</li>
+      </ul>
+      <p><code>getOptionLabelUsing()</code> se usa para mostrar el nombre cuando se edita un registro existente (donde el valor ya está seleccionado).</p>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Set $set — injection de Filament</div>
+      <p>El parámetro <code>Set $set</code> es una clase de Filament (no un callable como en PersonaForm). Ambas formas funcionan igual: <code>$set('campo', valor)</code>. En este caso usa la clase tipada <code>Filament\Forms\Set</code>.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: FORM — DATOS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="form-datos">
+    <h2><span class="section-number">3</span> Formulario: datos del fallecido + defunción</h2>
+
+    <div class="code-block">
+      <div class="code-header">DefuncionForm.php — Secciones 2 y 3</div>
+      <div class="code-body">
+<pre><span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Datos del fallecido'</span>)
+    -&gt;<span class="fn">schema</span>([
+        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'nombres'</span>)-&gt;<span class="fn">required</span>()-&gt;<span class="fn">maxLength</span>(<span class="num">100</span>),
+        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'apellidos'</span>)-&gt;<span class="fn">required</span>()-&gt;<span class="fn">maxLength</span>(<span class="num">100</span>),
+        <span class="cls">DatePicker</span>::<span class="fn">make</span>(<span class="str">'fecha_nacimiento'</span>),
+        <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'sexo'</span>)
+            -&gt;<span class="fn">options</span>([<span class="str">'M'</span> <span class="op">=&gt;</span> <span class="str">'Masculino'</span>, <span class="str">'F'</span> <span class="op">=&gt;</span> <span class="str">'Femenino'</span>])
+            -&gt;<span class="fn">required</span>(),
+        <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'comunidad_id'</span>)
+            -&gt;<span class="fn">relationship</span>(<span class="str">'comunidad'</span>, <span class="str">'nombre'</span>,
+                <span class="kw">fn</span> (<span class="var">$query</span>) <span class="op">=&gt;</span> <span class="var">$query</span>-&gt;<span class="fn">where</span>(
+                    <span class="str">'centro_salud_id'</span>, <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()?-&gt;<span class="var">centro_salud_id</span>
+                )
+            )
+            -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">preload</span>(),
+    ])-&gt;<span class="fn">columns</span>(<span class="num">2</span>),
+
+<span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Datos de la defunción'</span>)
+    -&gt;<span class="fn">schema</span>([
+        <span class="cls">DatePicker</span>::<span class="fn">make</span>(<span class="str">'fecha_defuncion'</span>)
+            -&gt;<span class="fn">required</span>()-&gt;<span class="fn">maxDate</span>(<span class="fn">today</span>()),
+        <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'lugar'</span>)
+            -&gt;<span class="fn">options</span>([
+                <span class="str">'establecimiento'</span> <span class="op">=&gt;</span> <span class="str">'En el establecimiento'</span>,
+                <span class="str">'domicilio'</span>       <span class="op">=&gt;</span> <span class="str">'Domicilio'</span>,
+                <span class="str">'referido'</span>        <span class="op">=&gt;</span> <span class="str">'Referido'</span>,
+                <span class="str">'en_transito'</span>     <span class="op">=&gt;</span> <span class="str">'En tránsito'</span>,
+            ])-&gt;<span class="fn">required</span>(),
+        <span class="cls">Textarea</span>::<span class="fn">make</span>(<span class="str">'causa_defuncion'</span>)
+            -&gt;<span class="fn">rows</span>(<span class="num">3</span>)-&gt;<span class="fn">columnSpanFull</span>(),
+    ])-&gt;<span class="fn">columns</span>(<span class="num">2</span>),</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Diseño del formulario</div>
+      <p>Los campos de la sección "Datos del fallecido" se pueden llenar de dos formas:</p>
+      <ul>
+        <li><strong>Automática</strong>: buscando la persona en el padrón → se auto-llenan los 5 campos</li>
+        <li><strong>Manual</strong>: escribiendo directamente (persona no registrada en el padrón)</li>
+      </ul>
+      <p>Esto permite registrar defunciones de personas que no estaban en el sistema.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: TABLE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="table">
+    <h2><span class="section-number">4</span> Tabla: 8 columnas, grupo etáreo, defaultSort</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/Defuncions/Tables/DefuncionsTable.php</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">columns</span>([
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'nombres'</span>)-&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">sortable</span>(),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'apellidos'</span>)-&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">sortable</span>(),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'comunidad.nombre'</span>)-&gt;<span class="fn">searchable</span>(),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'fecha_defuncion'</span>)
+        -&gt;<span class="fn">date</span>(<span class="str">'d/m/Y'</span>)-&gt;<span class="fn">sortable</span>(),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'sexo'</span>)-&gt;<span class="fn">badge</span>()
+        -&gt;<span class="fn">formatStateUsing</span>(<span class="kw">fn</span> (<span class="type">string</span> <span class="var">$state</span>) <span class="op">=&gt;</span>
+            <span class="var">$state</span> <span class="op">===</span> <span class="str">'M'</span> ? <span class="str">'Masculino'</span> : <span class="str">'Femenino'</span>),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'lugar'</span>)-&gt;<span class="fn">badge</span>()
+        -&gt;<span class="fn">formatStateUsing</span>(<span class="kw">fn</span> (<span class="type">string</span> <span class="var">$state</span>) <span class="op">=&gt;</span> <span class="kw">match</span> (<span class="var">$state</span>) {
+            <span class="str">'establecimiento'</span> <span class="op">=&gt;</span> <span class="str">'Establecimiento'</span>,
+            <span class="str">'domicilio'</span>       <span class="op">=&gt;</span> <span class="str">'Domicilio'</span>,
+            <span class="str">'referido'</span>        <span class="op">=&gt;</span> <span class="str">'Referido'</span>,
+            <span class="str">'en_transito'</span>     <span class="op">=&gt;</span> <span class="str">'En tránsito'</span>,
+            <span class="kw">default</span>           <span class="op">=&gt;</span> <span class="var">$state</span>,
+        }),
+    <span class="cmt">// Accessor del modelo — grupo etáreo calculado</span>
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'grupo_etareo_defuncion'</span>)
+        -&gt;<span class="fn">badge</span>()-&gt;<span class="fn">label</span>(<span class="str">'Grupo etáreo'</span>),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'registradoPor.name'</span>)
+        -&gt;<span class="fn">toggleable</span>(<span class="var">isToggledHiddenByDefault</span>: <span class="kw">true</span>),
+])
+-&gt;<span class="fn">filters</span>([
+    <span class="cls">SelectFilter</span>::<span class="fn">make</span>(<span class="str">'lugar'</span>)
+        -&gt;<span class="fn">options</span>([...]),
+    <span class="cls">SelectFilter</span>::<span class="fn">make</span>(<span class="str">'grupo_etareo_defuncion'</span>)
+        -&gt;<span class="fn">options</span>([
+            <span class="str">'neonatal'</span>         <span class="op">=&gt;</span> <span class="str">'Neonatal'</span>,
+            <span class="str">'infantil_menor_1'</span> <span class="op">=&gt;</span> <span class="str">'Infantil &lt;1 año'</span>,
+            <span class="str">'menor_5'</span>          <span class="op">=&gt;</span> <span class="str">'Menor de 5 años'</span>,
+            <span class="str">'5_a_59'</span>           <span class="op">=&gt;</span> <span class="str">'5 a 59 años'</span>,
+            <span class="str">'adulto_mayor'</span>     <span class="op">=&gt;</span> <span class="str">'Adulto mayor (≥60)'</span>,
+        ]),
+])
+<span class="hl">-&gt;<span class="fn">defaultSort</span>(<span class="str">'fecha_defuncion'</span>, <span class="str">'desc'</span>)</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">defaultSort() — orden por defecto</div>
+      <p><code>->defaultSort('fecha_defuncion', 'desc')</code> ordena la tabla mostrando las defunciones más recientes primero. Es la primera tabla de SICSAL que usa un sort por defecto diferente al ID.</p>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">grupo_etareo_defuncion — accessor del modelo</div>
+      <p>Este campo no existe en la base de datos — es un <strong>accessor calculado</strong> del modelo Defuncion que determina el grupo etáreo (neonatal, infantil, etc.) a partir de la edad al fallecer. Los SelectFilter pueden usarlo porque Filament lo resuelve vía el modelo.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: PAGES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="pages">
+    <h2><span class="section-number">5</span> Pages estándar</h2>
+
+    <p>A diferencia de PersonaResource, CreateDefuncion <strong>no</strong> tiene <code>mutateFormDataBeforeCreate</code>. Las 3 Pages siguen el patrón básico:</p>
+    <ul>
+      <li><strong>CreateDefuncion</strong> — extends CreateRecord (vacía)</li>
+      <li><strong>EditDefuncion</strong> — extends EditRecord + DeleteAction</li>
+      <li><strong>ListDefuncions</strong> — extends ListRecords + CreateAction</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RESUMEN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen">
+    <h2><span class="section-number">6</span> Resumen</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos</h3>
+      <ul>
+        <li><strong>getSearchResultsUsing()</strong> — búsqueda personalizada con query custom</li>
+        <li><strong>getOptionLabelUsing()</strong> — mostrar label cuando se edita un registro existente</li>
+        <li><strong>afterStateUpdated + $set()</strong> — auto-llenar 5 campos desde otra entidad</li>
+        <li><strong>defaultSort()</strong> — orden por defecto de la tabla</li>
+        <li><strong>grupo_etareo_defuncion</strong> — accessor calculado como columna de tabla</li>
+        <li><strong>Formulario dual</strong> — auto-fill desde padrón o captura manual</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="27-resource-persona.html" class="lesson-nav-btn">← Lección 27</a>
+    <a href="29-resource-meta-ine.html" class="lesson-nav-btn">Lección 29 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 28 de 58</p>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,775 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lección 42 — CaiHelper: Motor del Informe CAI | Tutorial SICSAL</title>
+    <link rel="stylesheet" href="css/leccion.css">
+    <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL — Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+    <span class="badge">Fase 9 — Helpers y Servicios</span>
+    <h1>Lección 42 — CaiHelper: Motor del Informe CAI</h1>
+    <p class="subtitle">La clase estática de 558 líneas que calcula encabezado, migración, censo, prestaciones,
+        cobertura, deserción, ceros justificados y observaciones para el informe CAI.</p>
+    <div class="meta-row">
+        <span>📄 1 archivo — 558 líneas</span>
+        <span>⏱️ ~55 min</span>
+        <span>📘 Lección 42 de 58</span>
+    </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+    <a href="41-observers.html">← 41. Observers restantes</a>
+    <a href="43-causas-consulta-helper.html">43. CausasConsultaHelper + OmsHelper →</a>
+</nav>
+
+<!-- ───── Archivo principal ───── -->
+<div class="info-box" style="margin:2rem auto;max-width:54rem;">
+    <strong>Archivo creado en esta lección:</strong>
+    <table class="file-table" style="margin-top:.5rem">
+        <tr><td><code>app/Helpers/CaiHelper.php</code></td><td>558 líneas</td><td>Servicio estático — todas las secciones del informe CAI</td></tr>
+    </table>
+</div>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+    <h3>Contenido</h3>
+    <ol>
+        <li><a href="#s1">¿Qué es el informe CAI?</a></li>
+        <li><a href="#s2">Arquitectura de CaiHelper</a></li>
+        <li><a href="#s3">Períodos y factor de meta</a></li>
+        <li><a href="#s4">Encabezado del informe</a></li>
+        <li><a href="#s5">Sección 1 — Contexto de Migración</a></li>
+        <li><a href="#s6">Sección 2 — Censo Poblacional y Pirámide</a></li>
+        <li><a href="#s7">Sección 3 — Prestaciones Acumuladas</a></li>
+        <li><a href="#s8">Sección 4 — Cobertura de Programas</a></li>
+        <li><a href="#s9">Micronutrientes y Carmelo</a></li>
+        <li><a href="#s10">Deserción de vacunas</a></li>
+        <li><a href="#s11">Ceros justificados y observaciones</a></li>
+        <li><a href="#s12">El punto de entrada: getDatosInforme()</a></li>
+        <li><a href="#s13">buildFilaCobertura — helper privado</a></li>
+        <li><a href="#s14">Resumen</a></li>
+    </ol>
+</nav>
+
+<!-- ═══════════ Sección 1 ═══════════ -->
+<section class="section" id="s1">
+    <h2>1 — ¿Qué es el informe CAI?</h2>
+    <p>El <strong>CAI</strong> (Comité de Análisis de Información) es la reunión periódica que cada centro de salud
+        realiza para evaluar el avance de sus programas de salud. SICSAL genera este informe en tres períodos:</p>
+
+    <table class="file-table">
+        <tr><th>Período</th><th>Meses incluidos</th><th>Nombre</th></tr>
+        <tr><td><code>cai1</code></td><td>Enero – Abril</td><td>CAI 1</td></tr>
+        <tr><td><code>cai2</code></td><td>Enero – Agosto</td><td>CAI 2</td></tr>
+        <tr><td><code>gestion</code></td><td>Enero – Diciembre</td><td>Cierre de Gestión</td></tr>
+    </table>
+
+    <p>Los tres períodos son <strong>acumulativos</strong> (siempre empiezan desde enero). La cobertura
+        se mide contra la <strong>meta INE anual</strong> completa — no se prorratea.</p>
+
+    <div class="callout tip">
+        <div class="callout-title">Regla clave</div>
+        La meta INE es siempre el dato anual. Si en CAI 1 tienes 30 vacunados de una meta de 100,
+        tu cobertura es 30% — no 90% (30/33).
+    </div>
+</section>
+
+<!-- ═══════════ Sección 2 ═══════════ -->
+<section class="section" id="s2">
+    <h2>2 — Arquitectura de CaiHelper</h2>
+    <p><code>CaiHelper</code> es una clase con <strong>métodos estáticos puros</strong> — no almacena estado.
+        Recibe <code>centroId</code>, <code>periodo</code> y <code>anio</code>, consulta la BD y devuelve
+        arrays asociativos listos para renderizar.</p>
+
+    <div class="arch-diagram">
+        <div class="arch-box">getDatosInforme(centroId, periodo, anio)</div>
+        <div class="arch-arrow">↓ orquesta</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;max-width:40rem;margin:0 auto">
+            <div class="arch-box" style="font-size:.85rem">getEncabezado()</div>
+            <div class="arch-box" style="font-size:.85rem">getMigracion()</div>
+            <div class="arch-box" style="font-size:.85rem">getCenso()</div>
+            <div class="arch-box" style="font-size:.85rem">getPrestaciones()</div>
+            <div class="arch-box" style="font-size:.85rem">getCobertura()</div>
+            <div class="arch-box" style="font-size:.85rem">getDesercion()</div>
+            <div class="arch-box" style="font-size:.85rem">getCerosJustificados()</div>
+            <div class="arch-box" style="font-size:.85rem">getObservaciones()</div>
+            <div class="arch-box" style="font-size:.85rem">getMesesCerrados()</div>
+        </div>
+    </div>
+
+    <p>Cada método corresponde a una sección del informe. Un solo llamado a <code>getDatosInforme()</code>
+        devuelve todo el dataset que necesitan Excel, PDF y PowerPoint.</p>
+</section>
+
+<!-- ═══════════ Sección 3 ═══════════ -->
+<section class="section" id="s3">
+    <h2>3 — Períodos y factor de meta</h2>
+    <p>Tres métodos utilitarios controlan qué meses y cómo se muestra el período:</p>
+
+    <div class="code-block">
+        <div class="code-header">app/Helpers/CaiHelper.php — Métodos de período</div>
+        <pre><code><span class="kw">class</span> <span class="cls">CaiHelper</span>
+{
+    <span class="kw">private static</span> <span class="type">array</span> <span class="var">$nombresMeses</span> = [
+        <span class="num">1</span> =&gt; <span class="str">'Enero'</span>, <span class="num">2</span> =&gt; <span class="str">'Febrero'</span>, <span class="num">3</span> =&gt; <span class="str">'Marzo'</span>, <span class="num">4</span> =&gt; <span class="str">'Abril'</span>,
+        <span class="num">5</span> =&gt; <span class="str">'Mayo'</span>, <span class="num">6</span> =&gt; <span class="str">'Junio'</span>, <span class="num">7</span> =&gt; <span class="str">'Julio'</span>, <span class="num">8</span> =&gt; <span class="str">'Agosto'</span>,
+        <span class="num">9</span> =&gt; <span class="str">'Septiembre'</span>, <span class="num">10</span> =&gt; <span class="str">'Octubre'</span>, <span class="num">11</span> =&gt; <span class="str">'Noviembre'</span>, <span class="num">12</span> =&gt; <span class="str">'Diciembre'</span>,
+    ];
+
+    <span class="kw">public static function</span> <span class="fn">getMeses</span>(<span class="type">string</span> <span class="var">$periodo</span>): <span class="type">array</span>
+    {
+        <span class="kw">return</span> <span class="fn">match</span> (<span class="var">$periodo</span>) {
+            <span class="str">'cai1'</span>    =&gt; <span class="fn">range</span>(<span class="num">1</span>, <span class="num">4</span>),
+            <span class="str">'cai2'</span>    =&gt; <span class="fn">range</span>(<span class="num">1</span>, <span class="num">8</span>),
+            <span class="str">'gestion'</span> =&gt; <span class="fn">range</span>(<span class="num">1</span>, <span class="num">12</span>),
+            <span class="kw">default</span>   =&gt; <span class="fn">range</span>(<span class="num">1</span>, <span class="num">12</span>),
+        };
+    }
+
+    <span class="kw">public static function</span> <span class="fn">getFactorMeta</span>(<span class="type">string</span> <span class="var">$periodo</span>): <span class="type">float</span>
+    {
+        <span class="kw">return</span> <span class="fn">match</span> (<span class="var">$periodo</span>) {
+            <span class="str">'cai1'</span>    =&gt; <span class="num">4</span> / <span class="num">12</span>,  <span class="cmt">// 0.333</span>
+            <span class="str">'cai2'</span>    =&gt; <span class="num">8</span> / <span class="num">12</span>,  <span class="cmt">// 0.667</span>
+            <span class="str">'gestion'</span> =&gt; <span class="num">1.0</span>,
+            <span class="kw">default</span>   =&gt; <span class="num">1.0</span>,
+        };
+    }
+
+    <span class="kw">public static function</span> <span class="fn">getNombrePeriodo</span>(<span class="type">string</span> <span class="var">$periodo</span>, <span class="type">int</span> <span class="var">$anio</span>): <span class="type">string</span>
+    {
+        <span class="kw">return</span> <span class="fn">match</span> (<span class="var">$periodo</span>) {
+            <span class="str">'cai1'</span>    =&gt; <span class="str">"CAI 1 (Ene–Abr {<span class="var">$anio</span>})"</span>,
+            <span class="str">'cai2'</span>    =&gt; <span class="str">"CAI 2 (Ene–Ago {<span class="var">$anio</span>})"</span>,
+            <span class="str">'gestion'</span> =&gt; <span class="str">"Cierre de Gestión {<span class="var">$anio</span>}"</span>,
+            <span class="kw">default</span>   =&gt; <span class="str">"Gestión {<span class="var">$anio</span>}"</span>,
+        };
+    }</code></pre>
+    </div>
+
+    <div class="callout info">
+        <div class="callout-title">getFactorMeta()</div>
+        Existe pero <strong>no se usa</strong> en el cálculo de cobertura actual — la cobertura
+        se mide atendidos/meta_anual directamente. Se reserva para informes que necesiten
+        proyectar o prorratear.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 4 ═══════════ -->
+<section class="section" id="s4">
+    <h2>4 — Encabezado del informe</h2>
+    <p>Devuelve datos identificatorios del centro y del período:</p>
+
+    <div class="code-block">
+        <div class="code-header">getEncabezado() — datos del centro</div>
+        <pre><code><span class="kw">public static function</span> <span class="fn">getEncabezado</span>(<span class="type">int</span> <span class="var">$centroId</span>, <span class="type">string</span> <span class="var">$periodo</span>, <span class="type">int</span> <span class="var">$anio</span>): <span class="type">array</span>
+{
+    <span class="var">$centro</span> = <span class="cls">CentroSalud</span>::<span class="fn">with</span>(<span class="str">'municipio'</span>)-&gt;<span class="fn">find</span>(<span class="var">$centroId</span>);
+    <span class="var">$admin</span> = <span class="cls">User</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">whereHas</span>(<span class="str">'roles'</span>, <span class="kw">fn</span> (<span class="var">$q</span>) =&gt; <span class="var">$q</span>-&gt;<span class="fn">where</span>(<span class="str">'name'</span>, <span class="str">'admin'</span>))
+        -&gt;<span class="fn">first</span>();
+
+    <span class="kw">return</span> [
+        <span class="str">'centro_nombre'</span>  =&gt; <span class="var">$centro</span>-&gt;<span class="var">nombre</span> ?? <span class="str">'—'</span>,
+        <span class="str">'codigo_snis'</span>    =&gt; <span class="var">$centro</span>-&gt;<span class="var">codigo_snis</span> ?? <span class="str">'—'</span>,
+        <span class="str">'red_salud'</span>      =&gt; <span class="var">$centro</span>-&gt;<span class="var">red_salud</span> ?? <span class="str">'—'</span>,
+        <span class="str">'municipio'</span>      =&gt; <span class="var">$centro</span>-&gt;<span class="var">municipio</span>-&gt;<span class="var">nombre</span> ?? <span class="str">'—'</span>,
+        <span class="str">'departamento'</span>   =&gt; <span class="var">$centro</span>-&gt;<span class="var">municipio</span>-&gt;<span class="var">departamento</span> ?? <span class="str">'Cochabamba'</span>,
+        <span class="str">'subsector'</span>      =&gt; <span class="var">$centro</span>-&gt;<span class="var">subsector</span> ?? <span class="str">'—'</span>,
+        <span class="str">'poblacion_ine'</span>  =&gt; <span class="var">$centro</span>-&gt;<span class="var">poblacion_ine</span> ?? <span class="num">0</span>,
+        <span class="str">'responsable'</span>    =&gt; <span class="var">$admin</span> ? (<span class="var">$admin</span>-&gt;<span class="var">name</span> ?? <span class="str">'—'</span>) : <span class="str">'—'</span>,
+        <span class="str">'periodo_nombre'</span> =&gt; <span class="kw">self</span>::<span class="fn">getNombrePeriodo</span>(<span class="var">$periodo</span>, <span class="var">$anio</span>),
+        <span class="str">'periodo'</span>        =&gt; <span class="var">$periodo</span>,
+        <span class="str">'anio'</span>           =&gt; <span class="var">$anio</span>,
+        <span class="str">'fecha_generacion'</span> =&gt; <span class="fn">now</span>()-&gt;<span class="fn">format</span>(<span class="str">'d/m/Y H:i'</span>),
+    ];
+}</code></pre>
+    </div>
+
+    <p>Observa que busca al usuario con rol <code>admin</code> del centro para mostrar como responsable.
+        El eager-load <code>with('municipio')</code> evita una query N+1.</p>
+</section>
+
+<!-- ═══════════ Sección 5 ═══════════ -->
+<section class="section" id="s5">
+    <h2>5 — Sección 1: Contexto de Migración</h2>
+    <p>Calcula indicadores de migración del padrón activo:</p>
+
+    <div class="code-block">
+        <div class="code-header">getMigracion() — indicadores migratorios</div>
+        <pre><code><span class="kw">public static function</span> <span class="fn">getMigracion</span>(<span class="type">int</span> <span class="var">$centroId</span>): <span class="type">array</span>
+{
+    <span class="var">$base</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>);
+
+    <span class="var">$totalPadron</span> = (<span class="kw">clone</span> <span class="var">$base</span>)-&gt;<span class="fn">count</span>();
+    <span class="var">$migrantes</span>   = (<span class="kw">clone</span> <span class="var">$base</span>)-&gt;<span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'migrado'</span>)-&gt;<span class="fn">count</span>();
+    <span class="var">$residentes</span>  = <span class="var">$totalPadron</span> - <span class="var">$migrantes</span>;
+
+    <span class="var">$mefActivas</span> = (<span class="kw">clone</span> <span class="var">$base</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'!='</span>, <span class="str">'migrado'</span>)
+        -&gt;<span class="fn">whereRaw</span>(<span class="str">'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 15 AND 49'</span>)
+        -&gt;<span class="fn">count</span>();
+
+    <span class="var">$mefMigradas</span> = (<span class="kw">clone</span> <span class="var">$base</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'migrado'</span>)
+        -&gt;<span class="fn">whereRaw</span>(<span class="str">'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN 15 AND 49'</span>)
+        -&gt;<span class="fn">count</span>();
+
+    <span class="kw">return</span> [
+        <span class="str">'total_padron'</span>     =&gt; <span class="var">$totalPadron</span>,
+        <span class="str">'residentes'</span>       =&gt; <span class="var">$residentes</span>,
+        <span class="str">'migrantes'</span>        =&gt; <span class="var">$migrantes</span>,
+        <span class="str">'pct_migrantes'</span>    =&gt; <span class="var">$totalPadron</span> &gt; <span class="num">0</span>
+            ? <span class="fn">round</span>(<span class="var">$migrantes</span> / <span class="var">$totalPadron</span> * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>,
+        <span class="str">'mef_activas'</span>      =&gt; <span class="var">$mefActivas</span>,
+        <span class="str">'mef_migradas'</span>     =&gt; <span class="var">$mefMigradas</span>,
+        <span class="str">'pct_mef_migradas'</span> =&gt; (<span class="var">$mefActivas</span> + <span class="var">$mefMigradas</span>) &gt; <span class="num">0</span>
+            ? <span class="fn">round</span>(<span class="var">$mefMigradas</span> / (<span class="var">$mefActivas</span> + <span class="var">$mefMigradas</span>) * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>,
+        <span class="str">'hombres_migrados'</span> =&gt; <span class="var">$hombresMigrados</span>,
+    ];
+}</code></pre>
+    </div>
+
+    <div class="callout warning">
+        <div class="callout-title">Patrón clone $base</div>
+        Se usa <code>(clone $base)</code> repetidamente porque cada <code>->where()</code> muta el
+        query builder. Sin <code>clone</code>, cada filtro se acumularía sobre la misma instancia
+        y el segundo conteo daría 0. Este patrón se repite en todo CaiHelper.
+    </div>
+
+    <p><strong>MEF</strong> = Mujer en Edad Fértil (15-49 años). El informe distingue MEF activas
+        (residentes) de MEF migradas porque la meta de anticoncepción solo aplica a residentes.</p>
+</section>
+
+<!-- ═══════════ Sección 6 ═══════════ -->
+<section class="section" id="s6">
+    <h2>6 — Sección 2: Censo Poblacional y Pirámide</h2>
+    <p>El método <code>getCenso()</code> genera dos estructuras: una tabla de comunidades y una
+        pirámide poblacional que compara INE vs. padrón real.</p>
+
+    <h3>6.1 — Tabla de comunidades</h3>
+    <div class="code-block">
+        <div class="code-header">getCenso() — comunidades</div>
+        <pre><code><span class="var">$comunidades</span> = <span class="cls">Comunidad</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+    -&gt;<span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>)-&gt;<span class="fn">orderBy</span>(<span class="str">'nombre'</span>)-&gt;<span class="fn">get</span>()
+    -&gt;<span class="fn">map</span>(<span class="kw">function</span> (<span class="var">$com</span>) {
+        <span class="var">$base</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'comunidad_id'</span>, <span class="var">$com</span>-&gt;<span class="var">id</span>)
+            -&gt;<span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>);
+        <span class="kw">return</span> [
+            <span class="str">'nombre'</span>       =&gt; <span class="var">$com</span>-&gt;<span class="var">nombre</span>,
+            <span class="str">'distancia_km'</span> =&gt; <span class="var">$com</span>-&gt;<span class="var">distancia_km</span>,
+            <span class="str">'total'</span>        =&gt; (<span class="kw">clone</span> <span class="var">$base</span>)-&gt;<span class="fn">count</span>(),
+            <span class="str">'hombres'</span>      =&gt; (<span class="kw">clone</span> <span class="var">$base</span>)-&gt;<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'M'</span>)-&gt;<span class="fn">count</span>(),
+            <span class="str">'mujeres'</span>      =&gt; (<span class="kw">clone</span> <span class="var">$base</span>)-&gt;<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)-&gt;<span class="fn">count</span>(),
+            <span class="str">'menor_5'</span>      =&gt; (<span class="kw">clone</span> <span class="var">$base</span>)-&gt;<span class="fn">where</span>(<span class="str">'fecha_nacimiento'</span>, <span class="str">'&gt;='</span>, <span class="fn">now</span>()-&gt;<span class="fn">subYears</span>(<span class="num">5</span>))-&gt;<span class="fn">count</span>(),
+            <span class="str">'migrantes'</span>    =&gt; (<span class="kw">clone</span> <span class="var">$base</span>)-&gt;<span class="fn">where</span>(<span class="str">'estado'</span>, <span class="str">'migrado'</span>)-&gt;<span class="fn">count</span>(),
+        ];
+    })-&gt;<span class="fn">toArray</span>();</code></pre>
+    </div>
+
+    <h3>6.2 — Pirámide poblacional</h3>
+    <p>Compara la proyección INE con el padrón real por grupo etáreo y sexo:</p>
+
+    <div class="code-block">
+        <div class="code-header">getCenso() — pirámide (10 grupos etáreos)</div>
+        <pre><code><span class="var">$gruposPiramide</span> = [
+    [<span class="str">'label'</span> =&gt; <span class="str">'&lt; 1 año'</span>,    <span class="str">'min'</span> =&gt; <span class="num">0</span>,  <span class="str">'max'</span> =&gt; <span class="num">0</span>,   <span class="str">'ine'</span> =&gt; <span class="str">'menor_1'</span>],
+    [<span class="str">'label'</span> =&gt; <span class="str">'1 año'</span>,      <span class="str">'min'</span> =&gt; <span class="num">1</span>,  <span class="str">'max'</span> =&gt; <span class="num">1</span>,   <span class="str">'ine'</span> =&gt; <span class="str">'1_anio'</span>],
+    [<span class="str">'label'</span> =&gt; <span class="str">'2-4 años'</span>,   <span class="str">'min'</span> =&gt; <span class="num">2</span>,  <span class="str">'max'</span> =&gt; <span class="num">4</span>,   <span class="str">'ine'</span> =&gt; <span class="str">'2_4'</span>],
+    <span class="cmt">// ... 5_9, 10_14, 15_19, 20_39, 40_49, 50_59 ...</span>
+    [<span class="str">'label'</span> =&gt; <span class="str">'≥ 60 años'</span>, <span class="str">'min'</span> =&gt; <span class="num">60</span>, <span class="str">'max'</span> =&gt; <span class="num">120</span>, <span class="str">'ine'</span> =&gt; <span class="str">'mayor_60'</span>],
+];
+
+<span class="kw">foreach</span> (<span class="var">$gruposPiramide</span> <span class="kw">as</span> <span class="var">$g</span>) {
+    <span class="cmt">// Meta INE del Excel importado</span>
+    <span class="var">$ineM</span> = <span class="var">$metasIne</span>-&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="var">$g</span>[<span class="str">'ine'</span>])
+        -&gt;<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'M'</span>)-&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+    <span class="var">$ineF</span> = <span class="var">$metasIne</span>-&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="var">$g</span>[<span class="str">'ine'</span>])
+        -&gt;<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'F'</span>)-&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+    <span class="var">$ineAmbos</span> = <span class="var">$metasIne</span>-&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="var">$g</span>[<span class="str">'ine'</span>])
+        -&gt;<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'ambos'</span>)-&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+
+    <span class="cmt">// Fallback: si solo hay dato "ambos", dividir 50/50</span>
+    <span class="kw">if</span> (<span class="var">$ineM</span> === <span class="num">0</span> &amp;&amp; <span class="var">$ineF</span> === <span class="num">0</span> &amp;&amp; <span class="var">$ineAmbos</span> &gt; <span class="num">0</span>) {
+        <span class="var">$ineM</span> = <span class="fn">intdiv</span>(<span class="var">$ineAmbos</span>, <span class="num">2</span>);
+        <span class="var">$ineF</span> = <span class="var">$ineAmbos</span> - <span class="var">$ineM</span>;
+    }
+
+    <span class="cmt">// Padrón real: activos no migrados ni fallecidos</span>
+    <span class="var">$base</span> = <span class="cls">Persona</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'activo'</span>, <span class="kw">true</span>)
+        -&gt;<span class="fn">whereNotIn</span>(<span class="str">'estado'</span>, [<span class="str">'migrado'</span>, <span class="str">'fallecido'</span>]);
+
+    <span class="var">$realM</span> = (<span class="kw">clone</span> <span class="var">$base</span>)-&gt;<span class="fn">where</span>(<span class="str">'sexo'</span>, <span class="str">'M'</span>)
+        -&gt;<span class="fn">whereRaw</span>(<span class="str">'TIMESTAMPDIFF(YEAR, fecha_nacimiento, CURDATE()) BETWEEN ? AND ?'</span>,
+            [<span class="var">$g</span>[<span class="str">'min'</span>], <span class="var">$g</span>[<span class="str">'max'</span>]])
+        -&gt;<span class="fn">count</span>();
+
+    <span class="var">$piramide</span>[] = [
+        <span class="str">'label'</span>  =&gt; <span class="var">$g</span>[<span class="str">'label'</span>],
+        <span class="str">'ine_m'</span>  =&gt; <span class="var">$ineM</span>,  <span class="str">'ine_f'</span>  =&gt; <span class="var">$ineF</span>,
+        <span class="str">'real_m'</span> =&gt; <span class="var">$realM</span>, <span class="str">'real_f'</span> =&gt; <span class="var">$realF</span>,
+    ];
+}</code></pre>
+    </div>
+
+    <div class="callout tip">
+        <div class="callout-title">Fallback ambos → M/F</div>
+        Cuando el Excel INE solo trae un valor para «ambos sexos» sin desglose, se divide con
+        <code>intdiv()</code> — el residuo va a femenino para no perder una unidad.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 7 ═══════════ -->
+<section class="section" id="s7">
+    <h2>7 — Sección 3: Prestaciones Acumuladas</h2>
+    <p><code>getPrestaciones()</code> es el método más extenso — consulta <strong>9 tablas prest_*</strong>
+        y devuelve los totales acumulados por período:</p>
+
+    <div class="code-block">
+        <div class="code-header">getPrestaciones() — 9 consultas paralelas</div>
+        <pre><code><span class="kw">public static function</span> <span class="fn">getPrestaciones</span>(
+    <span class="type">int</span> <span class="var">$centroId</span>, <span class="type">int</span> <span class="var">$anio</span>, <span class="type">array</span> <span class="var">$meses</span>
+): <span class="type">array</span> {
+    <span class="cmt">// 1. Consulta externa — groupBy grupo_etareo</span>
+    <span class="var">$consultaExterna</span> = <span class="cls">PrestConsultaExterna</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">whereIn</span>(<span class="str">'mes'</span>, <span class="var">$meses</span>)
+        -&gt;<span class="fn">selectRaw</span>(<span class="str">'grupo_etareo,
+            SUM(primera_m) as primera_m, SUM(primera_f) as primera_f,
+            SUM(nueva_m) as nueva_m, SUM(nueva_f) as nueva_f,
+            SUM(repetida_m) as repetida_m, SUM(repetida_f) as repetida_f'</span>)
+        -&gt;<span class="fn">groupBy</span>(<span class="str">'grupo_etareo'</span>)-&gt;<span class="fn">get</span>()
+        -&gt;<span class="fn">keyBy</span>(<span class="str">'grupo_etareo'</span>)-&gt;<span class="fn">toArray</span>();
+
+    <span class="cmt">// 2. Vacunas — groupBy tipo_vacuna + grupo_etareo</span>
+    <span class="var">$vacunas</span> = <span class="cls">PrestVacuna</span>::<span class="fn">where</span>(...)-&gt;<span class="fn">selectRaw</span>(<span class="str">'tipo_vacuna, grupo_etareo,
+        SUM(dentro_m + dentro_f + fuera_m + fuera_f) as total,
+        SUM(dentro_m) as dm, SUM(dentro_f) as df,
+        SUM(fuera_m) as fm, SUM(fuera_f) as ff'</span>)
+        -&gt;<span class="fn">groupBy</span>(<span class="str">'tipo_vacuna'</span>, <span class="str">'grupo_etareo'</span>)-&gt;<span class="fn">get</span>();
+
+    <span class="cmt">// 3. Micronutrientes — groupBy tipo, pluck total,tipo</span>
+    <span class="cmt">// 4. Prenatales — groupBy tipo_control + grupo_etareo</span>
+    <span class="cmt">// 5. Partos — groupBy tipo + lugar + atendido_por + grupo_etareo</span>
+    <span class="cmt">// 6. Puerperio — groupBy tipo_control</span>
+    <span class="cmt">// 7. Crecimiento — groupBy grupo_etareo</span>
+    <span class="cmt">// 8. Recién nacidos — groupBy indicador</span>
+    <span class="cmt">// 9. Anticoncepción — groupBy metodo + tipo_usuaria</span>
+
+    <span class="kw">return</span> [
+        <span class="str">'consulta_externa'</span> =&gt; <span class="var">$consultaExterna</span>,
+        <span class="str">'vacunas'</span>          =&gt; <span class="var">$vacunas</span>,
+        <span class="str">'micronutrientes'</span>  =&gt; <span class="var">$micronutrientes</span>,
+        <span class="str">'prenatales'</span>       =&gt; <span class="var">$prenatales</span>,
+        <span class="str">'partos'</span>           =&gt; <span class="var">$partos</span>,
+        <span class="str">'puerperio'</span>        =&gt; <span class="var">$puerperio</span>,
+        <span class="str">'crecimiento'</span>      =&gt; <span class="var">$crecimiento</span>,
+        <span class="str">'recien_nacidos'</span>   =&gt; <span class="var">$recienNacidos</span>,
+        <span class="str">'anticoncepcion'</span>   =&gt; <span class="var">$anticoncepcion</span>,
+    ];
+}</code></pre>
+    </div>
+
+    <p>Cada consulta sigue el mismo patrón: filtrar por <code>centro_salud_id</code>, <code>anio</code>
+        y <code>whereIn('mes', $meses)</code>, agrupar con <code>selectRaw</code> + <code>groupBy</code>,
+        y devolver como array.</p>
+
+    <div class="callout info">
+        <div class="callout-title">¿Por qué selectRaw?</div>
+        Se usa <code>selectRaw()</code> con SUM porque las tablas <code>prest_*</code> tienen un registro
+        por mes. Para obtener el acumulado del período hay que sumar. Eloquent no tiene un
+        <code>->sum()</code> múltiple con groupBy.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 8 ═══════════ -->
+<section class="section" id="s8">
+    <h2>8 — Sección 4: Cobertura de Programas</h2>
+    <p>El corazón del CAI. <code>getCobertura()</code> calcula para cada programa de salud:</p>
+
+    <ul>
+        <li><strong>Meta INE</strong> — dato anual del INE (nacimientos esperados, embarazos, etc.)</li>
+        <li><strong>Población real</strong> — conteo del padrón actual</li>
+        <li><strong>Atendidos</strong> — suma de prestaciones en el período</li>
+        <li><strong>% Cobertura INE</strong> — atendidos / meta_ine × 100</li>
+        <li><strong>% Cobertura Real</strong> — atendidos / pob_real × 100</li>
+    </ul>
+
+    <h3>8.1 — Cobertura de vacunas (16 indicadores)</h3>
+    <div class="code-block">
+        <div class="code-header">getCobertura() — vacunas</div>
+        <pre><code><span class="cmt">// Meta = nacimientos esperados del año (dato INE)</span>
+<span class="var">$metaMenor1</span> = <span class="var">$metasIne</span>-&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'nacimientos_esperados'</span>)
+    -&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+
+<span class="var">$vacunasIndicadores</span> = [
+    <span class="str">'BCG'</span>                   =&gt; [<span class="str">'BCG'</span>],
+    <span class="str">'Pentavalente 1ra'</span>      =&gt; [<span class="str">'Pentavalente_1'</span>],
+    <span class="str">'Pentavalente 2da'</span>      =&gt; [<span class="str">'Pentavalente_2'</span>],
+    <span class="str">'Pentavalente 3ra'</span>      =&gt; [<span class="str">'Pentavalente_3'</span>],
+    <span class="str">'IPV 1ra'</span>               =&gt; [<span class="str">'IPV_1'</span>],
+    <span class="str">'bOPV 2da'</span>              =&gt; [<span class="str">'bOPV_2'</span>],
+    <span class="str">'bOPV 3ra'</span>              =&gt; [<span class="str">'IPV_3'</span>],
+    <span class="str">'Antirotavírica 1ra'</span>    =&gt; [<span class="str">'Antirotavirica_1'</span>],
+    <span class="str">'Antirotavírica 2da'</span>    =&gt; [<span class="str">'Antirotavirica_2'</span>],
+    <span class="str">'Antineumocócica 1ra'</span>   =&gt; [<span class="str">'Antineumococica_1'</span>],
+    <span class="str">'Antineumocócica 2da'</span>   =&gt; [<span class="str">'Antineumococica_2'</span>],
+    <span class="str">'Antineumocócica 3ra'</span>   =&gt; [<span class="str">'Antineumococica_3'</span>],
+    <span class="str">'Influenza 1ra'</span>         =&gt; [<span class="str">'Influenza_6_11m_1'</span>],
+    <span class="str">'Influenza 2da'</span>         =&gt; [<span class="str">'Influenza_7_11m_2'</span>],
+    <span class="str">'SRP 1ra'</span>               =&gt; [<span class="str">'SRP_1'</span>],
+    <span class="str">'Antiamarílica'</span>         =&gt; [<span class="str">'Antiamarilica'</span>],
+];
+
+<span class="kw">foreach</span> (<span class="var">$vacunasIndicadores</span> <span class="kw">as</span> <span class="var">$nombre</span> =&gt; <span class="var">$tipos</span>) {
+    <span class="var">$atendidos</span> = <span class="cls">PrestVacuna</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">whereIn</span>(<span class="str">'mes'</span>, <span class="var">$meses</span>)
+        -&gt;<span class="fn">whereIn</span>(<span class="str">'tipo_vacuna'</span>, <span class="var">$tipos</span>)
+        -&gt;<span class="fn">selectRaw</span>(<span class="str">'SUM(dentro_m+dentro_f+fuera_m+fuera_f) as t'</span>)
+        -&gt;<span class="fn">value</span>(<span class="str">'t'</span>) ?? <span class="num">0</span>;
+
+    <span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(
+        <span class="var">$nombre</span>, <span class="var">$metaMenor1</span>, <span class="var">$realMenor1</span>, <span class="var">$atendidos</span>
+    );
+}</code></pre>
+    </div>
+
+    <p>Los 16 indicadores de vacunación usan la misma meta (nacimientos esperados) porque
+        el esquema PAI boliviano requiere vacunar a todos los menores de 1 año nacidos en el año.</p>
+
+    <h3>8.2 — Cobertura prenatal, partos y crecimiento</h3>
+    <div class="code-block">
+        <div class="code-header">getCobertura() — otros programas</div>
+        <pre><code><span class="cmt">// Prenatal — meta = embarazos esperados</span>
+<span class="var">$metaPrenatal</span> = <span class="var">$metasIne</span>-&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'embarazos_esperados'</span>)
+    -&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+<span class="var">$atPrenatal</span> = <span class="cls">PrestPrenatal</span>::...
+    -&gt;<span class="fn">selectRaw</span>(<span class="str">'SUM(dentro+fuera) as t'</span>)-&gt;<span class="fn">value</span>(<span class="str">'t'</span>) ?? <span class="num">0</span>;
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(<span class="str">'Prenatal'</span>, <span class="var">$metaPrenatal</span>, <span class="var">$mefActivas</span>, <span class="var">$atPrenatal</span>);
+
+<span class="cmt">// Partos — meta = partos esperados</span>
+<span class="var">$metaParto</span> = <span class="var">$metasIne</span>-&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'partos_esperados'</span>)
+    -&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(<span class="str">'Partos'</span>, <span class="var">$metaParto</span>, <span class="var">$mefActivas</span>, <span class="var">$atParto</span>);
+
+<span class="cmt">// Crecimiento — meta = menores de 5 años INE</span>
+<span class="var">$metaCrecim</span> = <span class="var">$metasIne</span>-&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'menor_5'</span>)
+    -&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+<span class="var">$menores5</span> = (<span class="kw">clone</span> <span class="var">$baseCobertura</span>)
+    -&gt;<span class="fn">where</span>(<span class="str">'fecha_nacimiento'</span>, <span class="str">'&gt;='</span>, <span class="fn">now</span>()-&gt;<span class="fn">subYears</span>(<span class="num">5</span>))-&gt;<span class="fn">count</span>();
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(<span class="str">'Crecimiento'</span>, <span class="var">$metaCrecim</span>, <span class="var">$menores5</span>, <span class="var">$atCrecim</span>);</code></pre>
+    </div>
+
+    <p>Cada programa usa su propia meta INE (<code>nacimientos_esperados</code>, <code>embarazos_esperados</code>,
+        <code>partos_esperados</code>, <code>menor_5</code>) y su propio recuento real del padrón.</p>
+</section>
+
+<!-- ═══════════ Sección 9 ═══════════ -->
+<section class="section" id="s9">
+    <h2>9 — Micronutrientes y Carmelo</h2>
+    <p>La sección de cobertura incluye 11 indicadores de micronutrientes, cada uno con su meta
+        específica por grupo etáreo:</p>
+
+    <div class="code-block">
+        <div class="code-header">getCobertura() — micronutrientes</div>
+        <pre><code><span class="var">$sumMicro</span> = <span class="kw">fn</span> (<span class="type">array</span> <span class="var">$tipos</span>) =&gt; (<span class="type">int</span>) <span class="cls">PrestMicronutriente</span>::
+    <span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+    -&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">whereIn</span>(<span class="str">'mes'</span>, <span class="var">$meses</span>)
+    -&gt;<span class="fn">whereIn</span>(<span class="str">'tipo'</span>, <span class="var">$tipos</span>)-&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+
+<span class="cmt">// Metas INE por grupo etáreo del Excel</span>
+<span class="var">$ineM1</span>  = <span class="var">$metasIne</span>-&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'menor_1'</span>)-&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+<span class="var">$ine1a</span>  = <span class="var">$metasIne</span>-&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'1_anio'</span>)-&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+<span class="var">$ine2_4</span> = <span class="var">$metasIne</span>-&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'2_4'</span>)-&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+<span class="var">$ineM60</span> = <span class="var">$metasIne</span>-&gt;<span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'mayor_60'</span>)-&gt;<span class="fn">sum</span>(<span class="str">'cantidad'</span>);
+
+<span class="cmt">// ── HIERRO (1 dosis/año por grupo) ──</span>
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(<span class="str">'Hierro 6-11 meses'</span>, <span class="var">$ineM1</span>, <span class="num">0</span>,
+    <span class="var">$sumMicro</span>([<span class="str">'hierro_menor_1'</span>]));
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(<span class="str">'Hierro 1 año'</span>, <span class="var">$ine1a</span>, <span class="num">0</span>,
+    <span class="var">$sumMicro</span>([<span class="str">'hierro_1anio'</span>]));
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(<span class="str">'Hierro 2-4 años'</span>, <span class="var">$ine2_4</span>, <span class="num">0</span>,
+    <span class="var">$sumMicro</span>([<span class="str">'hierro_2_5'</span>]));
+
+<span class="cmt">// ── VITAMINA A (dosis separadas) ──</span>
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(<span class="str">'Vitamina A &lt;1 año (única)'</span>,
+    <span class="var">$ineM1</span>, <span class="num">0</span>, <span class="var">$sumMicro</span>([<span class="str">'vitA_menor_1_unica'</span>]));
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(<span class="str">'Vitamina A 1 año — 1ra dosis'</span>,
+    <span class="var">$ine1a</span>, <span class="num">0</span>, <span class="var">$sumMicro</span>([<span class="str">'vitA_1anio_1ra'</span>]));
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(<span class="str">'Vitamina A 1 año — 2da dosis'</span>,
+    <span class="var">$ine1a</span>, <span class="num">0</span>, <span class="var">$sumMicro</span>([<span class="str">'vitA_1anio_2da'</span>]));
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(<span class="str">'Vitamina A 2-4 años — 1ra dosis'</span>,
+    <span class="var">$ine2_4</span>, <span class="num">0</span>, <span class="var">$sumMicro</span>([<span class="str">'vitA_2_5_1ra'</span>]));
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(<span class="str">'Vitamina A 2-4 años — 2da dosis'</span>,
+    <span class="var">$ine2_4</span>, <span class="num">0</span>, <span class="var">$sumMicro</span>([<span class="str">'vitA_2_5_2da'</span>]));</code></pre>
+    </div>
+
+    <h3>9.1 — Nutribebé y Carmelo (promedio mensual)</h3>
+    <p>Estos suplementos se entregan <strong>cada mes</strong>, así que la cobertura se mide como
+        promedio mensual vs. meta:</p>
+
+    <div class="code-block">
+        <div class="code-header">getCobertura() — programas mensuales</div>
+        <pre><code><span class="var">$nMeses</span> = <span class="fn">count</span>(<span class="var">$meses</span>);
+
+<span class="cmt">// Nutribebé 6-11 meses: meta = mitad de menor_1 (los ≥6m)</span>
+<span class="var">$nutri6_11Total</span> = <span class="var">$sumMicro</span>([<span class="str">'nutribebe_menor_1'</span>]);
+<span class="var">$metaNutri6_11</span> = (<span class="type">int</span>) <span class="fn">round</span>(<span class="var">$ineM1</span> / <span class="num">2</span>);
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(
+    <span class="str">'Nutribebé 6-11 meses (prom. mensual)'</span>,
+    <span class="var">$metaNutri6_11</span>, <span class="num">0</span>,
+    <span class="var">$nMeses</span> &gt; <span class="num">0</span> ? (<span class="type">int</span>) <span class="fn">round</span>(<span class="var">$nutri6_11Total</span> / <span class="var">$nMeses</span>) : <span class="num">0</span>
+);
+
+<span class="cmt">// Carmelo >60 años: meta = mayor_60 del INE</span>
+<span class="var">$carmeloTotal</span> = <span class="var">$sumMicro</span>([<span class="str">'carmelo_mayor_60'</span>]);
+<span class="var">$programas</span>[] = <span class="kw">self</span>::<span class="fn">buildFilaCobertura</span>(
+    <span class="str">'Carmelo >60 años (prom. mensual)'</span>,
+    <span class="var">$ineM60</span>, <span class="var">$realM60</span>,
+    <span class="var">$nMeses</span> &gt; <span class="num">0</span> ? (<span class="type">int</span>) <span class="fn">round</span>(<span class="var">$carmeloTotal</span> / <span class="var">$nMeses</span>) : <span class="num">0</span>
+);</code></pre>
+    </div>
+
+    <div class="callout warning">
+        <div class="callout-title">Promedio mensual</div>
+        Para Nutribebé y Carmelo el «atendidos» es <code>total_periodo / nMeses</code> porque
+        la cobertura mensual mide «cuántos recibieron este mes». Si entregaste 120 paquetes
+        en 4 meses, el promedio es 30/mes — comparado contra la meta de niños que deberían
+        recibirlo cada mes.
+    </div>
+</section>
+
+<!-- ═══════════ Sección 10 ═══════════ -->
+<section class="section" id="s10">
+    <h2>10 — Deserción de vacunas</h2>
+    <p>La tasa de deserción mide cuántos niños iniciaron el esquema pero no lo completaron:</p>
+
+    <div class="code-block">
+        <div class="code-header">getDesercion() — indicadores de abandono</div>
+        <pre><code><span class="kw">public static function</span> <span class="fn">getDesercion</span>(
+    <span class="type">int</span> <span class="var">$centroId</span>, <span class="type">int</span> <span class="var">$anio</span>, <span class="type">array</span> <span class="var">$meses</span>
+): <span class="type">array</span> {
+    <span class="var">$sumVacuna</span> = <span class="kw">fn</span> (<span class="type">string</span> <span class="var">$tipo</span>) =&gt;
+        <span class="cls">PrestVacuna</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">whereIn</span>(<span class="str">'mes'</span>, <span class="var">$meses</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'tipo_vacuna'</span>, <span class="var">$tipo</span>)
+        -&gt;<span class="fn">selectRaw</span>(<span class="str">'SUM(dentro_m+dentro_f+fuera_m+fuera_f) as t'</span>)
+        -&gt;<span class="fn">value</span>(<span class="str">'t'</span>) ?? <span class="num">0</span>;
+
+    <span class="var">$penta1</span> = <span class="var">$sumVacuna</span>(<span class="str">'Pentavalente_1'</span>);
+    <span class="var">$penta3</span> = <span class="var">$sumVacuna</span>(<span class="str">'Pentavalente_3'</span>);
+    <span class="var">$srp1</span>   = <span class="var">$sumVacuna</span>(<span class="str">'SRP_1'</span>);
+    <span class="var">$srp2</span>   = <span class="var">$sumVacuna</span>(<span class="str">'SRP_2'</span>);
+
+    <span class="kw">return</span> [
+        [
+            <span class="str">'indicador'</span> =&gt; <span class="str">'Pentavalente 1ra → 3ra'</span>,
+            <span class="str">'primera'</span>   =&gt; <span class="var">$penta1</span>,
+            <span class="str">'ultima'</span>    =&gt; <span class="var">$penta3</span>,
+            <span class="str">'tasa'</span>      =&gt; <span class="var">$penta1</span> &gt; <span class="num">0</span>
+                ? <span class="fn">round</span>((<span class="var">$penta1</span> - <span class="var">$penta3</span>) / <span class="var">$penta1</span> * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>,
+        ],
+        [
+            <span class="str">'indicador'</span> =&gt; <span class="str">'SRP 1ra → 2da'</span>,
+            <span class="str">'primera'</span>   =&gt; <span class="var">$srp1</span>,
+            <span class="str">'ultima'</span>    =&gt; <span class="var">$srp2</span>,
+            <span class="str">'tasa'</span>      =&gt; <span class="var">$srp1</span> &gt; <span class="num">0</span>
+                ? <span class="fn">round</span>((<span class="var">$srp1</span> - <span class="var">$srp2</span>) / <span class="var">$srp1</span> * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>,
+        ],
+    ];
+}</code></pre>
+    </div>
+
+    <p>La fórmula: <code>(primera_dosis − última_dosis) / primera_dosis × 100</code>.
+        Una tasa de deserción de 20% significa que 2 de cada 10 niños abandonaron el esquema.</p>
+</section>
+
+<!-- ═══════════ Sección 11 ═══════════ -->
+<section class="section" id="s11">
+    <h2>11 — Ceros justificados y observaciones</h2>
+    <p>Dos métodos simples que extraen datos de las tablas auxiliares:</p>
+
+    <div class="code-block">
+        <div class="code-header">getCerosJustificados() + getObservaciones()</div>
+        <pre><code><span class="kw">public static function</span> <span class="fn">getCerosJustificados</span>(
+    <span class="type">int</span> <span class="var">$centroId</span>, <span class="type">int</span> <span class="var">$anio</span>, <span class="type">array</span> <span class="var">$meses</span>
+): <span class="type">array</span> {
+    <span class="kw">return</span> <span class="cls">JustificacionCero</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">whereIn</span>(<span class="str">'mes'</span>, <span class="var">$meses</span>)
+        -&gt;<span class="fn">orderBy</span>(<span class="str">'mes'</span>)-&gt;<span class="fn">orderBy</span>(<span class="str">'indicador'</span>)
+        -&gt;<span class="fn">get</span>()
+        -&gt;<span class="fn">map</span>(<span class="kw">fn</span> (<span class="var">$j</span>) =&gt; [
+            <span class="str">'mes'</span>       =&gt; <span class="kw">self</span>::<span class="var">$nombresMeses</span>[<span class="var">$j</span>-&gt;<span class="var">mes</span>] ?? <span class="var">$j</span>-&gt;<span class="var">mes</span>,
+            <span class="str">'indicador'</span> =&gt; <span class="var">$j</span>-&gt;<span class="var">indicador</span>,
+            <span class="str">'motivo'</span>    =&gt; <span class="var">$j</span>-&gt;<span class="var">motivo</span>,
+            <span class="str">'detalle'</span>   =&gt; <span class="var">$j</span>-&gt;<span class="var">detalle</span>,
+        ])-&gt;<span class="fn">toArray</span>();
+}
+
+<span class="kw">public static function</span> <span class="fn">getObservaciones</span>(
+    <span class="type">int</span> <span class="var">$centroId</span>, <span class="type">int</span> <span class="var">$anio</span>, <span class="type">array</span> <span class="var">$meses</span>
+): <span class="type">array</span> {
+    <span class="kw">return</span> <span class="cls">ObservacionMensual</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">whereIn</span>(<span class="str">'mes'</span>, <span class="var">$meses</span>)
+        -&gt;<span class="fn">whereNotNull</span>(<span class="str">'texto'</span>)-&gt;<span class="fn">where</span>(<span class="str">'texto'</span>, <span class="str">'!='</span>, <span class="str">''</span>)
+        -&gt;<span class="fn">orderBy</span>(<span class="str">'mes'</span>)
+        -&gt;<span class="fn">get</span>()
+        -&gt;<span class="fn">map</span>(<span class="kw">fn</span> (<span class="var">$o</span>) =&gt; [
+            <span class="str">'mes'</span>   =&gt; <span class="kw">self</span>::<span class="var">$nombresMeses</span>[<span class="var">$o</span>-&gt;<span class="var">mes</span>] ?? <span class="var">$o</span>-&gt;<span class="var">mes</span>,
+            <span class="str">'texto'</span> =&gt; <span class="var">$o</span>-&gt;<span class="var">texto</span>,
+        ])-&gt;<span class="fn">toArray</span>();
+}</code></pre>
+    </div>
+
+    <p>Las justificaciones de cero se ingresan en el formulario mensual (lección 39) y se
+        presentan aquí para que el CAI las revise. Las observaciones narrativas son notas
+        libres del registrador.</p>
+
+    <h3>11.1 — Estado de meses cerrados</h3>
+    <div class="code-block">
+        <div class="code-header">getMesesCerrados()</div>
+        <pre><code><span class="kw">public static function</span> <span class="fn">getMesesCerrados</span>(
+    <span class="type">int</span> <span class="var">$centroId</span>, <span class="type">int</span> <span class="var">$anio</span>, <span class="type">array</span> <span class="var">$meses</span>
+): <span class="type">array</span> {
+    <span class="var">$cerrados</span> = <span class="cls">MesCerrado</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$anio</span>)-&gt;<span class="fn">whereIn</span>(<span class="str">'mes'</span>, <span class="var">$meses</span>)
+        -&gt;<span class="fn">pluck</span>(<span class="str">'mes'</span>)-&gt;<span class="fn">toArray</span>();
+
+    <span class="kw">return</span> <span class="fn">collect</span>(<span class="var">$meses</span>)-&gt;<span class="fn">map</span>(<span class="kw">fn</span> (<span class="var">$m</span>) =&gt; [
+        <span class="str">'mes'</span>     =&gt; <span class="kw">self</span>::<span class="var">$nombresMeses</span>[<span class="var">$m</span>] ?? <span class="var">$m</span>,
+        <span class="str">'cerrado'</span> =&gt; <span class="fn">in_array</span>(<span class="var">$m</span>, <span class="var">$cerrados</span>),
+    ])-&gt;<span class="fn">toArray</span>();
+}</code></pre>
+    </div>
+
+    <p>El informe indica qué meses están cerrados (datos finales) y cuáles abiertos (datos provisionales).</p>
+</section>
+
+<!-- ═══════════ Sección 12 ═══════════ -->
+<section class="section" id="s12">
+    <h2>12 — El punto de entrada: getDatosInforme()</h2>
+    <p>Un solo método orquesta todo:</p>
+
+    <div class="code-block">
+        <div class="code-header">getDatosInforme() — orquestador</div>
+        <pre><code><span class="kw">public static function</span> <span class="fn">getDatosInforme</span>(
+    <span class="type">int</span> <span class="var">$centroId</span>, <span class="type">string</span> <span class="var">$periodo</span>, <span class="type">int</span> <span class="var">$anio</span>
+): <span class="type">array</span> {
+    <span class="var">$meses</span> = <span class="kw">self</span>::<span class="fn">getMeses</span>(<span class="var">$periodo</span>);
+
+    <span class="kw">return</span> [
+        <span class="str">'encabezado'</span>        =&gt; <span class="kw">self</span>::<span class="fn">getEncabezado</span>(<span class="var">$centroId</span>, <span class="var">$periodo</span>, <span class="var">$anio</span>),
+        <span class="str">'migracion'</span>         =&gt; <span class="kw">self</span>::<span class="fn">getMigracion</span>(<span class="var">$centroId</span>),
+        <span class="str">'censo'</span>             =&gt; <span class="kw">self</span>::<span class="fn">getCenso</span>(<span class="var">$centroId</span>, <span class="var">$anio</span>),
+        <span class="str">'prestaciones'</span>      =&gt; <span class="kw">self</span>::<span class="fn">getPrestaciones</span>(<span class="var">$centroId</span>, <span class="var">$anio</span>, <span class="var">$meses</span>),
+        <span class="str">'cobertura'</span>         =&gt; <span class="kw">self</span>::<span class="fn">getCobertura</span>(<span class="var">$centroId</span>, <span class="var">$anio</span>, <span class="var">$periodo</span>),
+        <span class="str">'desercion'</span>         =&gt; <span class="kw">self</span>::<span class="fn">getDesercion</span>(<span class="var">$centroId</span>, <span class="var">$anio</span>, <span class="var">$meses</span>),
+        <span class="str">'ceros_justificados'</span> =&gt; <span class="kw">self</span>::<span class="fn">getCerosJustificados</span>(<span class="var">$centroId</span>, <span class="var">$anio</span>, <span class="var">$meses</span>),
+        <span class="str">'observaciones'</span>     =&gt; <span class="kw">self</span>::<span class="fn">getObservaciones</span>(<span class="var">$centroId</span>, <span class="var">$anio</span>, <span class="var">$meses</span>),
+        <span class="str">'meses_cerrados'</span>    =&gt; <span class="kw">self</span>::<span class="fn">getMesesCerrados</span>(<span class="var">$centroId</span>, <span class="var">$anio</span>, <span class="var">$meses</span>),
+    ];
+}</code></pre>
+    </div>
+
+    <p>Este array es el input directo de:</p>
+    <ul>
+        <li><code>InformeCAIExport</code> — Excel con 7 hojas (lección 51)</li>
+        <li><code>PresentacionCAI</code> — PowerPoint con gráficos (lección 54)</li>
+        <li>Vista PDF del informe (lección 57)</li>
+        <li>Componente Livewire <code>InformeCAI</code> (lección 48)</li>
+    </ul>
+</section>
+
+<!-- ═══════════ Sección 13 ═══════════ -->
+<section class="section" id="s13">
+    <h2>13 — buildFilaCobertura — helper privado</h2>
+    <p>Todas las filas de cobertura se construyen con este método:</p>
+
+    <div class="code-block">
+        <div class="code-header">buildFilaCobertura() — cálculo estandarizado</div>
+        <pre><code><span class="kw">private static function</span> <span class="fn">buildFilaCobertura</span>(
+    <span class="type">string</span> <span class="var">$nombre</span>,
+    <span class="type">int</span> <span class="var">$meta</span>,
+    <span class="type">int</span> <span class="var">$real</span>,
+    <span class="type">int</span> <span class="var">$atendidos</span>
+): <span class="type">array</span> {
+    <span class="kw">return</span> [
+        <span class="str">'nombre'</span>   =&gt; <span class="var">$nombre</span>,
+        <span class="str">'meta'</span>     =&gt; <span class="var">$meta</span>,
+        <span class="str">'real'</span>     =&gt; <span class="var">$real</span>,
+        <span class="str">'atendidos'</span> =&gt; <span class="var">$atendidos</span>,
+        <span class="str">'cob_ine'</span>  =&gt; <span class="var">$meta</span> &gt; <span class="num">0</span>
+            ? <span class="fn">round</span>(<span class="var">$atendidos</span> / <span class="var">$meta</span> * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>,
+        <span class="str">'cob_real'</span> =&gt; <span class="var">$real</span> &gt; <span class="num">0</span>
+            ? <span class="fn">round</span>(<span class="var">$atendidos</span> / <span class="var">$real</span> * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>,
+    ];
+}</code></pre>
+    </div>
+
+    <table class="file-table">
+        <tr><th>Campo</th><th>Significado</th><th>Ejemplo</th></tr>
+        <tr><td><code>meta</code></td><td>Proyección INE anual</td><td>15 nacimientos</td></tr>
+        <tr><td><code>real</code></td><td>Población del padrón</td><td>12 menores de 1 año</td></tr>
+        <tr><td><code>atendidos</code></td><td>Prestaciones en el período</td><td>10 BCG aplicadas</td></tr>
+        <tr><td><code>cob_ine</code></td><td>10/15 × 100 = 66.7%</td><td>Respecto a meta INE</td></tr>
+        <tr><td><code>cob_real</code></td><td>10/12 × 100 = 83.3%</td><td>Respecto a padrón real</td></tr>
+    </table>
+
+    <div class="callout info">
+        <div class="callout-title">Dos coberturas</div>
+        <code>cob_ine</code> es la cobertura oficial que pide el SNIS.
+        <code>cob_real</code> es la cobertura real del centro — generalmente más alta porque
+        el padrón suele ser menor que la proyección INE.
+    </div>
+</section>
+
+<!-- ═══════════ Resumen ═══════════ -->
+<section class="section lesson-summary" id="s14">
+    <h2>14 — Resumen de la lección</h2>
+    <table class="file-table">
+        <tr><th>Concepto</th><th>Implementación</th></tr>
+        <tr><td>Clase estática pura</td><td>Sin estado — recibe parámetros, devuelve arrays</td></tr>
+        <tr><td>3 períodos CAI</td><td><code>cai1</code> (Ene-Abr), <code>cai2</code> (Ene-Ago), <code>gestion</code> (Ene-Dic)</td></tr>
+        <tr><td>9 secciones del informe</td><td>Encabezado, migración, censo, prestaciones, cobertura, deserción, ceros, observaciones, meses cerrados</td></tr>
+        <tr><td>16 indicadores de vacunas</td><td>BCG → Antiamarílica, meta = nacimientos esperados</td></tr>
+        <tr><td>11 indicadores de micronutrientes</td><td>Hierro (3), Vitamina A (5), Nutribebé (2), Carmelo (1)</td></tr>
+        <tr><td>2 indicadores de deserción</td><td>Pentavalente 1→3, SRP 1→2</td></tr>
+        <tr><td>Doble cobertura</td><td><code>cob_ine</code> (vs meta INE) + <code>cob_real</code> (vs padrón)</td></tr>
+        <tr><td>Promedio mensual</td><td>Nutribebé y Carmelo: total_periodo / nMeses</td></tr>
+        <tr><td>Patrón clone $base</td><td>Clonar query builder antes de agregar filtros</td></tr>
+        <tr><td>Punto de entrada</td><td><code>getDatosInforme()</code> → array completo para Excel/PDF/PPTX</td></tr>
+    </table>
+
+    <div class="callout tip">
+        <div class="callout-title">Fase 9 — Helpers y Servicios</div>
+        Esta lección abre la <strong>Fase 9</strong> dedicada a los servicios de cálculo.
+        CaiHelper es el motor detrás de todas las exportaciones y reportes del sistema.
+        En la próxima lección veremos CausasConsultaHelper y OmsHelper.
+    </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+    <a href="41-observers.html">← 41. Observers restantes</a>
+    <a href="43-causas-consulta-helper.html">43. CausasConsultaHelper + OmsHelper →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+    <p>Tutorial SICSAL — Lección 42 de 58</p>
+</footer>
+
+</body>
+</html>

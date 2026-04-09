@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 03 — Migraciones | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand"><span class="dot"></span> SICSAL — Lección 03</div>
+  <nav>
+    <a href="02-estructura-laravel.html">← Anterior</a>
+    <a href="00-indice.html">Índice</a>
+    <a href="04-modelos-eloquent.html">Siguiente →</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 03 de 16</span>
+    <h1>Migraciones: Crear Tablas con Código</h1>
+    <p>Aprender a diseñar la base de datos usando migraciones PHP. Tipos de columna, foreign keys, índices y el flujo de trabajo con artisan.</p>
+  </div>
+
+  <!-- ═══ Archivos ═══ -->
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos</h2>
+    <table class="db-table">
+      <thead><tr><th>Archivo</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>database/migrations/*.php</code></td><td>Cada archivo crea o modifica una tabla</td></tr>
+        <tr><td><code>create_centros_salud_table.php</code></td><td>Ejemplo de tabla sencilla</td></tr>
+        <tr><td><code>create_personas_table.php</code></td><td>Ejemplo con foreign keys y enums</td></tr>
+        <tr><td><code>create_vacunas_ninos_table.php</code></td><td>Ejemplo con enum extenso</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. ¿Qué es una migración?</a></li>
+      <li><a href="#s2">2. Crear tu primera migración</a></li>
+      <li><a href="#s3">3. Tipos de columna más usados</a></li>
+      <li><a href="#s4">4. Foreign Keys (claves foráneas)</a></li>
+      <li><a href="#s5">5. Ejemplo real: tabla centros_salud</a></li>
+      <li><a href="#s6">6. Ejemplo real: tabla personas</a></li>
+      <li><a href="#s7">7. Ejemplo avanzado: tabla vacunas_ninos</a></li>
+      <li><a href="#s8">8. Modificar una tabla existente</a></li>
+      <li><a href="#s9">9. Comandos artisan para migraciones</a></li>
+      <li><a href="#s10">10. La base de datos completa de SICSAL</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es una migración?</h2>
+
+    <p>Una <strong>migración</strong> es un archivo PHP que describe cómo crear o modificar una tabla en la base de datos. En vez de abrir MySQL y escribir SQL a mano, escribes código PHP que Laravel traduce a SQL automáticamente.</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-title">❌ Sin migraciones (la forma vieja)</div>
+        <div class="card-body">
+          <p>Abrir phpMyAdmin, crear tablas con clics, olvidar qué cambios hiciste, imposible replicar en otro servidor.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">✅ Con migraciones (la forma moderna)</div>
+        <div class="card-body">
+          <p>Escribir un archivo PHP con la estructura. Se puede ejecutar en cualquier servidor con un solo comando. Todo queda versionado en Git.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Analogía</div>
+      <p>Las migraciones son como un <strong>plano de arquitectura</strong>. En vez de construir la casa directamente, primero dibujas el plano. Después puedes construir la misma casa cuantas veces quieras siguiendo el plano.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> Crear tu primera migración</h2>
+
+    <p>Para crear una migración, usas el comando <code>artisan</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">Terminal</div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan make:migration create_municipios_table
+
+<span class="output">   INFO  Migration [database/migrations/2026_04_03_015720_create_municipios_table.php] created successfully.</span></pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">El nombre del archivo</div>
+      <p>Laravel agrega automáticamente una marca de tiempo al nombre: <code>2026_04_03_015720_create_municipios_table.php</code>. Esto asegura que las migraciones se ejecuten en el orden correcto (las tablas que dependen de otras se crean después).</p>
+    </div>
+
+    <p>El archivo generado tiene esta estructura básica:</p>
+
+    <div class="code-block">
+      <div class="code-header">database/migrations/xxxx_create_municipios_table.php</div>
+      <pre class="code-body language-php"><span class="kw">&lt;?php</span>
+
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Migrations\Migration</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Database\Schema\Blueprint</span>;
+<span class="kw">use</span> <span class="cls">Illuminate\Support\Facades\Schema</span>;
+
+<span class="kw">return new class extends</span> <span class="cls">Migration</span>
+{
+    <span class="cmt">/**
+     * up() → Lo que HACE la migración (crear tabla, agregar columna...)
+     */</span>
+    <span class="kw">public function</span> <span class="fn">up</span>(): <span class="kw">void</span>
+    {
+        <span class="cls">Schema</span>::<span class="fn">create</span>(<span class="str">'municipios'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+            <span class="var">$table</span>-><span class="fn">id</span>();                              <span class="cmt">// Columna id autoincremental</span>
+            <span class="cmt">// ← Aquí defines tus columnas</span>
+            <span class="var">$table</span>-><span class="fn">timestamps</span>();                      <span class="cmt">// created_at y updated_at</span>
+        });
+    }
+
+    <span class="cmt">/**
+     * down() → Lo que DESHACE la migración (borrar tabla...)
+     */</span>
+    <span class="kw">public function</span> <span class="fn">down</span>(): <span class="kw">void</span>
+    {
+        <span class="cls">Schema</span>::<span class="fn">dropIfExists</span>(<span class="str">'municipios'</span>);
+    }
+};</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">up() y down()</div>
+      <ul>
+        <li><code>up()</code> — Se ejecuta con <code>php artisan migrate</code>. Crea la tabla.</li>
+        <li><code>down()</code> — Se ejecuta con <code>php artisan migrate:rollback</code>. Deshace los cambios (borra la tabla).</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> Tipos de columna más usados</h2>
+
+    <p>La variable <code>$table</code> (de tipo <code>Blueprint</code>) te permite definir columnas. Estos son los tipos que SICSAL usa:</p>
+
+    <table class="db-table">
+      <thead><tr><th>Método Laravel</th><th>Tipo MySQL</th><th>Ejemplo</th><th>Uso en SICSAL</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>$table->id()</code></td>
+          <td><span class="badge badge-pk">BIGINT AI PK</span></td>
+          <td>Clave primaria</td>
+          <td>Todas las tablas</td>
+        </tr>
+        <tr>
+          <td><code>$table->string('col', 100)</code></td>
+          <td><span class="badge badge-type">VARCHAR(100)</span></td>
+          <td>Texto corto</td>
+          <td>nombres, apellidos, ci</td>
+        </tr>
+        <tr>
+          <td><code>$table->text('col')</code></td>
+          <td><span class="badge badge-type">TEXT</span></td>
+          <td>Texto largo</td>
+          <td>observaciones</td>
+        </tr>
+        <tr>
+          <td><code>$table->integer('col')</code></td>
+          <td><span class="badge badge-type">INT</span></td>
+          <td>Número entero</td>
+          <td>poblacion_ine, cantidad</td>
+        </tr>
+        <tr>
+          <td><code>$table->tinyInteger('col')</code></td>
+          <td><span class="badge badge-type">TINYINT</span></td>
+          <td>Número pequeño (0-255)</td>
+          <td>mes (1-12)</td>
+        </tr>
+        <tr>
+          <td><code>$table->year('col')</code></td>
+          <td><span class="badge badge-type">YEAR</span></td>
+          <td>Año</td>
+          <td>anio</td>
+        </tr>
+        <tr>
+          <td><code>$table->date('col')</code></td>
+          <td><span class="badge badge-type">DATE</span></td>
+          <td>Fecha</td>
+          <td>fecha_nacimiento, fecha_aplicacion</td>
+        </tr>
+        <tr>
+          <td><code>$table->boolean('col')</code></td>
+          <td><span class="badge badge-type">TINYINT(1)</span></td>
+          <td>true/false</td>
+          <td>activo (borrado lógico)</td>
+        </tr>
+        <tr>
+          <td><code>$table->enum('col', [...])</code></td>
+          <td><span class="badge badge-type">ENUM</span></td>
+          <td>Lista de opciones fijas</td>
+          <td>sexo ('M','F'), estado</td>
+        </tr>
+        <tr>
+          <td><code>$table->foreignId('col')</code></td>
+          <td><span class="badge badge-fk">BIGINT UNSIGNED</span></td>
+          <td>Clave foránea</td>
+          <td>centro_salud_id, persona_id</td>
+        </tr>
+        <tr>
+          <td><code>$table->timestamps()</code></td>
+          <td><span class="badge badge-type">TIMESTAMP ×2</span></td>
+          <td>created_at + updated_at</td>
+          <td>Todas las tablas</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3 style="margin-top:1.5rem">Modificadores de columna</h3>
+
+    <div class="code-block">
+      <div class="code-header">Modificadores comunes</div>
+      <pre class="code-body language-php"><span class="var">$table</span>-><span class="fn">string</span>(<span class="str">'ci'</span>, <span class="num">20</span>)-><span class="fn">nullable</span>();          <span class="cmt">// Puede ser NULL</span>
+<span class="var">$table</span>-><span class="fn">boolean</span>(<span class="str">'activo'</span>)-><span class="fn">default</span>(<span class="kw2">true</span>);        <span class="cmt">// Valor por defecto</span>
+<span class="var">$table</span>-><span class="fn">integer</span>(<span class="str">'poblacion_ine'</span>)-><span class="fn">default</span>(<span class="num">0</span>);    <span class="cmt">// Número con valor por defecto</span>
+<span class="var">$table</span>-><span class="fn">string</span>(<span class="str">'codigo'</span>)-><span class="fn">unique</span>();             <span class="cmt">// No se puede repetir</span>
+<span class="var">$table</span>-><span class="fn">integer</span>(<span class="str">'edad'</span>)-><span class="fn">unsigned</span>();             <span class="cmt">// Solo positivos</span></pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> Foreign Keys (claves foráneas)</h2>
+
+    <p>Una <strong>clave foránea</strong> (foreign key) conecta una tabla con otra. Por ejemplo, cada persona pertenece a un centro de salud. Para expresar esto, la tabla <code>personas</code> tiene una columna <code>centro_salud_id</code> que apunta a la tabla <code>centros_salud</code>.</p>
+
+    <div class="arch-diagram">
+      <div class="arch-label">RELACIÓN: persona → centro_salud</div>
+      <div class="arch-row">
+        <div class="arch-box highlight">personas</div>
+        <div class="arch-arrow">centro_salud_id →</div>
+        <div class="arch-box secondary">centros_salud.id</div>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Dos formas de crear foreign keys</div>
+      <pre class="code-body language-php"><span class="cmt">// Forma corta (recomendada en Laravel 13)</span>
+<span class="var">$table</span>-><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)-><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);
+<span class="cmt">// Crea: BIGINT UNSIGNED + FOREIGN KEY → centros_salud(id)</span>
+
+<span class="cmt">// Forma corta con nullable (la relación es opcional)</span>
+<span class="var">$table</span>-><span class="fn">foreignId</span>(<span class="str">'created_by'</span>)-><span class="fn">nullable</span>()-><span class="fn">constrained</span>(<span class="str">'users'</span>);
+<span class="cmt">// Puede ser NULL (no siempre sabemos quién creó el registro)</span></pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Orden de las migraciones</div>
+      <p>La tabla referenciada debe existir <strong>antes</strong> que la tabla que la referencia. Por eso los nombres de archivo tienen marca de tiempo: <code>015721_centros_salud</code> se crea antes que <code>015726_personas</code>.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> Ejemplo real: tabla centros_salud</h2>
+
+    <p>Veamos cómo SICSAL define la tabla de centros de salud. Es una tabla sencilla con pocos campos:</p>
+
+    <div class="code-block">
+      <div class="code-header">database/migrations/2026_04_03_015721_create_centros_salud_table.php</div>
+      <pre class="code-body language-php"><span class="kw">return new class extends</span> <span class="cls">Migration</span>
+{
+    <span class="kw">public function</span> <span class="fn">up</span>(): <span class="kw">void</span>
+    {
+        <span class="cls">Schema</span>::<span class="fn">create</span>(<span class="str">'centros_salud'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+            <span class="var">$table</span>-><span class="fn">id</span>();                                           <span class="cmt">// PK autoincremental</span>
+            <span class="var">$table</span>-><span class="fn">foreignId</span>(<span class="str">'municipio_id'</span>)                        <span class="cmt">// FK → municipios</span>
+                  -><span class="fn">constrained</span>(<span class="str">'municipios'</span>);
+            <span class="var">$table</span>-><span class="fn">string</span>(<span class="str">'nombre'</span>, <span class="num">150</span>);                          <span class="cmt">// Nombre del centro</span>
+            <span class="var">$table</span>-><span class="fn">string</span>(<span class="str">'codigo_snis'</span>, <span class="num">20</span>)-><span class="fn">nullable</span>();          <span class="cmt">// Código del SNIS</span>
+            <span class="var">$table</span>-><span class="fn">enum</span>(<span class="str">'subsector'</span>,                                <span class="cmt">// Tipo de sector</span>
+                [<span class="str">'Público'</span>, <span class="str">'Seguro Social'</span>,
+                 <span class="str">'Privado'</span>, <span class="str">'ONG'</span>])-><span class="fn">default</span>(<span class="str">'Público'</span>);
+            <span class="var">$table</span>-><span class="fn">string</span>(<span class="str">'red_salud'</span>, <span class="num">100</span>)-><span class="fn">nullable</span>();         <span class="cmt">// Red a la que pertenece</span>
+            <span class="var">$table</span>-><span class="fn">integer</span>(<span class="str">'poblacion_ine'</span>)-><span class="fn">default</span>(<span class="num">0</span>);         <span class="cmt">// Población INE total</span>
+            <span class="var">$table</span>-><span class="fn">boolean</span>(<span class="str">'activo'</span>)-><span class="fn">default</span>(<span class="kw2">true</span>);             <span class="cmt">// Borrado lógico</span>
+            <span class="var">$table</span>-><span class="fn">timestamps</span>();                                   <span class="cmt">// created_at, updated_at</span>
+        });
+    }
+
+    <span class="kw">public function</span> <span class="fn">down</span>(): <span class="kw">void</span>
+    {
+        <span class="cls">Schema</span>::<span class="fn">dropIfExists</span>(<span class="str">'centros_salud'</span>);
+    }
+};</pre>
+    </div>
+
+    <p>Esta tabla genera en MySQL:</p>
+    <div class="result-box">
+      <strong>centros_salud</strong><br>
+      <code>id</code> <span class="badge badge-pk">PK</span> |
+      <code>municipio_id</code> <span class="badge badge-fk">FK</span> |
+      <code>nombre</code> VARCHAR(150) |
+      <code>codigo_snis</code> VARCHAR(20) NULL |
+      <code>subsector</code> ENUM |
+      <code>red_salud</code> VARCHAR(100) NULL |
+      <code>poblacion_ine</code> INT DEFAULT 0 |
+      <code>activo</code> BOOL |
+      <code>created_at</code> <code>updated_at</code>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> Ejemplo real: tabla personas</h2>
+
+    <p>La tabla <code>personas</code> es más compleja. Tiene múltiples foreign keys, enums y campos opcionales:</p>
+
+    <div class="code-block">
+      <div class="code-header">database/migrations/2026_04_03_015726_create_personas_table.php</div>
+      <pre class="code-body language-php"><span class="cls">Schema</span>::<span class="fn">create</span>(<span class="str">'personas'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span>-><span class="fn">id</span>();
+
+    <span class="cmt">// ─── Relaciones ───</span>
+    <span class="var">$table</span>-><span class="fn">foreignId</span>(<span class="str">'centro_salud_id'</span>)-><span class="fn">constrained</span>(<span class="str">'centros_salud'</span>);  <span class="cmt">// A qué centro pertenece</span>
+    <span class="var">$table</span>-><span class="fn">foreignId</span>(<span class="str">'comunidad_id'</span>)-><span class="fn">constrained</span>(<span class="str">'comunidades'</span>);      <span class="cmt">// De qué comunidad es</span>
+
+    <span class="cmt">// ─── Datos personales ───</span>
+    <span class="var">$table</span>-><span class="fn">string</span>(<span class="str">'nombres'</span>, <span class="num">100</span>);
+    <span class="var">$table</span>-><span class="fn">string</span>(<span class="str">'apellidos'</span>, <span class="num">100</span>);
+    <span class="var">$table</span>-><span class="fn">date</span>(<span class="str">'fecha_nacimiento'</span>);
+    <span class="var">$table</span>-><span class="fn">enum</span>(<span class="str">'sexo'</span>, [<span class="str">'M'</span>, <span class="str">'F'</span>]);
+    <span class="var">$table</span>-><span class="fn">string</span>(<span class="str">'ci'</span>, <span class="num">20</span>)-><span class="fn">nullable</span>();              <span class="cmt">// CI es optional (menores)</span>
+
+    <span class="cmt">// ─── Seguro y estado migratorio ───</span>
+    <span class="var">$table</span>-><span class="fn">enum</span>(<span class="str">'tipo_seguro'</span>,
+        [<span class="str">'SUS'</span>, <span class="str">'privado'</span>, <span class="str">'ninguno'</span>])-><span class="fn">default</span>(<span class="str">'ninguno'</span>);
+    <span class="var">$table</span>-><span class="fn">enum</span>(<span class="str">'estado'</span>,
+        [<span class="str">'residente'</span>, <span class="str">'temporal'</span>, <span class="str">'migrado'</span>])-><span class="fn">default</span>(<span class="str">'residente'</span>);
+    <span class="var">$table</span>-><span class="fn">string</span>(<span class="str">'destino_migracion'</span>, <span class="num">150</span>)-><span class="fn">nullable</span>();
+    <span class="var">$table</span>-><span class="fn">date</span>(<span class="str">'fecha_migracion'</span>)-><span class="fn">nullable</span>();
+
+    <span class="cmt">// ─── Sistema ───</span>
+    <span class="var">$table</span>-><span class="fn">string</span>(<span class="str">'grupo_etareo'</span>, <span class="num">30</span>)-><span class="fn">nullable</span>();
+    <span class="var">$table</span>-><span class="fn">date</span>(<span class="str">'fecha_registro'</span>);
+    <span class="var">$table</span>-><span class="fn">text</span>(<span class="str">'observaciones'</span>)-><span class="fn">nullable</span>();
+    <span class="var">$table</span>-><span class="fn">boolean</span>(<span class="str">'activo'</span>)-><span class="fn">default</span>(<span class="kw2">true</span>);              <span class="cmt">// Borrado lógico</span>
+    <span class="var">$table</span>-><span class="fn">foreignId</span>(<span class="str">'created_by'</span>)-><span class="fn">nullable</span>()-><span class="fn">constrained</span>(<span class="str">'users'</span>);
+    <span class="var">$table</span>-><span class="fn">timestamps</span>();
+});</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Convención: activo = true (borrado lógico)</div>
+      <p>En SICSAL <strong>nunca borramos registros</strong> de la base de datos. En vez de eliminar, ponemos <code>activo = false</code>. Esto se llama "borrado lógico" y nos permite recuperar datos si fue un error. Es una regla del proyecto.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 7 ════════════════════════ -->
+  <div class="section" id="s7">
+    <h2 class="section-title"><span class="number">7</span> Ejemplo avanzado: tabla vacunas_ninos</h2>
+
+    <p>Esta tabla demuestra cómo usar enums extensos para limitar las opciones válidas directamente en la base de datos:</p>
+
+    <div class="code-block">
+      <div class="code-header">database/migrations/2026_04_04_010000_create_vacunas_ninos_table.php</div>
+      <pre class="code-body language-php"><span class="cls">Schema</span>::<span class="fn">create</span>(<span class="str">'vacunas_ninos'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+    <span class="var">$table</span>-><span class="fn">id</span>();
+    <span class="var">$table</span>-><span class="fn">foreignId</span>(<span class="str">'persona_id'</span>)-><span class="fn">constrained</span>(<span class="str">'personas'</span>);
+
+    <span class="var">$table</span>-><span class="fn">enum</span>(<span class="str">'tipo_vacuna'</span>, [
+        <span class="str">'BCG'</span>, <span class="str">'HepB_neonatal'</span>,                        <span class="cmt">// Neonato</span>
+        <span class="str">'Pentavalente_1'</span>, <span class="str">'Pentavalente_2'</span>,             <span class="cmt">// Pentavalente</span>
+        <span class="str">'Pentavalente_3'</span>, <span class="str">'Pentavalente_4_refuerzo'</span>,
+        <span class="str">'Pentavalente_5_refuerzo'</span>,
+        <span class="str">'IPV_1'</span>, <span class="str">'bOPV_2'</span>, <span class="str">'IPV_3'</span>,                 <span class="cmt">// Polio</span>
+        <span class="str">'bOPV_4'</span>, <span class="str">'bOPV_5'</span>,
+        <span class="str">'Antirotavirica_1'</span>, <span class="str">'Antirotavirica_2'</span>,       <span class="cmt">// Rotavirus</span>
+        <span class="str">'Antineumococica_1'</span>, <span class="str">'Antineumococica_2'</span>,     <span class="cmt">// Neumococo</span>
+        <span class="str">'Antineumococica_3'</span>,
+        <span class="str">'Influenza_1'</span>, <span class="str">'Influenza_2'</span>,                 <span class="cmt">// Influenza</span>
+        <span class="str">'Influenza_unica'</span>,
+        <span class="str">'SRP_1'</span>, <span class="str">'SRP_2'</span>, <span class="str">'Antiamarilica'</span>,          <span class="cmt">// SRP + Fiebre amarilla</span>
+        <span class="str">'VPH_1'</span>, <span class="str">'VPH_2'</span>,                               <span class="cmt">// VPH</span>
+        <span class="str">'dT_1'</span>, <span class="str">'dT_2'</span>, <span class="str">'dT_3'</span>, <span class="str">'dT_4'</span>, <span class="str">'dT_5'</span>,   <span class="cmt">// Toxoide</span>
+        <span class="str">'SR'</span>,
+    ]);
+
+    <span class="var">$table</span>-><span class="fn">date</span>(<span class="str">'fecha_aplicacion'</span>);
+    <span class="var">$table</span>-><span class="fn">enum</span>(<span class="str">'dentro_fuera'</span>, [<span class="str">'dentro'</span>, <span class="str">'fuera'</span>])
+          -><span class="fn">default</span>(<span class="str">'dentro'</span>);                               <span class="cmt">// Dentro/fuera del centro</span>
+    <span class="var">$table</span>-><span class="fn">string</span>(<span class="str">'lote'</span>, <span class="num">50</span>)-><span class="fn">nullable</span>();                  <span class="cmt">// Nº lote de la vacuna</span>
+    <span class="var">$table</span>-><span class="fn">foreignId</span>(<span class="str">'aplicado_por'</span>)-><span class="fn">nullable</span>()
+          -><span class="fn">constrained</span>(<span class="str">'users'</span>);                              <span class="cmt">// Quién la aplicó</span>
+    <span class="var">$table</span>-><span class="fn">tinyInteger</span>(<span class="str">'mes'</span>);                              <span class="cmt">// Mes (1-12)</span>
+    <span class="var">$table</span>-><span class="fn">year</span>(<span class="str">'anio'</span>);                                     <span class="cmt">// Año</span>
+    <span class="var">$table</span>-><span class="fn">timestamps</span>();
+});</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">¿Por qué un enum tan largo?</div>
+      <p>El esquema PAI (Programa Ampliado de Inmunización) de Bolivia define vacunas específicas con dosis numeradas. Cada dosis es un registro separado. El enum evita errores de escritura: MySQL rechazará cualquier valor que no esté en la lista.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 8 ════════════════════════ -->
+  <div class="section" id="s8">
+    <h2 class="section-title"><span class="number">8</span> Modificar una tabla existente</h2>
+
+    <p>¿Qué pasa si necesitas agregar una columna después de crear la tabla? Creas una <strong>nueva migración</strong> que modifica la tabla existente:</p>
+
+    <div class="code-block">
+      <div class="code-header">Terminal</div>
+      <pre class="code-body bash"><span class="prompt">$</span> <span class="cmd">php</span> artisan make:migration add_coordenadas_to_centros_salud</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">database/migrations/2026_04_07_203512_add_coordenadas_to_centros_salud.php</div>
+      <pre class="code-body language-php"><span class="kw">return new class extends</span> <span class="cls">Migration</span>
+{
+    <span class="kw">public function</span> <span class="fn">up</span>(): <span class="kw">void</span>
+    {
+        <span class="cls">Schema</span>::<span class="fn">table</span>(<span class="str">'centros_salud'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+            <span class="cmt">// Schema::table() modifica una tabla existente</span>
+            <span class="cmt">// (a diferencia de Schema::create() que crea una nueva)</span>
+            <span class="var">$table</span>-><span class="fn">decimal</span>(<span class="str">'latitud'</span>, <span class="num">10</span>, <span class="num">7</span>)-><span class="fn">nullable</span>();
+            <span class="var">$table</span>-><span class="fn">decimal</span>(<span class="str">'longitud'</span>, <span class="num">10</span>, <span class="num">7</span>)-><span class="fn">nullable</span>();
+        });
+    }
+
+    <span class="kw">public function</span> <span class="fn">down</span>(): <span class="kw">void</span>
+    {
+        <span class="cls">Schema</span>::<span class="fn">table</span>(<span class="str">'centros_salud'</span>, <span class="kw">function</span> (<span class="cls">Blueprint</span> <span class="var">$table</span>) {
+            <span class="var">$table</span>-><span class="fn">dropColumn</span>([<span class="str">'latitud'</span>, <span class="str">'longitud'</span>]);
+        });
+    }
+};</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Regla importante</div>
+      <p><strong>NUNCA</strong> modifiques una migración que ya se ejecutó en producción. Siempre crea una migración nueva. Las migraciones son como un historial — cada cambio es un nuevo archivo.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 9 ════════════════════════ -->
+  <div class="section" id="s9">
+    <h2 class="section-title"><span class="number">9</span> Comandos artisan para migraciones</h2>
+
+    <div class="code-block">
+      <div class="code-header">Terminal — Comandos de migraciones</div>
+      <pre class="code-body bash"><span class="cmt"># Ejecutar todas las migraciones pendientes</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate
+
+<span class="cmt"># Ver el estado de las migraciones</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate:status
+
+<span class="cmt"># Deshacer la última migración</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate:rollback
+
+<span class="cmt"># Borrar todo y recrear (solo desarrollo, NUNCA en producción)</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate:fresh
+
+<span class="cmt"># Borrar y recrear + ejecutar seeders</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate:fresh <span class="flag">--seed</span>
+
+<span class="cmt"># Crear una nueva migración</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan make:migration create_nombre_tabla_table
+<span class="prompt">$</span> <span class="cmd">php</span> artisan make:migration add_columna_to_tabla</pre>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">Cuidado con migrate:fresh</div>
+      <p><code>migrate:fresh</code> <strong>borra TODAS las tablas</strong> y las recrea. Solo úsalo en desarrollo. En producción, siempre usa <code>migrate</code> (que solo ejecuta migraciones nuevas).</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 10 ════════════════════════ -->
+  <div class="section" id="s10">
+    <h2 class="section-title"><span class="number">10</span> La base de datos completa de SICSAL</h2>
+
+    <p>SICSAL tiene <strong>51 migraciones</strong> que crean más de 30 tablas. Aquí están agrupadas por función:</p>
+
+    <div class="arch-diagram">
+      <div class="arch-label">GRUPOS DE TABLAS EN SICSAL</div>
+      <div class="arch-row">
+        <div class="arch-box highlight">NÚCLEO</div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-box">municipios</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">centros_salud</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">comunidades</div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box">personas</div>
+      </div>
+
+      <div class="arch-row"><div class="arch-arrow">▼</div></div>
+
+      <div class="arch-row">
+        <div class="arch-box secondary">REGISTROS INDIVIDUALES</div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-box">vacunas_ninos</div>
+        <div class="arch-box">crecimiento_infantil</div>
+        <div class="arch-box">micronutrientes_ninos</div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-box">embarazos</div>
+        <div class="arch-box">controles_prenatales</div>
+        <div class="arch-box">partos</div>
+        <div class="arch-box">puerperios</div>
+      </div>
+
+      <div class="arch-row"><div class="arch-arrow">▼ Observers sincronizan</div></div>
+
+      <div class="arch-row">
+        <div class="arch-box highlight">TABLAS AGREGADAS SNIS (prest_*)</div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-box">prest_vacunas</div>
+        <div class="arch-box">prest_crecimiento</div>
+        <div class="arch-box">prest_micronutrientes</div>
+      </div>
+      <div class="arch-row">
+        <div class="arch-box">prest_prenatales</div>
+        <div class="arch-box">prest_partos</div>
+        <div class="arch-box">prest_puerperio</div>
+        <div class="arch-box">prest_consulta_externa</div>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Sistema dual de datos</div>
+      <p>SICSAL tiene <strong>dos sistemas de datos paralelos</strong>: tablas individuales (un registro por persona/evento) y tablas agregadas <code>prest_*</code> (totales mensuales por centro). Los <strong>Observers</strong> (Lección 14) sincronizan automáticamente de uno al otro.</p>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 03</h3>
+    <ul>
+      <li>Las <strong>migraciones</strong> son archivos PHP que crean/modifican tablas — como planos de construcción.</li>
+      <li>Se crean con <code>php artisan make:migration</code> y se ejecutan con <code>php artisan migrate</code>.</li>
+      <li>Cada migración tiene <code>up()</code> (aplicar) y <code>down()</code> (deshacer).</li>
+      <li>Tipos comunes: <code>string</code>, <code>integer</code>, <code>date</code>, <code>boolean</code>, <code>enum</code>, <code>foreignId</code>.</li>
+      <li>Las <strong>foreign keys</strong> conectan tablas entre sí con <code>foreignId()->constrained()</code>.</li>
+      <li>Para modificar una tabla existente, crea una <strong>nueva</strong> migración con <code>Schema::table()</code>.</li>
+      <li>SICSAL usa <strong>borrado lógico</strong> (<code>activo = false</code>) en vez de eliminar registros.</li>
+      <li>El proyecto tiene 51 migraciones que crean un sistema dual: datos individuales + datos agregados SNIS.</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="02-estructura-laravel.html">← Lección 02: Estructura de Laravel</a>
+    <a href="04-modelos-eloquent.html">Lección 04: Modelos Eloquent →</a>
+  </div>
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 03: Migraciones</span>
+    <span>Laravel 13 · Schema · Blueprint · Foreign Keys</span>
+  </div>
+</div>
+</body>
+</html>

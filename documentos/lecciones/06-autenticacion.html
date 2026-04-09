@@ -1,0 +1,436 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 06 — Autenticación con Fortify | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand"><span class="dot"></span> SICSAL — Lección 06</div>
+  <nav>
+    <a href="05-seeders.html">← Anterior</a>
+    <a href="00-indice.html">Índice</a>
+    <a href="07-roles-permisos.html">Siguiente →</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 06 de 16</span>
+    <h1>Autenticación con Fortify</h1>
+    <p>Cómo SICSAL maneja login, registro, contraseñas y la aprobación de cuentas — sin que ningún usuario acceda sin permiso.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos</h2>
+    <table class="db-table">
+      <thead><tr><th>Archivo</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>config/fortify.php</code></td><td>Configuración: guard, features habilitadas, rate limiting</td></tr>
+        <tr><td><code>app/Providers/FortifyServiceProvider.php</code></td><td>Vistas personalizadas y respuestas tras login/registro</td></tr>
+        <tr><td><code>app/Actions/Fortify/CreateNewUser.php</code></td><td>Lógica de creación de usuario (validación + activo=false)</td></tr>
+        <tr><td><code>app/Actions/Fortify/ResetUserPassword.php</code></td><td>Lógica de reset de contraseña</td></tr>
+        <tr><td><code>app/Http/Middleware/RequireAprobado.php</code></td><td>Middleware: bloquea usuarios no aprobados</td></tr>
+        <tr><td><code>bootstrap/app.php</code></td><td>Registro del alias de middleware 'aprobado'</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. ¿Qué es la autenticación?</a></li>
+      <li><a href="#s2">2. Laravel Fortify: autenticación sin vistas</a></li>
+      <li><a href="#s3">3. Configuración: config/fortify.php</a></li>
+      <li><a href="#s4">4. FortifyServiceProvider: el cerebro</a></li>
+      <li><a href="#s5">5. Registro: CreateNewUser (activo = false)</a></li>
+      <li><a href="#s6">6. Middleware RequireAprobado</a></li>
+      <li><a href="#s7">7. Flujo completo: del registro al dashboard</a></li>
+      <li><a href="#s8">8. Features de seguridad</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es la autenticación?</h2>
+
+    <p><strong>Autenticación</strong> es el proceso de verificar <em>quién eres</em>. Es diferente de <strong>autorización</strong> (qué <em>puedes hacer</em>, que veremos en la Lección 07).</p>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-title">Autenticación</div>
+        <div class="card-body">
+          <p>"¿Eres quien dices ser?"</p>
+          <p>→ Login con email + contraseña</p>
+          <p>→ Verificación de email</p>
+          <p>→ Autenticación en dos pasos (2FA)</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Autorización</div>
+        <div class="card-body">
+          <p>"¿Tienes permiso para esto?"</p>
+          <p>→ Roles: superadmin, admin, registrador</p>
+          <p>→ Políticas: ¿puedes editar esta persona?</p>
+          <p>→ Lección 07</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> Laravel Fortify: autenticación sin vistas</h2>
+
+    <p><strong>Fortify</strong> es un paquete de Laravel que proporciona toda la lógica de autenticación (login, registro, reset de contraseña, 2FA) pero <em>sin</em> ninguna vista prediseñada. Tú decides cómo se ven las pantallas.</p>
+
+    <div class="callout callout-info">
+      <div class="callout-title">¿Por qué Fortify y no Breeze o Jetstream?</div>
+      <p>SICSAL usa Filament para el panel de administración. Fortify da control total sobre las vistas y la lógica sin imponer un diseño. Breeze y Jetstream incluyen vistas propias que entrarían en conflicto con Filament.</p>
+    </div>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-box" style="background:#e0f2fe">Blade Views<br><small>login, register, reset...</small></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box" style="background:#fef3c7">Fortify Routes<br><small>/login, /register, /forgot-password</small></div>
+        <div class="arch-arrow">→</div>
+        <div class="arch-box" style="background:#d1fae5">Fortify Actions<br><small>CreateNewUser, ResetUserPassword</small></div>
+      </div>
+      <div class="arch-label">Fortify se encarga de las rutas y la lógica. Tú creas las vistas y las Actions.</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> Configuración: config/fortify.php</h2>
+
+    <div class="code-block">
+      <div class="code-header">config/fortify.php — Partes clave</div>
+      <pre class="code-body language-php"><span class="kw">return</span> [
+    <span class="str">'guard'</span>     => <span class="str">'web'</span>,              <span class="cmt">// Guard de autenticación</span>
+    <span class="str">'username'</span>  => <span class="str">'email'</span>,             <span class="cmt">// Campo para login (email, no usuario)</span>
+    <span class="str">'home'</span>      => <span class="str">'/dashboard'</span>,         <span class="cmt">// A dónde ir después del login</span>
+
+    <span class="str">'lowercase_usernames'</span> => <span class="kw2">true</span>,         <span class="cmt">// Email siempre en minúscula</span>
+
+    <span class="str">'limiters'</span> => [
+        <span class="str">'login'</span>      => <span class="str">'login'</span>,           <span class="cmt">// Máx 5 intentos/minuto</span>
+        <span class="str">'two-factor'</span> => <span class="str">'two-factor'</span>,      <span class="cmt">// Máx 5 intentos/minuto</span>
+    ],
+
+    <span class="str">'features'</span> => [
+        <span class="cls">Features</span>::<span class="fn">registration</span>(),          <span class="cmt">// ✅ Registro público habilitado</span>
+        <span class="cls">Features</span>::<span class="fn">resetPasswords</span>(),        <span class="cmt">// ✅ "Olvidé mi contraseña"</span>
+        <span class="cls">Features</span>::<span class="fn">emailVerification</span>(),     <span class="cmt">// ✅ Verificación de email</span>
+        <span class="cls">Features</span>::<span class="fn">twoFactorAuthentication</span>([  <span class="cmt">// ✅ 2FA con Google Auth</span>
+            <span class="str">'confirm'</span>         => <span class="kw2">true</span>,
+            <span class="str">'confirmPassword'</span> => <span class="kw2">true</span>,
+        ]),
+    ],
+];</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Registro público ≠ acceso libre</div>
+      <p>Aunque el registro está habilitado, los usuarios nuevos se crean con <code>activo = false</code>. No pueden hacer nada hasta que un admin los apruebe. Esto es intencional: el registro es una <strong>solicitud de acceso</strong>, no un acceso inmediato.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> FortifyServiceProvider: el cerebro</h2>
+
+    <p>Este proveedor personaliza Fortify para SICSAL. Tiene tres partes:</p>
+
+    <h3>4.1 — Respuesta personalizada al Login</h3>
+    <div class="code-block">
+      <div class="code-header">app/Providers/FortifyServiceProvider.php — register()</div>
+      <pre class="code-body language-php"><span class="kw">public function</span> <span class="fn">register</span>(): <span class="kw">void</span>
+{
+    <span class="cmt">// Personalizar qué pasa después del login</span>
+    <span class="var">$this</span>-><span class="var">app</span>-><span class="fn">singleton</span>(<span class="cls">LoginResponse</span>::<span class="kw">class</span>, <span class="kw">function</span> () {
+        <span class="kw">return new class</span> <span class="kw">implements</span> <span class="cls">LoginResponse</span> {
+            <span class="kw">public function</span> <span class="fn">toResponse</span>(<span class="var">$request</span>)
+            {
+                <span class="cmt">// Si el usuario está activo → dashboard</span>
+                <span class="cmt">// Si NO está activo → página "pendiente"</span>
+                <span class="var">$redirect</span> = <span class="var">$request</span>-><span class="fn">user</span>()-><span class="var">activo</span>
+                    ? <span class="fn">config</span>(<span class="str">'fortify.home'</span>)   <span class="cmt">// /dashboard</span>
+                    : <span class="fn">route</span>(<span class="str">'pendiente'</span>);      <span class="cmt">// /pendiente</span>
+
+                <span class="kw">return</span> <span class="fn">redirect</span>()-><span class="fn">intended</span>(<span class="var">$redirect</span>);
+            }
+        };
+    });
+
+    <span class="cmt">// Tras registro → siempre a /pendiente</span>
+    <span class="var">$this</span>-><span class="var">app</span>-><span class="fn">singleton</span>(<span class="cls">RegisterResponse</span>::<span class="kw">class</span>, <span class="kw">function</span> () {
+        <span class="kw">return new class</span> <span class="kw">implements</span> <span class="cls">RegisterResponse</span> {
+            <span class="kw">public function</span> <span class="fn">toResponse</span>(<span class="var">$request</span>)
+            {
+                <span class="kw">return</span> <span class="fn">redirect</span>()-><span class="fn">route</span>(<span class="str">'pendiente'</span>);
+            }
+        };
+    });
+}</pre>
+    </div>
+
+    <h3>4.2 — Vistas personalizadas</h3>
+    <div class="code-block">
+      <div class="code-header">app/Providers/FortifyServiceProvider.php — configureViews()</div>
+      <pre class="code-body language-php"><span class="kw">private function</span> <span class="fn">configureViews</span>(): <span class="kw">void</span>
+{
+    <span class="cls">Fortify</span>::<span class="fn">loginView</span>(<span class="kw">fn</span> () =>
+        <span class="fn">view</span>(<span class="str">'pages::auth.login'</span>));
+
+    <span class="cls">Fortify</span>::<span class="fn">registerView</span>(<span class="kw">fn</span> () =>
+        <span class="fn">view</span>(<span class="str">'pages::auth.register'</span>));
+
+    <span class="cls">Fortify</span>::<span class="fn">resetPasswordView</span>(<span class="kw">fn</span> () =>
+        <span class="fn">view</span>(<span class="str">'pages::auth.reset-password'</span>));
+
+    <span class="cls">Fortify</span>::<span class="fn">requestPasswordResetLinkView</span>(<span class="kw">fn</span> () =>
+        <span class="fn">view</span>(<span class="str">'pages::auth.forgot-password'</span>));
+
+    <span class="cls">Fortify</span>::<span class="fn">verifyEmailView</span>(<span class="kw">fn</span> () =>
+        <span class="fn">view</span>(<span class="str">'pages::auth.verify-email'</span>));
+
+    <span class="cls">Fortify</span>::<span class="fn">twoFactorChallengeView</span>(<span class="kw">fn</span> () =>
+        <span class="fn">view</span>(<span class="str">'pages::auth.two-factor-challenge'</span>));
+
+    <span class="cls">Fortify</span>::<span class="fn">confirmPasswordView</span>(<span class="kw">fn</span> () =>
+        <span class="fn">view</span>(<span class="str">'pages::auth.confirm-password'</span>));
+}</pre>
+    </div>
+
+    <h3>4.3 — Rate Limiting</h3>
+    <div class="code-block">
+      <div class="code-header">app/Providers/FortifyServiceProvider.php — configureRateLimiting()</div>
+      <pre class="code-body language-php"><span class="kw">private function</span> <span class="fn">configureRateLimiting</span>(): <span class="kw">void</span>
+{
+    <span class="cmt">// Máximo 5 intentos de login por minuto por email+IP</span>
+    <span class="cls">RateLimiter</span>::<span class="fn">for</span>(<span class="str">'login'</span>, <span class="kw">function</span> (<span class="cls">Request</span> <span class="var">$request</span>) {
+        <span class="var">$key</span> = <span class="cls">Str</span>::<span class="fn">lower</span>(
+            <span class="var">$request</span>-><span class="fn">input</span>(<span class="cls">Fortify</span>::<span class="fn">username</span>())
+        ) . <span class="str">'|'</span> . <span class="var">$request</span>-><span class="fn">ip</span>();
+
+        <span class="kw">return</span> <span class="cls">Limit</span>::<span class="fn">perMinute</span>(<span class="num">5</span>)-><span class="fn">by</span>(<span class="var">$key</span>);
+    });
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">¿Qué es Rate Limiting?</div>
+      <p>Limita cuántas veces alguien puede intentar una acción en un período de tiempo. Si alguien intenta adivinar una contraseña, después de 5 intentos en 1 minuto, se bloquea temporalmente. Protege contra ataques de fuerza bruta.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> Registro: CreateNewUser (activo = false)</h2>
+
+    <p>Cuando alguien llena el formulario de registro, Fortify llama a esta clase:</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Actions/Fortify/CreateNewUser.php</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">CreateNewUser</span> <span class="kw">implements</span> <span class="cls">CreatesNewUsers</span>
+{
+    <span class="kw">use</span> <span class="cls">PasswordValidationRules</span>;
+
+    <span class="kw">public function</span> <span class="fn">create</span>(<span class="kw">array</span> <span class="var">$input</span>): <span class="cls">User</span>
+    {
+        <span class="cmt">// 1. Validar los datos</span>
+        <span class="cls">Validator</span>::<span class="fn">make</span>(<span class="var">$input</span>, [
+            <span class="str">'name'</span>            => [<span class="str">'required'</span>, <span class="str">'string'</span>, <span class="str">'max:100'</span>],
+            <span class="str">'apellidos'</span>       => [<span class="str">'required'</span>, <span class="str">'string'</span>, <span class="str">'max:100'</span>],
+            <span class="str">'email'</span>           => [<span class="str">'required'</span>, <span class="str">'email'</span>, <span class="str">'max:255'</span>,
+                                    <span class="cls">Rule</span>::<span class="fn">unique</span>(<span class="cls">User</span>::<span class="kw">class</span>)],
+            <span class="str">'centro_salud_id'</span> => [<span class="str">'required'</span>,
+                                    <span class="cls">Rule</span>::<span class="fn">exists</span>(<span class="cls">CentroSalud</span>::<span class="kw">class</span>, <span class="str">'id'</span>)],
+            <span class="str">'password'</span>        => <span class="var">$this</span>-><span class="fn">passwordRules</span>(),
+        ])-><span class="fn">validate</span>();
+
+        <span class="cmt">// 2. Crear usuario con activo = false</span>
+        <span class="kw">return</span> <span class="cls">User</span>::<span class="fn">create</span>([
+            <span class="str">'name'</span>            => <span class="var">$input</span>[<span class="str">'name'</span>],
+            <span class="str">'apellidos'</span>       => <span class="var">$input</span>[<span class="str">'apellidos'</span>],
+            <span class="str">'email'</span>           => <span class="var">$input</span>[<span class="str">'email'</span>],
+            <span class="str">'centro_salud_id'</span> => <span class="var">$input</span>[<span class="str">'centro_salud_id'</span>],
+            <span class="str">'password'</span>        => <span class="var">$input</span>[<span class="str">'password'</span>],
+            <span class="str">'activo'</span>          => <span class="kw2">false</span>,  <span class="cmt">// ← CLAVE: inactivo hasta aprobación</span>
+        ]);
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">Regla de negocio: activo = false</div>
+      <p>Todo usuario nuevo se crea con <code>activo = false</code>. No tiene rol asignado. Solo cuando un <strong>admin o superadmin</strong> lo apruebe desde el panel Filament, se activa la cuenta y se le asigna un rol. Esto impide el acceso no autorizado.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> Middleware RequireAprobado</h2>
+
+    <p>Un <strong>middleware</strong> es un filtro que se ejecuta antes (o después) de cada petición HTTP. Es como un guardia en la puerta:</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Http/Middleware/RequireAprobado.php</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">RequireAprobado</span>
+{
+    <span class="kw">public function</span> <span class="fn">handle</span>(<span class="cls">Request</span> <span class="var">$request</span>, <span class="cls">Closure</span> <span class="var">$next</span>): <span class="cls">Response</span>
+    {
+        <span class="cmt">// Si hay usuario logueado Y no está activo</span>
+        <span class="kw">if</span> (<span class="var">$request</span>-><span class="fn">user</span>() && !<span class="var">$request</span>-><span class="fn">user</span>()-><span class="var">activo</span>) {
+            <span class="kw">return</span> <span class="fn">redirect</span>()-><span class="fn">route</span>(<span class="str">'pendiente'</span>);
+        }
+
+        <span class="kw">return</span> <span class="var">$next</span>(<span class="var">$request</span>);  <span class="cmt">// Puede pasar</span>
+    }
+}</pre>
+    </div>
+
+    <p>El middleware se registra en <code>bootstrap/app.php</code> con un alias:</p>
+
+    <div class="code-block">
+      <div class="code-header">bootstrap/app.php</div>
+      <pre class="code-body language-php"><span class="kw">return</span> <span class="cls">Application</span>::<span class="fn">configure</span>(<span class="str">basePath:</span> <span class="fn">dirname</span>(<span class="var">__DIR__</span>))
+    -><span class="fn">withRouting</span>(
+        <span class="str">web:</span> <span class="var">__DIR__</span>.<span class="str">'/../routes/web.php'</span>,
+        <span class="str">commands:</span> <span class="var">__DIR__</span>.<span class="str">'/../routes/console.php'</span>,
+        <span class="str">health:</span> <span class="str">'/up'</span>,
+    )
+    -><span class="fn">withMiddleware</span>(<span class="kw">function</span> (<span class="cls">Middleware</span> <span class="var">$middleware</span>): <span class="kw">void</span> {
+        <span class="var">$middleware</span>-><span class="fn">alias</span>([
+            <span class="str">'aprobado'</span> => \<span class="cls">App\Http\Middleware\RequireAprobado</span>::<span class="kw">class</span>,
+        ]);
+    });</pre>
+    </div>
+
+    <p>Ahora, en las rutas, podemos proteger páginas así:</p>
+
+    <div class="code-block">
+      <div class="code-header">Uso en rutas</div>
+      <pre class="code-body language-php"><span class="cmt">// Solo usuarios logueados Y aprobados pueden ver el dashboard</span>
+<span class="cls">Route</span>::<span class="fn">middleware</span>([<span class="str">'auth'</span>, <span class="str">'aprobado'</span>])-><span class="fn">group</span>(<span class="kw">function</span> () {
+    <span class="cls">Route</span>::<span class="fn">get</span>(<span class="str">'/dashboard'</span>, <span class="kw">function</span> () {
+        <span class="kw">return</span> <span class="fn">view</span>(<span class="str">'dashboard'</span>);
+    });
+});</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 7 ════════════════════════ -->
+  <div class="section" id="s7">
+    <h2 class="section-title"><span class="number">7</span> Flujo completo: del registro al dashboard</h2>
+
+    <div class="flow-diagram">
+      <div class="flow-step">
+        <div class="flow-icon">📝</div>
+        <div class="flow-label">Usuario llena formulario de registro (nombres, email, centro de salud, contraseña)</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">✅</div>
+        <div class="flow-label">CreateNewUser valida los datos y crea con <code>activo = false</code></div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">⏳</div>
+        <div class="flow-label">RegisterResponse redirige a /pendiente — "Tu cuenta está en revisión"</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">👨‍💼</div>
+        <div class="flow-label">Admin aprueba desde el panel Filament: activo = true + asigna rol</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">🔑</div>
+        <div class="flow-label">Usuario hace login — LoginResponse verifica activo → redirige a /dashboard</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">🛡️</div>
+        <div class="flow-label">Middleware 'aprobado' confirma en cada petición que sigue activo</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 8 ════════════════════════ -->
+  <div class="section" id="s8">
+    <h2 class="section-title"><span class="number">8</span> Features de seguridad</h2>
+
+    <table class="db-table">
+      <thead><tr><th>Feature</th><th>¿Qué hace?</th><th>¿Cómo protege?</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><code>registration()</code></td>
+          <td>Formulario de auto-registro</td>
+          <td>activo=false hasta aprobación del admin</td>
+        </tr>
+        <tr>
+          <td><code>resetPasswords()</code></td>
+          <td>"Olvidé mi contraseña" por email</td>
+          <td>Token temporal, expira en 60 min</td>
+        </tr>
+        <tr>
+          <td><code>emailVerification()</code></td>
+          <td>Confirmar email real</td>
+          <td>Evita registros con emails falsos</td>
+        </tr>
+        <tr>
+          <td><code>twoFactorAuthentication()</code></td>
+          <td>Código de 6 dígitos (Google Authenticator)</td>
+          <td>Incluso si roban la contraseña, necesitan el teléfono</td>
+        </tr>
+        <tr>
+          <td>Rate Limiting</td>
+          <td>Máx 5 intentos/minuto</td>
+          <td>Bloquea ataques de fuerza bruta</td>
+        </tr>
+        <tr>
+          <td><code>bcrypt</code></td>
+          <td>Hash irreversible de contraseñas</td>
+          <td>Contraseñas nunca se guardan en texto plano</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <div class="callout-title">CSRF Protection</div>
+      <p>Cada formulario incluye <code>@csrf</code> — un token único que Laravel verifica. Esto impide que sitios externos envíen formularios falsos a tu aplicación (ataque <strong>Cross-Site Request Forgery</strong>).</p>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 06</h3>
+    <ul>
+      <li><strong>Fortify</strong> proporciona lógica de autenticación sin imponer vistas.</li>
+      <li>Archivos clave: <code>config/fortify.php</code> (configuración), <code>FortifyServiceProvider</code> (personalización), <code>Actions/</code> (lógica).</li>
+      <li>Usuarios nuevos se crean con <code>activo = false</code> — requieren aprobación de un admin.</li>
+      <li>El middleware <code>RequireAprobado</code> bloquea el acceso a usuarios no aprobados en cada petición.</li>
+      <li>Rate limiting, 2FA, verificación de email y bcrypt forman las capas de seguridad.</li>
+      <li>Las vistas de autenticación están en <code>resources/views/pages/auth/</code>.</li>
+    </ul>
+  </div>
+
+  <div class="lesson-nav">
+    <a href="05-seeders.html">← Lección 05: Seeders</a>
+    <a href="07-roles-permisos.html">Lección 07: Roles y Permisos →</a>
+  </div>
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 06: Autenticación</span>
+    <span>Fortify · Middleware · Rate Limiting · 2FA · CSRF</span>
+  </div>
+</div>
+</body>
+</html>

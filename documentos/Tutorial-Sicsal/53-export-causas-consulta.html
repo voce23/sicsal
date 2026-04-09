@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 53 · Export Causas de Consulta Externa — Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL · Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+  <span class="badge">Fase 11 — Exportaciones</span>
+  <h1>Lección 53 · Export Causas de Consulta Externa</h1>
+  <p class="subtitle">224 líneas, 26 columnas (A–Z), 10 grupos etáreos × M/F fusionados, fila TOTAL TEAL_DARK, A3 landscape fit-to-page, y freezePane en C5.</p>
+  <p class="meta">Lección 53 de 58 · Tiempo estimado: 20 min</p>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="52-export-comunidades-padron.html">← Lección 52 · Export Comunidades y Padrón</a>
+  <a href="54-presentacion-pptx.html">Lección 54 · Presentación PowerPoint CAI →</a>
+</nav>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">Contexto: 10 causas en 26 columnas</a></li>
+    <li><a href="#s2">Constantes y mapa de columnas</a></li>
+    <li><a href="#s3">array() — datos con relleno a 10 filas</a></li>
+    <li><a href="#s4">registerEvents() — estilización profesional</a></li>
+    <li><a href="#s5">Headers fusionados de 2 niveles</a></li>
+    <li><a href="#s6">Fila TOTAL y configuración de impresión</a></li>
+  </ol>
+</nav>
+
+<!-- ───── Secciones ───── -->
+
+<!-- ───── S1 ───── -->
+<section id="s1">
+  <h2>1 · Contexto: 10 causas en 26 columnas</h2>
+
+  <p><code>CausasConsultaExternaExport</code> es un export de <strong>hoja única</strong> (no <code>WithMultipleSheets</code>) que genera una matriz de 10 causas × 26 columnas:</p>
+
+  <pre><code><span class="cmt">// Layout de columnas A-Z:</span>
+<span class="cmt">//  A    B           C  D    E  F    G  H   ...  U  V    W       X       Y      Z</span>
+<span class="cmt">// N° | Diagnóstico | <6m    | 6m-1a | 1-4a |   ... | ≥60a  | Tot.M | Tot.F | Total | %</span>
+<span class="cmt">//     |             | M | F  | M | F | M | F|   ... | M | F |       |       |       |</span></code></pre>
+
+  <p>Interfaces implementadas:</p>
+  <pre><code><span class="kw">class</span> <span class="cls">CausasConsultaExternaExport</span>
+    <span class="kw">implements</span> <span class="cls">FromArray</span>, <span class="cls">WithTitle</span>, <span class="cls">WithColumnWidths</span>, <span class="cls">WithEvents</span>
+{
+    <span class="kw">use</span> <span class="cls">EstiloExcel</span>;  <span class="cmt">// Reutiliza la paleta teal (Lección 51)</span>
+}</code></pre>
+
+  <div class="callout info">
+    <strong>Hoja única</strong>: Este export implementa <code>FromArray</code> directamente, no necesita <code>WithMultipleSheets</code>. El título de la pestaña es "10 Causas Consulta".
+  </div>
+</section>
+
+<!-- ───── S2 ───── -->
+<section id="s2">
+  <h2>2 · Constantes y mapa de columnas</h2>
+
+  <pre><code><span class="kw">private const</span> <span class="var">GRUPOS</span> = [
+    <span class="str">'menor_6m'</span>   => <span class="str">'<6m'</span>,
+    <span class="str">'6m_menor_1'</span> => <span class="str">'6m-1a'</span>,
+    <span class="str">'1_4'</span>        => <span class="str">'1-4a'</span>,
+    <span class="str">'5_9'</span>        => <span class="str">'5-9a'</span>,
+    <span class="str">'10_14'</span>      => <span class="str">'10-14a'</span>,
+    <span class="str">'15_19'</span>      => <span class="str">'15-19a'</span>,
+    <span class="str">'20_39'</span>      => <span class="str">'20-39a'</span>,
+    <span class="str">'40_49'</span>      => <span class="str">'40-49a'</span>,
+    <span class="str">'50_59'</span>      => <span class="str">'50-59a'</span>,
+    <span class="str">'mayor_60'</span>   => <span class="str">'≥60a'</span>,
+];
+
+<span class="cmt">// Mapa de columnas por posición (0-based)</span>
+<span class="kw">private const</span> <span class="var">COL_NUM</span>   = <span class="num">0</span>;  <span class="cmt">// A — Número</span>
+<span class="kw">private const</span> <span class="var">COL_DIAG</span>  = <span class="num">1</span>;  <span class="cmt">// B — Diagnóstico</span>
+<span class="cmt">// C(2)..V(21) = 20 columnas (10 grupos × 2 sexos)</span>
+<span class="kw">private const</span> <span class="var">COL_TOT_M</span> = <span class="num">22</span>; <span class="cmt">// W — Total M</span>
+<span class="kw">private const</span> <span class="var">COL_TOT_F</span> = <span class="num">23</span>; <span class="cmt">// X — Total F</span>
+<span class="kw">private const</span> <span class="var">COL_TOT</span>   = <span class="num">24</span>; <span class="cmt">// Y — Total</span>
+<span class="kw">private const</span> <span class="var">COL_PCT</span>   = <span class="num">25</span>; <span class="cmt">// Z — Porcentaje</span></code></pre>
+
+  <p>Las constantes documentan la anatomía de la hoja: 10 grupos × 2 sexos = 20 columnas de datos + 6 fijas = 26 columnas (A–Z).</p>
+
+  <h3>Anchos dinámicos</h3>
+  <pre><code><span class="kw">public function</span> <span class="fn">columnWidths</span>(): <span class="type">array</span>
+{
+    <span class="var">$widths</span> = [<span class="str">'A'</span> => <span class="num">5</span>, <span class="str">'B'</span> => <span class="num">42</span>];  <span class="cmt">// Nº y Diagnóstico</span>
+    <span class="var">$col</span> = <span class="fn">ord</span>(<span class="str">'C'</span>);
+    <span class="kw">foreach</span> (<span class="kw">self</span>::<span class="var">GRUPOS</span> <span class="kw">as</span> <span class="var">$label</span>) {
+        <span class="var">$widths</span>[<span class="fn">chr</span>(<span class="var">$col</span>)]     = <span class="num">6</span>; <span class="cmt">// M</span>
+        <span class="var">$widths</span>[<span class="fn">chr</span>(<span class="var">$col</span> + <span class="num">1</span>)] = <span class="num">6</span>; <span class="cmt">// F</span>
+        <span class="var">$col</span> += <span class="num">2</span>;
+    }
+    <span class="var">$widths</span>[<span class="str">'W'</span>] = <span class="num">8</span>;   <span class="cmt">// Total M/F/Total un poco más ancho</span>
+    <span class="var">$widths</span>[<span class="str">'X'</span>] = <span class="num">8</span>;
+    <span class="var">$widths</span>[<span class="str">'Y'</span>] = <span class="num">8</span>;
+    <span class="var">$widths</span>[<span class="str">'Z'</span>] = <span class="num">7</span>;
+}</code></pre>
+</section>
+
+<!-- ───── S3 ───── -->
+<section id="s3">
+  <h2>3 · array() — datos con relleno a 10 filas</h2>
+
+  <p>El método <code>array()</code> genera 4 filas fijas + N filas de datos + relleno + fila TOTAL:</p>
+
+  <pre><code><span class="cmt">// Filas 1-2: Título + info período</span>
+<span class="var">$rows</span>[] = [<span class="str">'10 PRINCIPALES CAUSAS DE CONSULTA EXTERNA'</span>, ...<span class="fn">array_fill</span>(<span class="num">0</span>, <span class="num">25</span>, <span class="str">''</span>)];
+<span class="var">$rows</span>[] = [<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'centro'</span>] . <span class="str">'  ·  '</span> . <span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'periodo_label'</span>], ...];
+
+<span class="cmt">// Filas 3-4: Headers de 2 niveles (grupo + M/F)</span>
+
+<span class="cmt">// Filas 5-14: Datos de causas</span>
+<span class="kw">foreach</span> (<span class="var">$causas</span> <span class="kw">as</span> <span class="var">$causa</span>) {
+    <span class="var">$row</span> = [<span class="var">$causa</span>[<span class="str">'rank'</span>], <span class="var">$causa</span>[<span class="str">'diagnostico'</span>]];
+    <span class="kw">foreach</span> (<span class="var">$grupoCols</span> <span class="kw">as</span> <span class="var">$g</span>) {
+        <span class="var">$row</span>[] = <span class="var">$causa</span>[<span class="str">'grupos'</span>][<span class="var">$g</span>][<span class="str">'m'</span>] ?? <span class="num">0</span>;
+        <span class="var">$row</span>[] = <span class="var">$causa</span>[<span class="str">'grupos'</span>][<span class="var">$g</span>][<span class="str">'f'</span>] ?? <span class="num">0</span>;
+    }
+    <span class="var">$row</span>[] = <span class="var">$causa</span>[<span class="str">'total_m'</span>];
+    <span class="var">$row</span>[] = <span class="var">$causa</span>[<span class="str">'total_f'</span>];
+    <span class="var">$row</span>[] = <span class="var">$causa</span>[<span class="str">'total'</span>];
+    <span class="var">$row</span>[] = <span class="var">$causa</span>[<span class="str">'porcentaje'</span>] . <span class="str">'%'</span>;
+}</code></pre>
+
+  <h3>Relleno a 10 filas mínimo</h3>
+  <pre><code><span class="cmt">// Si hay menos de 10 causas, rellenar con filas vacías</span>
+<span class="var">$faltantes</span> = <span class="num">10</span> - <span class="fn">count</span>(<span class="var">$causas</span>);
+<span class="kw">for</span> (<span class="var">$i</span> = <span class="num">0</span>; <span class="var">$i</span> &lt; <span class="var">$faltantes</span>; <span class="var">$i</span>++) {
+    <span class="var">$rows</span>[] = <span class="fn">array_merge</span>(
+        [<span class="fn">count</span>(<span class="var">$causas</span>) + <span class="var">$i</span> + <span class="num">1</span>, <span class="str">'—'</span>],
+        <span class="fn">array_fill</span>(<span class="num">0</span>, <span class="num">24</span>, <span class="str">''</span>)
+    );
+}</code></pre>
+
+  <div class="callout info">
+    <strong>¿Por qué siempre 10 filas?</strong> El formulario SNIS define exactamente 10 diagnósticos principales. Si un centro reporta solo 7 causas, las 3 restantes se muestran vacías con numeración consecutiva, manteniendo el formato estándar ministerial.
+  </div>
+
+  <h3>Fila TOTAL con array_sum + array_map</h3>
+  <pre><code><span class="var">$totalRow</span> = [<span class="str">''</span>, <span class="str">'TOTAL'</span>];
+<span class="kw">foreach</span> (<span class="var">$grupoCols</span> <span class="kw">as</span> <span class="var">$g</span>) {
+    <span class="var">$sumM</span> = <span class="fn">array_sum</span>(<span class="fn">array_map</span>(<span class="kw">fn</span> (<span class="var">$c</span>) => <span class="var">$c</span>[<span class="str">'grupos'</span>][<span class="var">$g</span>][<span class="str">'m'</span>] ?? <span class="num">0</span>, <span class="var">$causas</span>));
+    <span class="var">$sumF</span> = <span class="fn">array_sum</span>(<span class="fn">array_map</span>(<span class="kw">fn</span> (<span class="var">$c</span>) => <span class="var">$c</span>[<span class="str">'grupos'</span>][<span class="var">$g</span>][<span class="str">'f'</span>] ?? <span class="num">0</span>, <span class="var">$causas</span>));
+    <span class="var">$totalRow</span>[] = <span class="var">$sumM</span>;
+    <span class="var">$totalRow</span>[] = <span class="var">$sumF</span>;
+}</code></pre>
+</section>
+
+<!-- ───── S4 ───── -->
+<section id="s4">
+  <h2>4 · registerEvents() — estilización profesional</h2>
+
+  <p>El evento <code>AfterSheet</code> aplica estilos celda por celda en 5 bloques:</p>
+
+  <pre><code><span class="var">$sheet</span> = <span class="var">$event</span>-><span class="var">sheet</span>-><span class="fn">getDelegate</span>();
+<span class="var">$lastCol</span> = <span class="str">'Z'</span>;
+<span class="var">$nDatos</span>  = <span class="fn">max</span>(<span class="fn">count</span>(<span class="var">$this</span>-><span class="var">datos</span>[<span class="str">'causas'</span>]), <span class="num">10</span>);
+<span class="var">$filaTot</span> = <span class="num">5</span> + <span class="var">$nDatos</span>; <span class="cmt">// Fila 15 (normalmente)</span></code></pre>
+
+  <h3>Título (fila 1) — TEAL_DARK con mergeCell completo</h3>
+  <pre><code><span class="var">$sheet</span>-><span class="fn">mergeCells</span>(<span class="str">'A1:Z1'</span>);
+<span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">'A1'</span>)-><span class="fn">applyFromArray</span>([
+    <span class="str">'font'</span> => [<span class="str">'bold'</span> => <span class="kw">true</span>, <span class="str">'size'</span> => <span class="num">13</span>, <span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FFFFFFFF'</span>]],
+    <span class="str">'fill'</span> => [<span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FF004D40'</span>]], <span class="cmt">// TEAL_DARK</span>
+    <span class="str">'alignment'</span> => [<span class="str">'horizontal'</span> => <span class="str">'left'</span>, <span class="str">'indent'</span> => <span class="num">1</span>],
+]);</code></pre>
+
+  <h3>Filas de datos — alternancia blanco/gris</h3>
+  <pre><code><span class="kw">for</span> (<span class="var">$i</span> = <span class="num">0</span>; <span class="var">$i</span> &lt; <span class="var">$nDatos</span>; <span class="var">$i</span>++) {
+    <span class="var">$f</span>  = <span class="num">5</span> + <span class="var">$i</span>;
+    <span class="var">$bg</span> = (<span class="var">$i</span> % <span class="num">2</span> === <span class="num">0</span>) ? <span class="str">'FFFFFFFF'</span> : <span class="str">'FFF5F5F5'</span>;
+    <span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"A{$f}:Z{$f}"</span>)-><span class="fn">applyFromArray</span>([
+        <span class="str">'font'</span>      => [<span class="str">'size'</span> => <span class="num">8</span>],
+        <span class="str">'fill'</span>      => [<span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="var">$bg</span>]],
+        <span class="str">'alignment'</span> => [<span class="str">'horizontal'</span> => <span class="str">'center'</span>],
+        <span class="str">'borders'</span>   => [<span class="str">'allBorders'</span> => [<span class="str">'borderStyle'</span> => <span class="str">'thin'</span>, <span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FFB0BEC5'</span>]]],
+    ]);
+
+    <span class="cmt">// Diagnóstico alineado a la izquierda con indent</span>
+    <span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"B{$f}"</span>)-><span class="fn">getAlignment</span>()
+        -><span class="fn">setHorizontal</span>(<span class="str">'left'</span>)-><span class="fn">setIndent</span>(<span class="num">1</span>);
+    <span class="var">$sheet</span>-><span class="fn">getRowDimension</span>(<span class="var">$f</span>)-><span class="fn">setRowHeight</span>(<span class="num">14</span>);
+}</code></pre>
+</section>
+
+<!-- ───── S5 ───── -->
+<section id="s5">
+  <h2>5 · Headers fusionados de 2 niveles</h2>
+
+  <p>El mismo patrón de <code>ComunidadesDetalleSheet</code> (Lección 52), pero aquí usando <code>chr()/ord()</code> en vez de <code>colLetter()</code>:</p>
+
+  <pre><code><span class="cmt">// Fila 3: fusionar pares de columnas por grupo etáreo</span>
+<span class="var">$col</span> = <span class="fn">ord</span>(<span class="str">'C'</span>);
+<span class="kw">foreach</span> (<span class="fn">array_keys</span>(<span class="kw">self</span>::<span class="var">GRUPOS</span>) <span class="kw">as</span> <span class="var">$_</span>) {
+    <span class="var">$sheet</span>-><span class="fn">mergeCells</span>(<span class="fn">chr</span>(<span class="var">$col</span>) . <span class="str">'3:'</span> . <span class="fn">chr</span>(<span class="var">$col</span> + <span class="num">1</span>) . <span class="str">'3'</span>);
+    <span class="var">$col</span> += <span class="num">2</span>;
+}
+<span class="cmt">// Fusionar W3:X3 para "Totales"</span>
+<span class="var">$sheet</span>-><span class="fn">mergeCells</span>(<span class="str">'W3:X3'</span>);
+<span class="var">$sheet</span>-><span class="fn">setCellValue</span>(<span class="str">'W3'</span>, <span class="str">'Totales'</span>);</code></pre>
+
+  <p>Los headers usan el teal (#00897B) del trait <code>EstiloExcel</code> con fuente blanca de 8pt:</p>
+  <pre><code><span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"A3:Z3"</span>)-><span class="fn">applyFromArray</span>([
+    <span class="str">'font'</span>    => [<span class="str">'bold'</span> => <span class="kw">true</span>, <span class="str">'size'</span> => <span class="num">8</span>, <span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FFFFFFFF'</span>]],
+    <span class="str">'fill'</span>    => [<span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FF00897B'</span>]], <span class="cmt">// TEAL</span>
+    <span class="str">'borders'</span> => [<span class="str">'allBorders'</span> => [<span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FF004D40'</span>]]], <span class="cmt">// TEAL_DARK</span>
+]);</code></pre>
+</section>
+
+<!-- ───── S6 ───── -->
+<section id="s6">
+  <h2>6 · Fila TOTAL y configuración de impresión</h2>
+
+  <h3>Fila TOTAL estilo TEAL_DARK</h3>
+  <pre><code><span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"A{$filaTot}:Z{$filaTot}"</span>)-><span class="fn">applyFromArray</span>([
+    <span class="str">'font'</span> => [<span class="str">'bold'</span> => <span class="kw">true</span>, <span class="str">'size'</span> => <span class="num">9</span>, <span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FFFFFFFF'</span>]],
+    <span class="str">'fill'</span> => [<span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FF004D40'</span>]],
+]);</code></pre>
+
+  <h3>Borde externo + freezePane</h3>
+  <pre><code><span class="cmt">// Borde exterior medium teal alrededor de toda la tabla</span>
+<span class="var">$sheet</span>-><span class="fn">getStyle</span>(<span class="str">"A3:Z{$filaTot}"</span>)-><span class="fn">applyFromArray</span>([
+    <span class="str">'borders'</span> => [<span class="str">'outline'</span> => [
+        <span class="str">'borderStyle'</span> => <span class="cls">Border</span>::<span class="var">BORDER_MEDIUM</span>,
+        <span class="str">'color'</span> => [<span class="str">'argb'</span> => <span class="str">'FF00897B'</span>],
+    ]],
+]);
+
+<span class="cmt">// Congela columnas A-B y filas 1-4</span>
+<span class="var">$sheet</span>-><span class="fn">freezePane</span>(<span class="str">'C5'</span>);</code></pre>
+
+  <div class="callout tip">
+    <strong>freezePane('C5')</strong>: Al navegar el Excel, las columnas A (Nº) y B (Diagnóstico) + las 4 filas de headers permanecen fijas, permitiendo scroll horizontal/vertical por los 20 datos numéricos.
+  </div>
+
+  <h3>Configuración de impresión A3 landscape</h3>
+  <pre><code><span class="cmt">// 26 columnas no caben en A4 → A3 landscape con fit-to-page</span>
+<span class="var">$sheet</span>-><span class="fn">getPageSetup</span>()-><span class="fn">setOrientation</span>(<span class="cls">PageSetup</span>::<span class="var">ORIENTATION_LANDSCAPE</span>);
+<span class="var">$sheet</span>-><span class="fn">getPageSetup</span>()-><span class="fn">setPaperSize</span>(<span class="cls">PageSetup</span>::<span class="var">PAPERSIZE_A3</span>);
+<span class="var">$sheet</span>-><span class="fn">getPageSetup</span>()-><span class="fn">setFitToPage</span>(<span class="kw">true</span>);
+<span class="var">$sheet</span>-><span class="fn">getPageSetup</span>()-><span class="fn">setFitToWidth</span>(<span class="num">1</span>);   <span class="cmt">// Ajustar a 1 página de ancho</span>
+<span class="var">$sheet</span>-><span class="fn">getPageSetup</span>()-><span class="fn">setFitToHeight</span>(<span class="num">0</span>);  <span class="cmt">// Sin límite vertical</span></code></pre>
+
+  <div class="callout warning">
+    <strong>Fuente global Calibri</strong>: La última línea del evento aplica <code>setName('Calibri')</code> a todo el rango A1:Z$filaTot, asegurando consistencia independientemente de la fuente por defecto del sistema.
+  </div>
+</section>
+
+<!-- ───── Resumen ───── -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li><code>CausasConsultaExternaExport</code> (224 líneas) es un export de <strong>hoja única</strong> que reutiliza el trait <code>EstiloExcel</code>.</li>
+    <li>26 columnas (A–Z): 10 grupos etáreos × M/F + totales + porcentaje.</li>
+    <li>Siempre genera <strong>exactamente 10 filas de datos</strong> (rellenando con "—" si hay menos causas) para cumplir el formato SNIS.</li>
+    <li>Headers de <strong>2 niveles fusionados</strong>: fila 3 (grupo) + fila 4 (M/F) con <code>mergeCells</code> por pares.</li>
+    <li><code>freezePane('C5')</code> congela columnas de identificación + filas de headers.</li>
+    <li>Impresión en <strong>A3 landscape fit-to-page</strong> para acomodar las 26 columnas.</li>
+    <li>El total se calcula con <code>array_sum(array_map(fn...))</code> recorriendo cada grupo por separado.</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Próxima lección</strong>: En la Lección 54 cruzaremos al mundo <strong>PowerPoint</strong> con <code>PresentacionCAI</code> — 961 líneas que generan slides con gráficos, tablas y estilos usando PhpPresentation.
+  </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="52-export-comunidades-padron.html">← Lección 52 · Export Comunidades y Padrón</a>
+  <a href="54-presentacion-pptx.html">Lección 54 · Presentación PowerPoint CAI →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+  Tutorial SICSAL · <span id="year"></span>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</footer>
+
+</body>
+</html>

@@ -1,0 +1,576 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 27 — Resource: Persona | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 6 — Panel Admin (Filament)</div>
+    <div class="lesson-number">Lección 27 de 58</div>
+    <h1 class="lesson-title">Resource: Persona</h1>
+    <p class="lesson-subtitle">El Resource más complejo de SICSAL — formulario con 5 secciones, tabla con búsqueda individual/global, badges de colores, acciones rápidas y acciones masivas.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 6 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~40 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio-Avanzado</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="26-resource-comunidad.html" class="lesson-nav-btn">← Lección 26</a>
+    <a href="28-resource-defuncion.html" class="lesson-nav-btn">Lección 28 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#resource">PersonaResource — navegación y filtrado</a></li>
+      <li><a href="#form">PersonaForm — 5 secciones, campos reactivos</a></li>
+      <li><a href="#table-columns">PersonasTable — 10 columnas con badges</a></li>
+      <li><a href="#table-filters">Filtros: 5 filtros combinables</a></li>
+      <li><a href="#table-actions">Acciones: rápida + 3 masivas</a></li>
+      <li><a href="#pages">Pages: CreatePersona con mutateFormData</a></li>
+      <li><a href="#resumen">Resumen</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: RESOURCE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resource">
+    <h2><span class="section-number">1</span> PersonaResource — navegación y filtrado</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/Personas/PersonaResource.php</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">PersonaResource</span> <span class="kw">extends</span> <span class="cls">Resource</span>
+{
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$model</span> <span class="op">=</span> <span class="cls">Persona</span>::<span class="kw">class</span>;
+    <span class="kw">protected static</span> <span class="type">string</span>|<span class="cls">BackedEnum</span>|<span class="kw">null</span> <span class="var">$navigationIcon</span>
+        <span class="op">=</span> <span class="cls">Heroicon</span>::<span class="var">OutlinedUserGroup</span>;
+    <span class="kw">protected static</span> <span class="type">string</span>|<span class="cls">\UnitEnum</span>|<span class="kw">null</span> <span class="var">$navigationGroup</span>
+        <span class="op">=</span> <span class="str">'Padrón Poblacional'</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$navigationLabel</span> <span class="op">=</span> <span class="str">'Padrón de Personas'</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$modelLabel</span>      <span class="op">=</span> <span class="str">'Persona'</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$pluralModelLabel</span> <span class="op">=</span> <span class="str">'Personas'</span>;
+    <span class="kw">protected static</span> ?<span class="type">int</span>    <span class="var">$navigationSort</span>   <span class="op">=</span> <span class="num">1</span>;
+    <span class="kw">protected static</span> ?<span class="type">string</span> <span class="var">$recordTitleAttribute</span> <span class="op">=</span> <span class="str">'nombres'</span>;
+
+    <span class="cmt">// Filtrado por centro (igual que ComunidadResource)</span>
+    <span class="kw">public static function</span> <span class="fn">getEloquentQuery</span>(): <span class="cls">Builder</span>
+    {
+        <span class="var">$query</span> <span class="op">=</span> <span class="kw">parent</span>::<span class="fn">getEloquentQuery</span>();
+        <span class="var">$user</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>();
+        <span class="kw">if</span> (<span class="var">$user</span> <span class="op">&amp;&amp;</span> !<span class="var">$user</span>-&gt;<span class="fn">hasRole</span>(<span class="str">'superadmin'</span>)) {
+            <span class="var">$query</span>-&gt;<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$user</span>-&gt;<span class="var">centro_salud_id</span>);
+        }
+        <span class="kw">return</span> <span class="var">$query</span>;
+    }
+
+    <span class="cmt">// Delegación a Form y Table separados</span>
+    <span class="kw">public static function</span> <span class="fn">form</span>(<span class="cls">Schema</span> <span class="var">$schema</span>): <span class="cls">Schema</span>
+    {
+        <span class="kw">return</span> <span class="cls">PersonaForm</span>::<span class="fn">configure</span>(<span class="var">$schema</span>);
+    }
+
+    <span class="kw">public static function</span> <span class="fn">table</span>(<span class="cls">Table</span> <span class="var">$table</span>): <span class="cls">Table</span>
+    {
+        <span class="kw">return</span> <span class="cls">PersonasTable</span>::<span class="fn">configure</span>(<span class="var">$table</span>);
+    }
+
+    <span class="kw">public static function</span> <span class="fn">getPages</span>(): <span class="type">array</span>
+    {
+        <span class="kw">return</span> [
+            <span class="str">'index'</span>  <span class="op">=&gt;</span> <span class="cls">ListPersonas</span>::<span class="fn">route</span>(<span class="str">'/'</span>),
+            <span class="str">'create'</span> <span class="op">=&gt;</span> <span class="cls">CreatePersona</span>::<span class="fn">route</span>(<span class="str">'/create'</span>),
+            <span class="str">'edit'</span>   <span class="op">=&gt;</span> <span class="cls">EditPersona</span>::<span class="fn">route</span>(<span class="str">'/{record}/edit'</span>),
+        ];
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Grupo de navegación: Padrón Poblacional</div>
+      <p>PersonaResource no usa canAccess() — cualquier usuario autenticado puede acceder. Pero getEloquentQuery() garantiza que admin/registrador solo ven personas de su propio centro.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: FORM
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="form">
+    <h2><span class="section-number">2</span> PersonaForm — 5 secciones, campos reactivos</h2>
+
+    <p>El formulario es el más grande de SICSAL: 5 secciones con 13 campos, incluyendo campos condicionales (<code>hidden</code>) y campos reactivos (<code>live</code> + <code>afterStateUpdated</code>).</p>
+
+    <div class="arch-diagram">
+      <div class="arch-box">Datos personales<br><small>nombres, apellidos, fecha_nacimiento, sexo, ci</small></div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-box">Seguro y ubicación<br><small>tipo_seguro, comunidad_id, fecha_registro</small></div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-box">Estado migratorio<br><small>estado (live), destino_migracion, fecha_migracion</small></div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-box">Verificación del padrón<br><small>verificado (live), fecha_verificacion</small></div>
+      <div class="arch-arrow">↓</div>
+      <div class="arch-box">Observaciones<br><small>observaciones (textarea)</small></div>
+    </div>
+
+    <h3>Sección 1: Datos personales</h3>
+    <div class="code-block">
+      <div class="code-header">PersonaForm.php — Sección datos personales</div>
+      <div class="code-body">
+<pre><span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Datos personales'</span>)
+    -&gt;<span class="fn">schema</span>([
+        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'nombres'</span>)
+            -&gt;<span class="fn">required</span>()-&gt;<span class="fn">maxLength</span>(<span class="num">100</span>)-&gt;<span class="fn">label</span>(<span class="str">'Nombres'</span>),
+        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'apellidos'</span>)
+            -&gt;<span class="fn">required</span>()-&gt;<span class="fn">maxLength</span>(<span class="num">100</span>)-&gt;<span class="fn">label</span>(<span class="str">'Apellidos'</span>),
+        <span class="cls">DatePicker</span>::<span class="fn">make</span>(<span class="str">'fecha_nacimiento'</span>)
+            -&gt;<span class="fn">required</span>()-&gt;<span class="fn">maxDate</span>(<span class="fn">now</span>())-&gt;<span class="fn">label</span>(<span class="str">'Fecha de nacimiento'</span>),
+        <span class="cls">Radio</span>::<span class="fn">make</span>(<span class="str">'sexo'</span>)
+            -&gt;<span class="fn">options</span>([<span class="str">'M'</span> <span class="op">=&gt;</span> <span class="str">'Masculino'</span>, <span class="str">'F'</span> <span class="op">=&gt;</span> <span class="str">'Femenino'</span>])
+            -&gt;<span class="fn">required</span>()-&gt;<span class="fn">inline</span>()-&gt;<span class="fn">label</span>(<span class="str">'Sexo'</span>),
+        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'ci'</span>)
+            -&gt;<span class="fn">maxLength</span>(<span class="num">20</span>)-&gt;<span class="fn">label</span>(<span class="str">'Cédula de identidad'</span>),
+    ])
+    -&gt;<span class="fn">columns</span>(<span class="num">2</span>),</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Radio::make() — alternativa a Select</div>
+      <p>Para campos con solo 2-3 opciones, <code>Radio</code> con <code>->inline()</code> es más ergonómico que un Select. El usuario ve las opciones sin tener que abrir un dropdown.</p>
+    </div>
+
+    <h3>Sección 2: Seguro y ubicación</h3>
+    <div class="code-block">
+      <div class="code-header">PersonaForm.php — Sección seguro y ubicación</div>
+      <div class="code-body">
+<pre><span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Seguro y ubicación'</span>)
+    -&gt;<span class="fn">schema</span>([
+        <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'tipo_seguro'</span>)
+            -&gt;<span class="fn">options</span>([
+                <span class="str">'SUS'</span>     <span class="op">=&gt;</span> <span class="str">'SUS (Seguro Universal de Salud)'</span>,
+                <span class="str">'privado'</span> <span class="op">=&gt;</span> <span class="str">'Privado'</span>,
+                <span class="str">'ninguno'</span> <span class="op">=&gt;</span> <span class="str">'Ninguno'</span>,
+            ])
+            -&gt;<span class="fn">default</span>(<span class="str">'ninguno'</span>)-&gt;<span class="fn">required</span>()-&gt;<span class="fn">label</span>(<span class="str">'Tipo de seguro'</span>),
+        <span class="hl"><span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'comunidad_id'</span>)
+            -&gt;<span class="fn">relationship</span>(
+                <span class="str">'comunidad'</span>, <span class="str">'nombre'</span>,
+                <span class="kw">fn</span> (<span class="var">$query</span>) <span class="op">=&gt;</span> <span class="var">$query</span>-&gt;<span class="fn">where</span>(
+                    <span class="str">'centro_salud_id'</span>,
+                    <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()?-&gt;<span class="var">centro_salud_id</span>
+                )
+            )</span>
+            -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">preload</span>()-&gt;<span class="fn">required</span>()
+            -&gt;<span class="fn">label</span>(<span class="str">'Comunidad'</span>),
+        <span class="cls">DatePicker</span>::<span class="fn">make</span>(<span class="str">'fecha_registro'</span>)
+            -&gt;<span class="fn">required</span>()-&gt;<span class="fn">default</span>(<span class="fn">today</span>())-&gt;<span class="fn">label</span>(<span class="str">'Fecha de registro'</span>),
+    ])
+    -&gt;<span class="fn">columns</span>(<span class="num">2</span>),</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">relationship() con filtro — seguridad clave</div>
+      <p>El tercer argumento de <code>relationship()</code> recibe un closure que filtra las opciones del Select. Aquí se limitan las comunidades a las del centro del usuario. <strong>Sin esto, un admin podría asignar personas a comunidades de otros centros.</strong></p>
+    </div>
+
+    <h3>Sección 3: Estado migratorio — campos condicionales</h3>
+    <div class="code-block">
+      <div class="code-header">PersonaForm.php — Sección estado migratorio</div>
+      <div class="code-body">
+<pre><span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Estado migratorio'</span>)
+    -&gt;<span class="fn">schema</span>([
+        <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'estado'</span>)
+            -&gt;<span class="fn">options</span>([
+                <span class="str">'residente'</span> <span class="op">=&gt;</span> <span class="str">'Residente'</span>,
+                <span class="str">'temporal'</span>  <span class="op">=&gt;</span> <span class="str">'Temporal'</span>,
+                <span class="str">'migrado'</span>   <span class="op">=&gt;</span> <span class="str">'Migrado'</span>,
+                <span class="str">'fallecido'</span> <span class="op">=&gt;</span> <span class="str">'Fallecido'</span>,
+            ])
+            -&gt;<span class="fn">default</span>(<span class="str">'residente'</span>)-&gt;<span class="fn">required</span>()
+            <span class="hl">-&gt;<span class="fn">live</span>()</span>
+            -&gt;<span class="fn">label</span>(<span class="str">'Estado'</span>),
+        <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'destino_migracion'</span>)
+            -&gt;<span class="fn">maxLength</span>(<span class="num">150</span>)
+            -&gt;<span class="fn">label</span>(<span class="str">'Destino de migración'</span>)
+            <span class="hl">-&gt;<span class="fn">hidden</span>(<span class="kw">fn</span> (<span class="var">$get</span>) <span class="op">=&gt;</span> <span class="var">$get</span>(<span class="str">'estado'</span>) <span class="op">!==</span> <span class="str">'migrado'</span>)</span>,
+        <span class="cls">DatePicker</span>::<span class="fn">make</span>(<span class="str">'fecha_migracion'</span>)
+            -&gt;<span class="fn">label</span>(<span class="str">'Fecha de migración'</span>)
+            <span class="hl">-&gt;<span class="fn">hidden</span>(<span class="kw">fn</span> (<span class="var">$get</span>) <span class="op">=&gt;</span> <span class="var">$get</span>(<span class="str">'estado'</span>) <span class="op">!==</span> <span class="str">'migrado'</span>)</span>,
+    ])
+    -&gt;<span class="fn">columns</span>(<span class="num">2</span>),</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">live() + hidden() — formularios dinámicos</div>
+      <p><code>->live()</code> en el campo <code>estado</code> hace que Filament envíe una petición AJAX cada vez que el valor cambia. Los campos <code>destino_migracion</code> y <code>fecha_migracion</code> usan <code>->hidden(fn ($get) => ...)</code> para ocultarse cuando el estado no es "migrado". El <code>$get</code> closure accede al valor actual de otro campo del formulario.</p>
+    </div>
+
+    <h3>Sección 4: Verificación del padrón — afterStateUpdated</h3>
+    <div class="code-block">
+      <div class="code-header">PersonaForm.php — Sección verificación</div>
+      <div class="code-body">
+<pre><span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Verificación del padrón'</span>)
+    -&gt;<span class="fn">description</span>(<span class="str">'Confirme si la persona fue verificada...'</span>)
+    -&gt;<span class="fn">schema</span>([
+        <span class="cls">Toggle</span>::<span class="fn">make</span>(<span class="str">'verificado'</span>)
+            -&gt;<span class="fn">label</span>(<span class="str">'Persona verificada'</span>)
+            -&gt;<span class="fn">helperText</span>(<span class="str">'Active si la presencia fue confirmada en la visita.'</span>)
+            <span class="hl">-&gt;<span class="fn">live</span>()</span>
+            <span class="hl">-&gt;<span class="fn">afterStateUpdated</span>(<span class="kw">function</span> (<span class="var">$state</span>, <span class="type">callable</span> <span class="var">$set</span>) {</span>
+            <span class="hl">    <span class="kw">if</span> (<span class="var">$state</span>) {</span>
+            <span class="hl">        <span class="var">$set</span>(<span class="str">'fecha_verificacion'</span>, <span class="fn">today</span>()-&gt;<span class="fn">format</span>(<span class="str">'Y-m-d'</span>));</span>
+            <span class="hl">        <span class="var">$set</span>(<span class="str">'verificado_por'</span>, <span class="fn">auth</span>()-&gt;<span class="fn">id</span>());</span>
+            <span class="hl">    }</span>
+            <span class="hl">})</span>,
+        <span class="cls">DatePicker</span>::<span class="fn">make</span>(<span class="str">'fecha_verificacion'</span>)
+            -&gt;<span class="fn">label</span>(<span class="str">'Fecha de verificación'</span>)
+            -&gt;<span class="fn">hidden</span>(<span class="kw">fn</span> (<span class="var">$get</span>) <span class="op">=&gt;</span> !<span class="var">$get</span>(<span class="str">'verificado'</span>)),
+    ])
+    -&gt;<span class="fn">columns</span>(<span class="num">2</span>),</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">afterStateUpdated — auto-llenar otros campos</div>
+      <p>Cuando el toggle de <code>verificado</code> se activa, SICSAL auto-llena:</p>
+      <ul>
+        <li><code>fecha_verificacion</code> = hoy</li>
+        <li><code>verificado_por</code> = ID del usuario actual</li>
+      </ul>
+      <p><code>$set(campo, valor)</code> modifica el valor de otro campo del formulario. <code>$get(campo)</code> lee el valor. Juntos permiten formularios con lógica compleja sin JavaScript.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: TABLE COLUMNS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="table-columns">
+    <h2><span class="section-number">3</span> PersonasTable — 10 columnas con badges</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/Personas/Tables/PersonasTable.php — columnas</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">columns</span>([
+    <span class="cmt">// ① Icono de verificación con tooltip</span>
+    <span class="cls">IconColumn</span>::<span class="fn">make</span>(<span class="str">'verificado'</span>)
+        -&gt;<span class="fn">label</span>(<span class="str">'Ver.'</span>)-&gt;<span class="fn">boolean</span>()
+        -&gt;<span class="fn">trueIcon</span>(<span class="str">'heroicon-m-check-badge'</span>)
+        -&gt;<span class="fn">falseIcon</span>(<span class="str">'heroicon-m-clock'</span>)
+        -&gt;<span class="fn">trueColor</span>(<span class="str">'success'</span>)-&gt;<span class="fn">falseColor</span>(<span class="str">'warning'</span>)
+        -&gt;<span class="fn">tooltip</span>(<span class="kw">fn</span> (<span class="var">$state</span>) <span class="op">=&gt;</span> <span class="var">$state</span> ? <span class="str">'Verificado'</span> : <span class="str">'Sin verificar'</span>)
+        -&gt;<span class="fn">sortable</span>(),
+
+    <span class="cmt">// ② y ③ Búsqueda individual + global</span>
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'nombres'</span>)
+        <span class="hl">-&gt;<span class="fn">searchable</span>(<span class="var">isIndividual</span>: <span class="kw">true</span>, <span class="var">isGlobal</span>: <span class="kw">true</span>)</span>
+        -&gt;<span class="fn">sortable</span>()-&gt;<span class="fn">label</span>(<span class="str">'Nombres'</span>),
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'apellidos'</span>)
+        -&gt;<span class="fn">searchable</span>(<span class="var">isIndividual</span>: <span class="kw">true</span>, <span class="var">isGlobal</span>: <span class="kw">true</span>)
+        -&gt;<span class="fn">sortable</span>()-&gt;<span class="fn">label</span>(<span class="str">'Apellidos'</span>),
+
+    <span class="cmt">// ④ Relación con comunidad</span>
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'comunidad.nombre'</span>)
+        -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">sortable</span>()-&gt;<span class="fn">label</span>(<span class="str">'Comunidad'</span>),
+
+    <span class="cmt">// ⑤ Accessor del modelo (no sortable)</span>
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'edad'</span>)
+        -&gt;<span class="fn">getStateUsing</span>(<span class="kw">fn</span> (<span class="var">$record</span>) <span class="op">=&gt;</span> <span class="var">$record</span>-&gt;<span class="var">edad</span> . <span class="str">' años'</span>)
+        -&gt;<span class="fn">sortable</span>(<span class="kw">false</span>)-&gt;<span class="fn">label</span>(<span class="str">'Edad'</span>),
+
+    <span class="cmt">// ⑥ Badge con color por valor</span>
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'sexo'</span>)
+        -&gt;<span class="fn">badge</span>()
+        -&gt;<span class="fn">color</span>(<span class="kw">fn</span> (<span class="type">string</span> <span class="var">$state</span>) <span class="op">=&gt;</span> <span class="kw">match</span> (<span class="var">$state</span>) {
+            <span class="str">'M'</span> <span class="op">=&gt;</span> <span class="str">'info'</span>,
+            <span class="str">'F'</span> <span class="op">=&gt;</span> <span class="str">'danger'</span>,
+            <span class="kw">default</span> <span class="op">=&gt;</span> <span class="str">'gray'</span>,
+        })
+        -&gt;<span class="fn">formatStateUsing</span>(<span class="kw">fn</span> (<span class="type">string</span> <span class="var">$state</span>) <span class="op">=&gt;</span>
+            <span class="var">$state</span> <span class="op">===</span> <span class="str">'M'</span> ? <span class="str">'Masculino'</span> : <span class="str">'Femenino'</span>)
+        -&gt;<span class="fn">label</span>(<span class="str">'Sexo'</span>),
+
+    <span class="cmt">// ⑦ Seguro (badge simple)</span>
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'tipo_seguro'</span>)-&gt;<span class="fn">badge</span>()-&gt;<span class="fn">label</span>(<span class="str">'Seguro'</span>),
+
+    <span class="cmt">// ⑧ Estado con 4 colores</span>
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'estado'</span>)
+        -&gt;<span class="fn">badge</span>()
+        -&gt;<span class="fn">color</span>(<span class="kw">fn</span> (<span class="type">string</span> <span class="var">$state</span>) <span class="op">=&gt;</span> <span class="kw">match</span> (<span class="var">$state</span>) {
+            <span class="str">'residente'</span> <span class="op">=&gt;</span> <span class="str">'success'</span>,
+            <span class="str">'temporal'</span>  <span class="op">=&gt;</span> <span class="str">'warning'</span>,
+            <span class="str">'migrado'</span>   <span class="op">=&gt;</span> <span class="str">'danger'</span>,
+            <span class="str">'fallecido'</span> <span class="op">=&gt;</span> <span class="str">'gray'</span>,
+            <span class="kw">default</span>     <span class="op">=&gt;</span> <span class="str">'gray'</span>,
+        })
+        -&gt;<span class="fn">formatStateUsing</span>(<span class="kw">fn</span> (<span class="type">string</span> <span class="var">$state</span>) <span class="op">=&gt;</span> <span class="kw">match</span> (<span class="var">$state</span>) {
+            <span class="str">'residente'</span> <span class="op">=&gt;</span> <span class="str">'Residente'</span>,
+            <span class="str">'temporal'</span>  <span class="op">=&gt;</span> <span class="str">'Temporal'</span>,
+            <span class="str">'migrado'</span>   <span class="op">=&gt;</span> <span class="str">'Migrado'</span>,
+            <span class="str">'fallecido'</span> <span class="op">=&gt;</span> <span class="str">'Fallecido'</span>,
+            <span class="kw">default</span>     <span class="op">=&gt;</span> <span class="var">$state</span>,
+        })-&gt;<span class="fn">label</span>(<span class="str">'Estado'</span>),
+
+    <span class="cmt">// ⑨ y ⑩ Columnas toggleables (ocultas por defecto)</span>
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'fecha_verificacion'</span>)
+        -&gt;<span class="fn">date</span>(<span class="str">'d/m/Y'</span>)-&gt;<span class="fn">sortable</span>()
+        <span class="hl">-&gt;<span class="fn">toggleable</span>(<span class="var">isToggledHiddenByDefault</span>: <span class="kw">true</span>)</span>,
+    <span class="cls">TextColumn</span>::<span class="fn">make</span>(<span class="str">'fecha_registro'</span>)
+        -&gt;<span class="fn">date</span>(<span class="str">'d/m/Y'</span>)-&gt;<span class="fn">sortable</span>()
+        -&gt;<span class="fn">toggleable</span>(<span class="var">isToggledHiddenByDefault</span>: <span class="kw">true</span>),
+])</pre>
+      </div>
+    </div>
+
+    <div class="db-table">
+      <div class="db-table-title">Técnicas nuevas en esta tabla</div>
+      <table>
+        <thead><tr><th>Técnica</th><th>Código</th><th>Efecto</th></tr></thead>
+        <tbody>
+          <tr><td>Búsqueda individual</td><td><code>searchable(isIndividual: true)</code></td><td>Input de búsqueda propio en la columna</td></tr>
+          <tr><td>Búsqueda global</td><td><code>isGlobal: true</code></td><td>También busca en el campo de búsqueda global</td></tr>
+          <tr><td>Accessor como columna</td><td><code>getStateUsing(fn($record) => ...)</code></td><td>Muestra un valor calculado (edad) sin columna real en BD</td></tr>
+          <tr><td>Badge con color</td><td><code>badge()->color(fn($state) => match(...))</code></td><td>Chip de colores según el valor</td></tr>
+          <tr><td>Formato legible</td><td><code>formatStateUsing(fn($state) => ...)</code></td><td>Transforma el valor almacenado en texto para humanos</td></tr>
+          <tr><td>Icono con tooltip</td><td><code>boolean()->trueIcon()->tooltip()</code></td><td>Icono visual con explicación al pasar el mouse</td></tr>
+          <tr><td>Columna oculta</td><td><code>toggleable(isToggledHiddenByDefault: true)</code></td><td>El usuario puede activarla desde el menú de columnas</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: FILTERS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="table-filters">
+    <h2><span class="section-number">4</span> Filtros: 5 filtros combinables</h2>
+
+    <div class="code-block">
+      <div class="code-header">PersonasTable.php — filtros</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">filters</span>([
+    <span class="cls">SelectFilter</span>::<span class="fn">make</span>(<span class="str">'comunidad_id'</span>)
+        -&gt;<span class="fn">relationship</span>(<span class="str">'comunidad'</span>, <span class="str">'nombre'</span>)
+        -&gt;<span class="fn">searchable</span>()-&gt;<span class="fn">preload</span>()-&gt;<span class="fn">label</span>(<span class="str">'Comunidad'</span>),
+    <span class="cls">SelectFilter</span>::<span class="fn">make</span>(<span class="str">'sexo'</span>)
+        -&gt;<span class="fn">options</span>([<span class="str">'M'</span> <span class="op">=&gt;</span> <span class="str">'Masculino'</span>, <span class="str">'F'</span> <span class="op">=&gt;</span> <span class="str">'Femenino'</span>])
+        -&gt;<span class="fn">label</span>(<span class="str">'Sexo'</span>),
+    <span class="cls">SelectFilter</span>::<span class="fn">make</span>(<span class="str">'tipo_seguro'</span>)
+        -&gt;<span class="fn">options</span>([<span class="str">'SUS'</span> <span class="op">=&gt;</span> <span class="str">'SUS'</span>, <span class="str">'privado'</span> <span class="op">=&gt;</span> <span class="str">'Privado'</span>, <span class="str">'ninguno'</span> <span class="op">=&gt;</span> <span class="str">'Ninguno'</span>])
+        -&gt;<span class="fn">label</span>(<span class="str">'Tipo de seguro'</span>),
+    <span class="cls">SelectFilter</span>::<span class="fn">make</span>(<span class="str">'estado'</span>)
+        -&gt;<span class="fn">options</span>([
+            <span class="str">'residente'</span> <span class="op">=&gt;</span> <span class="str">'Residente'</span>, <span class="str">'temporal'</span> <span class="op">=&gt;</span> <span class="str">'Temporal'</span>,
+            <span class="str">'migrado'</span> <span class="op">=&gt;</span> <span class="str">'Migrado'</span>, <span class="str">'fallecido'</span> <span class="op">=&gt;</span> <span class="str">'Fallecido'</span>,
+        ])-&gt;<span class="fn">label</span>(<span class="str">'Estado'</span>),
+    <span class="cls">TernaryFilter</span>::<span class="fn">make</span>(<span class="str">'verificado'</span>)
+        -&gt;<span class="fn">label</span>(<span class="str">'Verificación'</span>)
+        -&gt;<span class="fn">trueLabel</span>(<span class="str">'Solo verificados'</span>)
+        -&gt;<span class="fn">falseLabel</span>(<span class="str">'Sin verificar'</span>)
+        -&gt;<span class="fn">nullable</span>(),
+])</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">TernaryFilter — tres estados</div>
+      <p>A diferencia de SelectFilter (que filtra por un valor específico), TernaryFilter ofrece tres opciones: <strong>Todos</strong>, <strong>Solo true</strong>, <strong>Solo false</strong>. Ideal para campos booleanos como <code>verificado</code>.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: ACTIONS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="table-actions">
+    <h2><span class="section-number">5</span> Acciones: rápida + 3 masivas</h2>
+
+    <h3>Acción rápida por registro: Verificar</h3>
+    <div class="code-block">
+      <div class="code-header">PersonasTable.php — acción rápida de verificación</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">recordActions</span>([
+    <span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'verificar_rapido'</span>)
+        -&gt;<span class="fn">label</span>(<span class="str">'Verificar'</span>)
+        -&gt;<span class="fn">icon</span>(<span class="str">'heroicon-m-check-badge'</span>)
+        -&gt;<span class="fn">color</span>(<span class="str">'success'</span>)
+        <span class="hl">-&gt;<span class="fn">visible</span>(<span class="kw">fn</span> (<span class="var">$record</span>) <span class="op">=&gt;</span>
+            !<span class="var">$record</span>-&gt;<span class="var">verificado</span>
+            <span class="op">&amp;&amp;</span> <span class="fn">in_array</span>(<span class="var">$record</span>-&gt;<span class="var">estado</span>, [<span class="str">'residente'</span>, <span class="str">'temporal'</span>])
+        )</span>
+        -&gt;<span class="fn">requiresConfirmation</span>()
+        -&gt;<span class="fn">modalHeading</span>(<span class="str">'Confirmar verificación'</span>)
+        -&gt;<span class="fn">modalDescription</span>(<span class="kw">fn</span> (<span class="var">$record</span>) <span class="op">=&gt;</span>
+            <span class="str">"¿Confirma que {<span class="var">$record</span>-&gt;<span class="var">nombre_completo</span>} sigue residiendo?"</span>)
+        -&gt;<span class="fn">action</span>(<span class="kw">function</span> (<span class="var">$record</span>) {
+            <span class="var">$record</span>-&gt;<span class="fn">update</span>([
+                <span class="str">'verificado'</span>         <span class="op">=&gt;</span> <span class="kw">true</span>,
+                <span class="str">'fecha_verificacion'</span> <span class="op">=&gt;</span> <span class="fn">today</span>(),
+                <span class="str">'verificado_por'</span>     <span class="op">=&gt;</span> <span class="fn">auth</span>()-&gt;<span class="fn">id</span>(),
+            ]);
+        }),
+    <span class="cls">EditAction</span>::<span class="fn">make</span>(),
+])</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">visible() — condicionar acciones</div>
+      <p>El botón "Verificar" solo aparece si la persona <strong>no está verificada</strong> Y su estado es "residente" o "temporal". No tiene sentido verificar a alguien ya marcado como migrado o fallecido.</p>
+    </div>
+
+    <h3>3 Acciones masivas (BulkActions)</h3>
+    <div class="code-block">
+      <div class="code-header">PersonasTable.php — acciones masivas</div>
+      <div class="code-body">
+<pre>-&gt;<span class="fn">toolbarActions</span>([
+    <span class="cls">BulkActionGroup</span>::<span class="fn">make</span>([
+        <span class="cmt">// ① Verificar masivo</span>
+        <span class="cls">BulkAction</span>::<span class="fn">make</span>(<span class="str">'verificar_masivo'</span>)
+            -&gt;<span class="fn">label</span>(<span class="str">'Marcar como verificadas'</span>)
+            -&gt;<span class="fn">icon</span>(<span class="str">'heroicon-o-check-badge'</span>)-&gt;<span class="fn">color</span>(<span class="str">'success'</span>)
+            -&gt;<span class="fn">requiresConfirmation</span>()
+            -&gt;<span class="fn">action</span>(<span class="kw">function</span> (<span class="var">$records</span>) {
+                <span class="var">$records</span>-&gt;<span class="fn">each</span>(<span class="kw">fn</span> (<span class="var">$r</span>) <span class="op">=&gt;</span> <span class="var">$r</span>-&gt;<span class="fn">update</span>([...]));
+            })-&gt;<span class="fn">deselectRecordsAfterCompletion</span>(),
+
+        <span class="cmt">// ② Migración masiva (con formulario propio)</span>
+        <span class="hl"><span class="cls">BulkAction</span>::<span class="fn">make</span>(<span class="str">'registrar_migracion'</span>)
+            -&gt;<span class="fn">label</span>(<span class="str">'Registrar como migrados'</span>)
+            -&gt;<span class="fn">icon</span>(<span class="str">'heroicon-o-arrow-right-circle'</span>)-&gt;<span class="fn">color</span>(<span class="str">'warning'</span>)
+            -&gt;<span class="fn">form</span>([
+                <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'destino_migracion'</span>)
+                    -&gt;<span class="fn">label</span>(<span class="str">'Destino (ciudad / país)'</span>)
+                    -&gt;<span class="fn">maxLength</span>(<span class="num">150</span>),
+                <span class="cls">DatePicker</span>::<span class="fn">make</span>(<span class="str">'fecha_migracion'</span>)
+                    -&gt;<span class="fn">default</span>(<span class="fn">today</span>())-&gt;<span class="fn">required</span>(),
+            ])</span>
+            -&gt;<span class="fn">action</span>(<span class="kw">function</span> (<span class="var">$records</span>, <span class="type">array</span> <span class="var">$data</span>) {
+                <span class="var">$records</span>-&gt;<span class="fn">each</span>(<span class="kw">fn</span> (<span class="var">$r</span>) <span class="op">=&gt;</span> <span class="var">$r</span>-&gt;<span class="fn">update</span>([
+                    <span class="str">'estado'</span>            <span class="op">=&gt;</span> <span class="str">'migrado'</span>,
+                    <span class="str">'destino_migracion'</span> <span class="op">=&gt;</span> <span class="var">$data</span>[<span class="str">'destino_migracion'</span>],
+                    <span class="str">'fecha_migracion'</span>   <span class="op">=&gt;</span> <span class="var">$data</span>[<span class="str">'fecha_migracion'</span>],
+                    <span class="cmt">// también marca como verificado</span>
+                ]));
+            })-&gt;<span class="fn">deselectRecordsAfterCompletion</span>()</span>,
+
+        <span class="cmt">// ③ Fallecimiento masivo</span>
+        <span class="cls">BulkAction</span>::<span class="fn">make</span>(<span class="str">'registrar_fallecido'</span>)
+            -&gt;<span class="fn">label</span>(<span class="str">'Registrar como fallecidos'</span>)
+            -&gt;<span class="fn">icon</span>(<span class="str">'heroicon-o-x-circle'</span>)-&gt;<span class="fn">color</span>(<span class="str">'danger'</span>)
+            -&gt;<span class="fn">requiresConfirmation</span>()
+            -&gt;<span class="fn">action</span>(<span class="kw">function</span> (<span class="var">$records</span>) {
+                <span class="var">$records</span>-&gt;<span class="fn">each</span>(<span class="kw">fn</span> (<span class="var">$r</span>) <span class="op">=&gt;</span> <span class="var">$r</span>-&gt;<span class="fn">update</span>([
+                    <span class="str">'estado'</span> <span class="op">=&gt;</span> <span class="str">'fallecido'</span>, ...
+                ]));
+            })-&gt;<span class="fn">deselectRecordsAfterCompletion</span>(),
+
+        <span class="cls">DeleteBulkAction</span>::<span class="fn">make</span>(),
+    ]),
+])</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">BulkAction con formulario propio</div>
+      <p>La acción <code>registrar_migracion</code> incluye <code>->form([...])</code> — esto abre un modal con campos adicionales antes de ejecutar la acción. El usuario selecciona varias personas, hace clic en "Registrar como migrados", y SICSAL le pide el destino y la fecha. Todas las personas seleccionadas se actualizan con los mismos datos.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: PAGES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="pages">
+    <h2><span class="section-number">6</span> Pages: CreatePersona con mutateFormData</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Resources/Personas/Pages/CreatePersona.php</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">CreatePersona</span> <span class="kw">extends</span> <span class="cls">CreateRecord</span>
+{
+    <span class="kw">protected static</span> <span class="type">string</span> <span class="var">$resource</span> <span class="op">=</span> <span class="cls">PersonaResource</span>::<span class="kw">class</span>;
+
+    <span class="hl"><span class="kw">protected function</span> <span class="fn">mutateFormDataBeforeCreate</span>(<span class="type">array</span> <span class="var">$data</span>): <span class="type">array</span></span>
+    <span class="hl">{</span>
+    <span class="hl">    <span class="var">$data</span>[<span class="str">'centro_salud_id'</span>] <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()-&gt;<span class="var">centro_salud_id</span>;</span>
+    <span class="hl">    <span class="kw">return</span> <span class="var">$data</span>;</span>
+    <span class="hl">}</span>
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">mutateFormDataBeforeCreate — inyección segura del centro</div>
+      <p>El campo <code>centro_salud_id</code> <strong>no aparece en el formulario</strong> (no es un campo editable). Se inyecta automáticamente desde el usuario autenticado justo antes de guardar. Esto es más seguro que un campo hidden o disabled — el usuario no puede manipularlo.</p>
+    </div>
+
+    <p>Las otras dos Pages son idénticas al patrón estándar:</p>
+    <ul>
+      <li><strong>EditPersona</strong> — extends EditRecord + DeleteAction</li>
+      <li><strong>ListPersonas</strong> — extends ListRecords + CreateAction</li>
+    </ul>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RESUMEN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen">
+    <h2><span class="section-number">7</span> Resumen</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos</h3>
+      <ul>
+        <li><strong>Radio::make()</strong> con <code>->inline()</code> — para opciones de 2-3 valores</li>
+        <li><strong>relationship() con filtro</strong> — tercer argumento closure filtra las opciones del Select</li>
+        <li><strong>live() + hidden($get)</strong> — campos que aparecen/desaparecen según otro campo</li>
+        <li><strong>afterStateUpdated($set)</strong> — auto-llenar campos cuando otro cambia</li>
+        <li><strong>searchable(isIndividual: true, isGlobal: true)</strong> — doble búsqueda</li>
+        <li><strong>getStateUsing()</strong> — columnas calculadas desde accessors del modelo</li>
+        <li><strong>badge() + color(match())</strong> — chips de colores por valor</li>
+        <li><strong>toggleable()</strong> — columnas ocultas que el usuario puede activar</li>
+        <li><strong>Action::make() con visible()</strong> — acciones condicionales por registro</li>
+        <li><strong>BulkAction con form()</strong> — acciones masivas con formulario modal</li>
+        <li><strong>mutateFormDataBeforeCreate()</strong> — inyectar datos del servidor antes de guardar</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="26-resource-comunidad.html" class="lesson-nav-btn">← Lección 26</a>
+    <a href="28-resource-defuncion.html" class="lesson-nav-btn">Lección 28 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 27 de 58</p>
+</footer>
+
+</body>
+</html>

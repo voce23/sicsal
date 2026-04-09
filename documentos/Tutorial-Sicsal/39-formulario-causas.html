@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lección 39 · Causas de Consulta, Trait Compartido y Cierre de Mes | Tutorial SICSAL</title>
+    <link rel="stylesheet" href="css/leccion.css">
+    <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════ TOPBAR ═══════════════════════════ -->
+<div class="topbar">
+    <a href="00-indice.html" class="topbar-brand">📘 Tutorial SICSAL</a>
+    <span class="topbar-sep">·</span>
+    <span class="topbar-context">Fase 7 — Formularios Mensuales</span>
+</div>
+
+<!-- ════════════════════════════════════════════ HERO ═════════════════════════════ -->
+<div class="hero">
+    <span class="badge">Fase 7 · Formularios Mensuales</span>
+    <h1 class="hero-title">Lección 39 — Causas de Consulta Externa<br>
+        <small>Trait Compartido, Justificación Cero y Cierre de Mes</small></h1>
+    <p class="hero-subtitle">El último formulario mensual completa la familia con un patrón
+        delete-and-recreate. Analizamos el trait que comparten los 4 formularios, el modal de
+        justificación cero y el flujo de cierre/reapertura de mes.</p>
+    <div class="hero-meta">
+        📄 FormularioCausasConsulta.php &nbsp;|&nbsp; FormularioMensualTrait.php &nbsp;|&nbsp;
+        justificacion-cero-modal.blade.php &nbsp;|&nbsp;
+        🕐 Lectura ~20 min &nbsp;|&nbsp; Lección 39 de 58
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════ NAV ══════════════════════════════ -->
+<div class="lesson-nav">
+    <a href="38-formulario-pai.html">← 38 · Formulario PAI</a>
+    <a href="40-sincroniza-prestacion.html">40 · SincronizaPrestacion →</a>
+</div>
+
+<!-- ════════════════════════════════════════════ TOC ══════════════════════════════ -->
+<nav class="toc">
+    <h2 class="toc-title">Índice de la lección</h2>
+    <ol class="toc-list">
+        <li><a href="#s1">FormularioCausasConsulta — panorama</a></li>
+        <li><a href="#s2">cargarDatos() — inicialización manual</a></li>
+        <li><a href="#s3">guardar() — delete-and-recreate</a></li>
+        <li><a href="#s4">Blade — tabla única con totales en vivo</a></li>
+        <li><a href="#s5">wire:model.lazy y wire:loading</a></li>
+        <li><a href="#s6">FormularioMensualTrait — el trait compartido</a></li>
+        <li><a href="#s7">mountFormulario() y mesCerrado</a></li>
+        <li><a href="#s8">cerrarMes() y reabrirMes()</a></li>
+        <li><a href="#s9">Header actions dinámicas</a></li>
+        <li><a href="#s10">Justificación cero — modal y evento</a></li>
+        <li><a href="#s11">Resumen</a></li>
+        <li><a href="#s12">Cierre de Fase 7</a></li>
+    </ol>
+</nav>
+
+<!-- ════════════════════════════════════════════ CONTENIDO ═════════════════════════ -->
+
+<!-- ───────────────── S1 ───────────────── -->
+<div class="section" id="s1">
+    <h2><span class="number">1</span> FormularioCausasConsulta — panorama</h2>
+
+    <p>Este formulario registra las <strong>10 primeras causas de consulta externa</strong> del mes,
+    desagregadas por 10 grupos de edad y sexo (M/F). Es el formulario más compacto de la familia:</p>
+
+    <table class="info-table">
+        <thead><tr><th>Aspecto</th><th>Detalle</th></tr></thead>
+        <tbody>
+            <tr><td>Modelo</td><td><code>CausaConsultaExterna</code></td></tr>
+            <tr><td>Posiciones</td><td>10 (filas del 1 al 10)</td></tr>
+            <tr><td>Grupos etáreos</td><td>10 (<code>&lt;6m</code> hasta <code>≥60</code>)</td></tr>
+            <tr><td>Campos por celda</td><td>2 (masculino, femenino)</td></tr>
+            <tr><td>Inputs numéricos</td><td>10 × 10 × 2 = 200</td></tr>
+            <tr><td>Inputs texto</td><td>10 (diagnóstico CIE-10 por posición)</td></tr>
+            <tr><td>Total inputs</td><td><strong>210</strong></td></tr>
+            <tr><td>Tabs Alpine</td><td>Ninguno — tabla única</td></tr>
+            <tr><td>Estrategia guardado</td><td><strong>Delete + Create</strong> (no updateOrCreate)</td></tr>
+        </tbody>
+    </table>
+
+    <div class="callout info">
+        <strong>Contraste con los otros formularios:</strong> FormularioCausas es el único que 
+        usa delete-and-recreate en lugar de updateOrCreate. La razón: cada posición puede cambiar
+        de diagnóstico entre ediciones, lo que invalidaría las claves de búsqueda.
+    </div>
+</div>
+
+<!-- ───────────────── S2 ───────────────── -->
+<div class="section" id="s2">
+    <h2><span class="number">2</span> cargarDatos() — inicialización manual</h2>
+
+    <p>A diferencia de los otros formularios que usan <code>keyBy()</code>, este inicializa 
+    manualmente las 10 posiciones con valores por defecto y luego sobrescribe con datos existentes:</p>
+
+<pre><code><span class="kw">private function</span> <span class="fn">cargarDatos</span>(<span class="type">int</span> <span class="var">$centroId</span>): <span class="type">void</span>
+{
+    <span class="cmt">// Paso 1: inicializar 10 posiciones vacías</span>
+    <span class="var">$this</span>-><span class="var">causas</span> = [];
+    <span class="kw">for</span> (<span class="var">$pos</span> = <span class="num">1</span>; <span class="var">$pos</span> <= <span class="num">10</span>; <span class="var">$pos</span>++) {
+        <span class="var">$grupos</span> = [];
+        <span class="kw">foreach</span> (<span class="fn">array_keys</span>(<span class="var">self</span>::<span class="var">$grupos</span>) <span class="kw">as</span> <span class="var">$ge</span>) {
+            <span class="var">$grupos</span>[<span class="var">$ge</span>] = [<span class="str">'m'</span> => <span class="num">0</span>, <span class="str">'f'</span> => <span class="num">0</span>];
+        }
+        <span class="var">$this</span>-><span class="var">causas</span>[<span class="var">$pos</span>] = [
+            <span class="str">'diagnostico'</span> => <span class="str">''</span>,
+            <span class="str">'grupos'</span>      => <span class="var">$grupos</span>,
+        ];
+    }
+
+    <span class="cmt">// Paso 2: cargar datos existentes y sobrescribir</span>
+    <span class="var">$rows</span> = <span class="cls">CausaConsultaExterna</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -><span class="fn">where</span>(<span class="str">'mes'</span>, <span class="var">$this</span>-><span class="var">mes</span>)-><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)
+        -><span class="fn">get</span>();
+
+    <span class="kw">foreach</span> (<span class="var">$rows</span> <span class="kw">as</span> <span class="var">$row</span>) {
+        <span class="var">$pos</span> = <span class="var">$row</span>-><span class="var">posicion</span> ?? <span class="num">1</span>;
+        <span class="kw">if</span> (<span class="var">$pos</span> < <span class="num">1</span> || <span class="var">$pos</span> > <span class="num">10</span>) <span class="kw">continue</span>;
+
+        <span class="cmt">// Diagnóstico: mismo para todas las filas de esta posición</span>
+        <span class="kw">if</span> (!<span class="fn">empty</span>(<span class="var">$row</span>-><span class="var">diagnostico</span>)) {
+            <span class="var">$this</span>-><span class="var">causas</span>[<span class="var">$pos</span>][<span class="str">'diagnostico'</span>] = <span class="var">$row</span>-><span class="var">diagnostico</span>;
+        }
+
+        <span class="var">$ge</span> = <span class="var">$row</span>-><span class="var">grupo_etareo</span>;
+        <span class="kw">if</span> (<span class="kw">isset</span>(<span class="var">$this</span>-><span class="var">causas</span>[<span class="var">$pos</span>][<span class="str">'grupos'</span>][<span class="var">$ge</span>])) {
+            <span class="var">$this</span>-><span class="var">causas</span>[<span class="var">$pos</span>][<span class="str">'grupos'</span>][<span class="var">$ge</span>] = [
+                <span class="str">'m'</span> => <span class="var">$row</span>-><span class="var">masculino</span>,
+                <span class="str">'f'</span> => <span class="var">$row</span>-><span class="var">femenino</span>,
+            ];
+        }
+    }
+}</code></pre>
+
+    <div class="callout tip">
+        <strong>Estructura del array:</strong> <code>$this->causas</code> es un array indexado por
+        posición (1-10), donde cada posición tiene un string <code>diagnostico</code> y un sub-array
+        <code>grupos</code> con 10 entradas M/F. Total: 3 niveles de profundidad.
+    </div>
+</div>
+
+<!-- ───────────────── S3 ───────────────── -->
+<div class="section" id="s3">
+    <h2><span class="number">3</span> guardar() — delete-and-recreate</h2>
+
+    <p>El método de guardado usa una estrategia diferente a los otros formularios:</p>
+
+<pre><code><span class="kw">public function</span> <span class="fn">guardar</span>(): <span class="type">void</span>
+{
+    <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">mesCerrado</span>) <span class="kw">return</span>;
+    <span class="var">$centroId</span> = <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">centro_salud_id</span>;
+
+    <span class="cmt">// Paso 1: ELIMINAR todo lo del mes</span>
+    <span class="hl"><span class="cls">CausaConsultaExterna</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -><span class="fn">where</span>(<span class="str">'mes'</span>, <span class="var">$this</span>-><span class="var">mes</span>)-><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)
+        -><span class="fn">delete</span>();</span>
+
+    <span class="cmt">// Paso 2: RECREAR solo las que tienen diagnóstico</span>
+    <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">causas</span> <span class="kw">as</span> <span class="var">$pos</span> => <span class="var">$causa</span>) {
+        <span class="var">$diagnostico</span> = <span class="fn">trim</span>(<span class="var">$causa</span>[<span class="str">'diagnostico'</span>] ?? <span class="str">''</span>);
+        <span class="kw">if</span> (<span class="var">$diagnostico</span> === <span class="str">''</span>) <span class="kw">continue</span>; <span class="cmt">// omitir vacías</span>
+
+        <span class="kw">foreach</span> (<span class="var">self</span>::<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$ge</span> => <span class="var">$_label</span>) {
+            <span class="cls">CausaConsultaExterna</span>::<span class="fn">create</span>([
+                <span class="str">'centro_salud_id'</span> => <span class="var">$centroId</span>,
+                <span class="str">'mes'</span>             => <span class="var">$this</span>-><span class="var">mes</span>,
+                <span class="str">'anio'</span>            => <span class="var">$this</span>-><span class="var">anio</span>,
+                <span class="str">'posicion'</span>        => <span class="var">$pos</span>,
+                <span class="str">'diagnostico'</span>     => <span class="var">$diagnostico</span>,
+                <span class="str">'grupo_etareo'</span>    => <span class="var">$ge</span>,
+                <span class="str">'masculino'</span>       => (<span class="type">int</span>) (<span class="var">$causa</span>[<span class="str">'grupos'</span>][<span class="var">$ge</span>][<span class="str">'m'</span>] ?? <span class="num">0</span>),
+                <span class="str">'femenino'</span>        => (<span class="type">int</span>) (<span class="var">$causa</span>[<span class="str">'grupos'</span>][<span class="var">$ge</span>][<span class="str">'f'</span>] ?? <span class="num">0</span>),
+            ]);
+        }
+    }
+}</code></pre>
+
+    <div class="callout warning">
+        <strong>¿Por qué delete+create en vez de updateOrCreate?</strong>
+        <ul>
+            <li>El diagnóstico de cada posición puede <em>cambiar completamente</em> entre ediciones</li>
+            <li>No hay una clave estable tipo vacuna (que siempre es "BCG")</li>
+            <li>Si el usuario borra una posición, las filas huérfanas quedarían en la BD</li>
+            <li>Delete+create garantiza consistencia: lo que está en pantalla = lo que hay en BD</li>
+        </ul>
+    </div>
+
+    <p>Nótese que las posiciones con diagnóstico vacío se omiten (<code>continue</code>),
+    lo que permite al usuario dejar posiciones sin usar si el centro tiene menos de 10 causas.</p>
+</div>
+
+<!-- ───────────────── S4 ───────────────── -->
+<div class="section" id="s4">
+    <h2><span class="number">4</span> Blade — tabla única con totales en vivo</h2>
+
+    <p>Sin pestañas Alpine — todo en una tabla con cabecera de 2 filas y totales calculados en Blade:</p>
+
+<pre><code><span class="cmt">&lt;!-- Cabecera (2 filas) --&gt;</span>
+<span class="op">&lt;</span><span class="kw">thead</span><span class="op">&gt;</span>
+    <span class="op">&lt;</span><span class="kw">tr</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;</span>#<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;</span>Diagnóstico (CIE-10)<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="kw2">@foreach</span> (<span class="cls">FormularioCausasConsulta</span>::<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$ge</span> => <span class="var">$label</span>)
+            <span class="op">&lt;</span><span class="kw">th</span> <span class="attr">colspan</span>=<span class="str">"2"</span><span class="op">&gt;</span>{{ <span class="var">$label</span> }}<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="kw2">@endforeach</span>
+        <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;</span>Total M<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;</span>Total F<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;</span>Total<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+    <span class="op">&lt;/</span><span class="kw">tr</span><span class="op">&gt;</span>
+    <span class="op">&lt;</span><span class="kw">tr</span><span class="op">&gt;</span>  <span class="cmt">&lt;!-- Sub-cabecera M/F con colores --&gt;</span>
+        <span class="op">&lt;</span><span class="kw">th</span><span class="op">&gt;&lt;/</span><span class="kw">th</span><span class="op">&gt;&lt;</span><span class="kw">th</span><span class="op">&gt;&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="kw2">@foreach</span> (... <span class="kw">as</span> ...)
+            <span class="op">&lt;</span><span class="kw">th</span> <span class="attr">class</span>=<span class="str">"text-blue-600"</span><span class="op">&gt;</span>M<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">th</span> <span class="attr">class</span>=<span class="str">"text-pink-600"</span><span class="op">&gt;</span>F<span class="op">&lt;/</span><span class="kw">th</span><span class="op">&gt;</span>
+        <span class="kw2">@endforeach</span>
+    <span class="op">&lt;/</span><span class="kw">tr</span><span class="op">&gt;</span>
+<span class="op">&lt;/</span><span class="kw">thead</span><span class="op">&gt;</span></code></pre>
+
+    <p>Cada fila de datos calcula sus totales con <code>collect()->sum()</code>:</p>
+
+<pre><code><span class="kw2">@foreach</span> (<span class="var">$causas</span> <span class="kw">as</span> <span class="var">$pos</span> => <span class="var">$causa</span>)
+    <span class="kw2">@php</span>
+        <span class="var">$totalM</span> = <span class="fn">collect</span>(<span class="var">$causa</span>[<span class="str">'grupos'</span>])-><span class="fn">sum</span>(<span class="str">'m'</span>);
+        <span class="var">$totalF</span> = <span class="fn">collect</span>(<span class="var">$causa</span>[<span class="str">'grupos'</span>])-><span class="fn">sum</span>(<span class="str">'f'</span>);
+    <span class="kw2">@endphp</span>
+    <span class="op">&lt;</span><span class="kw">tr</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">td</span><span class="op">&gt;</span>{{ <span class="var">$pos</span> }}<span class="op">&lt;/</span><span class="kw">td</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">td</span><span class="op">&gt;&lt;</span><span class="kw">input</span> <span class="attr">type</span>=<span class="str">"text"</span> <span class="attr">wire:model.lazy</span>=<span class="str">"causas.{{ $pos }}.diagnostico"</span><span class="op">&gt;&lt;/</span><span class="kw">td</span><span class="op">&gt;</span>
+        <span class="cmt">&lt;!-- 10 grupos × M/F = 20 inputs --&gt;</span>
+        <span class="op">&lt;</span><span class="kw">td</span> <span class="attr">class</span>=<span class="str">"text-blue-600"</span><span class="op">&gt;</span>{{ <span class="var">$totalM</span> }}<span class="op">&lt;/</span><span class="kw">td</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">td</span> <span class="attr">class</span>=<span class="str">"text-pink-600"</span><span class="op">&gt;</span>{{ <span class="var">$totalF</span> }}<span class="op">&lt;/</span><span class="kw">td</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">td</span> <span class="attr">class</span>=<span class="str">"font-bold"</span><span class="op">&gt;</span>{{ <span class="var">$totalM</span> + <span class="var">$totalF</span> }}<span class="op">&lt;/</span><span class="kw">td</span><span class="op">&gt;</span>
+    <span class="op">&lt;/</span><span class="kw">tr</span><span class="op">&gt;</span>
+<span class="kw2">@endforeach</span></code></pre>
+
+    <p>La fila final suma todos los totales con closures:</p>
+
+<pre><code><span class="cmt">&lt;!-- Fila de totales generales --&gt;</span>
+<span class="kw2">@php</span>
+    <span class="var">$grandM</span> = <span class="num">0</span>; <span class="var">$grandF</span> = <span class="num">0</span>;
+    <span class="kw">foreach</span> (<span class="var">$causas</span> <span class="kw">as</span> <span class="var">$c</span>) {
+        <span class="var">$grandM</span> += <span class="fn">collect</span>(<span class="var">$c</span>[<span class="str">'grupos'</span>])-><span class="fn">sum</span>(<span class="str">'m'</span>);
+        <span class="var">$grandF</span> += <span class="fn">collect</span>(<span class="var">$c</span>[<span class="str">'grupos'</span>])-><span class="fn">sum</span>(<span class="str">'f'</span>);
+    }
+<span class="kw2">@endphp</span>
+
+<span class="cmt">&lt;!-- Totales por columna de grupo etáreo --&gt;</span>
+<span class="kw2">@foreach</span> (<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$ge</span> => ...)
+    <span class="kw2">@php</span>
+        <span class="var">$geM</span> = <span class="fn">collect</span>(<span class="var">$causas</span>)-><span class="fn">sum</span>(<span class="kw">fn</span>(<span class="var">$c</span>) => <span class="var">$c</span>[<span class="str">'grupos'</span>][<span class="var">$ge</span>][<span class="str">'m'</span>] ?? <span class="num">0</span>);
+        <span class="var">$geF</span> = <span class="fn">collect</span>(<span class="var">$causas</span>)-><span class="fn">sum</span>(<span class="kw">fn</span>(<span class="var">$c</span>) => <span class="var">$c</span>[<span class="str">'grupos'</span>][<span class="var">$ge</span>][<span class="str">'f'</span>] ?? <span class="num">0</span>);
+    <span class="kw2">@endphp</span>
+    <span class="op">&lt;</span><span class="kw">td</span><span class="op">&gt;</span>{{ <span class="var">$geM</span> }}<span class="op">&lt;/</span><span class="kw">td</span><span class="op">&gt;&lt;</span><span class="kw">td</span><span class="op">&gt;</span>{{ <span class="var">$geF</span> }}<span class="op">&lt;/</span><span class="kw">td</span><span class="op">&gt;</span>
+<span class="kw2">@endforeach</span></code></pre>
+</div>
+
+<!-- ───────────────── S5 ───────────────── -->
+<div class="section" id="s5">
+    <h2><span class="number">5</span> wire:model.lazy y wire:loading</h2>
+
+    <p>Este formulario introduce dos directivas Livewire que no vimos en los anteriores:</p>
+
+<pre><code><span class="cmt">&lt;!-- wire:model.lazy — solo sincroniza al perder foco (blur) --&gt;</span>
+<span class="op">&lt;</span><span class="kw">input</span> <span class="attr">type</span>=<span class="str">"text"</span>
+       <span class="hl"><span class="attr">wire:model.lazy</span>=<span class="str">"causas.{{ $pos }}.diagnostico"</span></span>
+       <span class="attr">placeholder</span>=<span class="str">"Diagnóstico..."</span><span class="op">&gt;</span>
+
+<span class="cmt">&lt;!-- wire:loading — feedback visual durante guardado --&gt;</span>
+<span class="op">&lt;</span><span class="kw">button</span> <span class="attr">wire:click</span>=<span class="str">"guardar"</span>
+        <span class="hl"><span class="attr">wire:loading.attr</span>=<span class="str">"disabled"</span></span><span class="op">&gt;</span>
+    <span class="op">&lt;</span><span class="kw">span</span> <span class="hl"><span class="attr">wire:loading.remove</span> <span class="attr">wire:target</span>=<span class="str">"guardar"</span></span><span class="op">&gt;</span>
+        Guardar Causas de Consulta Externa
+    <span class="op">&lt;/</span><span class="kw">span</span><span class="op">&gt;</span>
+    <span class="op">&lt;</span><span class="kw">span</span> <span class="hl"><span class="attr">wire:loading</span> <span class="attr">wire:target</span>=<span class="str">"guardar"</span></span><span class="op">&gt;</span>
+        Guardando...
+    <span class="op">&lt;/</span><span class="kw">span</span><span class="op">&gt;</span>
+<span class="op">&lt;/</span><span class="kw">button</span><span class="op">&gt;</span></code></pre>
+
+    <div class="callout info">
+        <strong>¿Por qué <code>wire:model.lazy</code>?</strong> Con 210+ inputs, el binding en
+        tiempo real (<code>wire:model</code> sin modificador) generaría una petición al servidor
+        en cada tecla. Con <code>.lazy</code>, la sincronización ocurre solo al salir del campo
+        (evento <code>blur</code>), reduciendo drásticamente las peticiones.
+    </div>
+
+    <div class="callout tip">
+        <strong>wire:loading dirigido:</strong> <code>wire:target="guardar"</code> limita la
+        reacción visual al método específico. Sin <code>wire:target</code>, cualquier petición
+        Livewire activaría el estado de carga.
+    </div>
+</div>
+
+<!-- ───────────────── S6 ───────────────── -->
+<div class="section" id="s6">
+    <h2><span class="number">6</span> FormularioMensualTrait — el trait compartido</h2>
+
+    <p>Los 4 formularios mensuales (Servicios, Materna, PAI, Causas) comparten un trait
+    que centraliza la lógica de mes/año, cierre y justificación cero:</p>
+
+<pre><code><span class="kw">namespace</span> App\Filament\Pages\Concerns;
+
+<span class="kw">trait</span> <span class="cls">FormularioMensualTrait</span>
+{
+    <span class="cmt">// Propiedades sincronizadas con la URL (#[Url])</span>
+    <span class="dec">#[Url]</span>
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$mes</span> = <span class="num">1</span>;
+
+    <span class="dec">#[Url]</span>
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$anio</span> = <span class="num">0</span>;
+
+    <span class="kw">public</span> <span class="type">bool</span> <span class="var">$mesCerrado</span> = <span class="kw">false</span>;
+
+    <span class="cmt">// Propiedades del modal de justificación</span>
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$justIndicador</span> = <span class="str">''</span>;
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$justMotivo</span> = <span class="str">''</span>;
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$justDetalle</span> = <span class="str">''</span>;
+
+    <span class="kw">private static</span> <span class="type">array</span> <span class="var">$nombresMeses</span> = [
+        <span class="num">1</span> => <span class="str">'Enero'</span>, <span class="num">2</span> => <span class="str">'Febrero'</span>, ...,
+        <span class="num">12</span> => <span class="str">'Diciembre'</span>,
+    ];
+}</code></pre>
+
+    <div class="callout info">
+        <strong><code>#[Url]</code></strong> es un atributo de Livewire que sincroniza la propiedad
+        con el query string. Así la URL <code>?mes=3&amp;anio=2025</code> determina qué mes se edita,
+        y compartir el enlace lleva directamente al mes correcto.
+    </div>
+</div>
+
+<!-- ───────────────── S7 ───────────────── -->
+<div class="section" id="s7">
+    <h2><span class="number">7</span> mountFormulario() y mesCerrado</h2>
+
+    <p>El método que todos los formularios llaman en su <code>mount()</code>:</p>
+
+<pre><code><span class="kw">public function</span> <span class="fn">mountFormulario</span>(): <span class="type">void</span>
+{
+    <span class="cmt">// Mes y año vienen del query string, o el actual por defecto</span>
+    <span class="var">$this</span>-><span class="var">mes</span>  = (<span class="type">int</span>) <span class="fn">request</span>()-><span class="fn">query</span>(<span class="str">'mes'</span>, <span class="fn">date</span>(<span class="str">'n'</span>));
+    <span class="var">$this</span>-><span class="var">anio</span> = (<span class="type">int</span>) <span class="fn">request</span>()-><span class="fn">query</span>(<span class="str">'anio'</span>, <span class="fn">date</span>(<span class="str">'Y'</span>));
+
+    <span class="var">$centroId</span> = <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">centro_salud_id</span>;
+
+    <span class="cmt">// Verificar si el mes está cerrado</span>
+    <span class="var">$this</span>-><span class="var">mesCerrado</span> = <span class="cls">MesCerrado</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -><span class="fn">where</span>(<span class="str">'mes'</span>, <span class="var">$this</span>-><span class="var">mes</span>)
+        -><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)
+        -><span class="fn">exists</span>();
+}
+
+<span class="cmt">// Título dinámico para la página</span>
+<span class="kw">public function</span> <span class="fn">getTitle</span>(): <span class="type">string</span>
+{
+    <span class="var">$seccion</span> = <span class="kw">static</span>::<span class="var">SECCION</span> ?? <span class="str">'Prestaciones'</span>;
+    <span class="kw">return</span> <span class="var">$seccion</span> . <span class="str">' — '</span>
+         . (<span class="var">self</span>::<span class="var">$nombresMeses</span>[<span class="var">$this</span>-><span class="var">mes</span>] ?? <span class="str">''</span>)
+         . <span class="str">' '</span> . <span class="var">$this</span>-><span class="var">anio</span>;
+}</code></pre>
+
+    <p>Cada formulario define su propia constante <code>SECCION</code> que se usa en el título.
+    Por ejemplo, FormularioPai define <code>const SECCION = 'PAI — Salud Infantil'</code>,
+    resultando en: <em>"PAI — Salud Infantil — Marzo 2025"</em>.</p>
+</div>
+
+<!-- ───────────────── S8 ───────────────── -->
+<div class="section" id="s8">
+    <h2><span class="number">8</span> cerrarMes() y reabrirMes()</h2>
+
+    <p>El cierre de mes es una operación privilegiada que bloquea la edición para los registradores:</p>
+
+<pre><code><span class="kw">public function</span> <span class="fn">cerrarMes</span>(): <span class="type">void</span>
+{
+    <span class="var">$user</span> = <span class="fn">auth</span>()-><span class="fn">user</span>();
+    <span class="kw">if</span> (! <span class="var">$user</span>-><span class="fn">hasAnyRole</span>([<span class="str">'superadmin'</span>, <span class="str">'admin'</span>])) {
+        <span class="kw">return</span>; <span class="cmt">// solo admin puede cerrar</span>
+    }
+
+    <span class="cls">MesCerrado</span>::<span class="fn">updateOrCreate</span>(
+        [<span class="str">'centro_salud_id'</span> => <span class="var">$user</span>-><span class="var">centro_salud_id</span>,
+         <span class="str">'mes'</span> => <span class="var">$this</span>-><span class="var">mes</span>,
+         <span class="str">'anio'</span> => <span class="var">$this</span>-><span class="var">anio</span>],
+        [<span class="str">'cerrado_por'</span> => <span class="var">$user</span>-><span class="var">id</span>,
+         <span class="str">'fecha_cierre'</span> => <span class="fn">now</span>()]
+    );
+    <span class="var">$this</span>-><span class="var">mesCerrado</span> = <span class="kw">true</span>;
+}
+
+<span class="kw">public function</span> <span class="fn">reabrirMes</span>(): <span class="type">void</span>
+{
+    <span class="var">$user</span> = <span class="fn">auth</span>()-><span class="fn">user</span>();
+    <span class="kw">if</span> (! <span class="var">$user</span>-><span class="fn">hasAnyRole</span>([<span class="str">'superadmin'</span>, <span class="str">'admin'</span>])) {
+        <span class="kw">return</span>;
+    }
+
+    <span class="var">$mc</span> = <span class="cls">MesCerrado</span>::<span class="fn">where</span>(...)-><span class="fn">first</span>();
+    <span class="kw">if</span> (<span class="var">$mc</span>) {
+        <span class="var">$mc</span>-><span class="fn">update</span>([<span class="str">'reabierto_por'</span> => <span class="var">$user</span>-><span class="var">id</span>,
+                      <span class="str">'fecha_reapertura'</span> => <span class="fn">now</span>()]);
+        <span class="var">$mc</span>-><span class="fn">delete</span>(); <span class="cmt">// soft delete</span>
+    }
+    <span class="var">$this</span>-><span class="var">mesCerrado</span> = <span class="kw">false</span>;
+}</code></pre>
+
+    <div class="callout warning">
+        <strong>Auditoría de reapertura:</strong> Antes de borrar el registro de cierre,
+        se actualiza con <code>reabierto_por</code> y <code>fecha_reapertura</code>.
+        Si el modelo usa SoftDeletes, el registro queda en la BD para auditoría con
+        <code>deleted_at</code> preservando quién lo reabrió.
+    </div>
+</div>
+
+<!-- ───────────────── S9 ───────────────── -->
+<div class="section" id="s9">
+    <h2><span class="number">9</span> Header actions dinámicas</h2>
+
+    <p>El trait genera los botones del encabezado de página según el estado y el rol:</p>
+
+<pre><code><span class="kw">protected function</span> <span class="fn">getHeaderActions</span>(): <span class="type">array</span>
+{
+    <span class="var">$actions</span> = [];
+    <span class="var">$user</span> = <span class="fn">auth</span>()-><span class="fn">user</span>();
+
+    <span class="kw">if</span> (<span class="var">$user</span>-><span class="fn">hasAnyRole</span>([<span class="str">'superadmin'</span>, <span class="str">'admin'</span>])) {
+        <span class="kw">if</span> (<span class="var">$this</span>-><span class="var">mesCerrado</span>) {
+            <span class="cmt">// Botón: Reabrir mes (warning, candado abierto)</span>
+            <span class="var">$actions</span>[] = <span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'reabrirMes'</span>)
+                -><span class="fn">label</span>(<span class="str">'Reabrir mes'</span>)
+                -><span class="fn">icon</span>(<span class="cls">Heroicon</span>::<span class="var">OutlinedLockOpen</span>)
+                -><span class="fn">color</span>(<span class="str">'warning'</span>)
+                -><span class="fn">requiresConfirmation</span>()
+                -><span class="fn">modalHeading</span>(<span class="str">'¿Reabrir este mes?'</span>)
+                -><span class="fn">action</span>(<span class="kw">fn</span> () => <span class="var">$this</span>-><span class="fn">reabrirMes</span>());
+        } <span class="kw">else</span> {
+            <span class="cmt">// Botón: Cerrar mes (success, candado cerrado)</span>
+            <span class="var">$actions</span>[] = <span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'cerrarMes'</span>)
+                -><span class="fn">label</span>(<span class="str">'Cerrar mes'</span>)
+                -><span class="fn">icon</span>(<span class="cls">Heroicon</span>::<span class="var">OutlinedLockClosed</span>)
+                -><span class="fn">color</span>(<span class="str">'success'</span>)
+                -><span class="fn">requiresConfirmation</span>();
+        }
+    }
+
+    <span class="cmt">// Siempre visible: Volver al selector</span>
+    <span class="var">$actions</span>[] = <span class="cls">Action</span>::<span class="fn">make</span>(<span class="str">'volver'</span>)
+        -><span class="fn">label</span>(<span class="str">'Volver al selector'</span>)
+        -><span class="fn">url</span>(<span class="cls">Prestaciones</span>::<span class="fn">getUrl</span>());
+
+    <span class="kw">return</span> <span class="var">$actions</span>;
+}</code></pre>
+
+    <div class="callout tip">
+        <strong><code>requiresConfirmation()</code></strong> es un método de Filament que
+        automáticamente muestra un modal de confirmación con "¿Estás seguro?" antes de ejecutar
+        la acción. <code>modalHeading()</code> personaliza el título del modal.
+    </div>
+</div>
+
+<!-- ───────────────── S10 ───────────────── -->
+<div class="section" id="s10">
+    <h2><span class="number">10</span> Justificación cero — modal y evento</h2>
+
+    <p>El partial <code>justificacion-cero-modal.blade.php</code> es incluido con <code>@include</code>
+    en los 4 formularios. Combina Alpine.js para la apertura y Livewire para la persistencia:</p>
+
+<pre><code><span class="op">&lt;</span><span class="kw">div</span>
+    <span class="attr">x-data</span>=<span class="str">"{ open: false, indicador: '' }"</span>
+    <span class="hl"><span class="attr">x-on:abrir-justificacion-cero.window</span>=<span class="str">"
+        open = true;
+        indicador = $event.detail.indicador;
+        $wire.abrirJustificacion($event.detail.indicador)
+    "</span></span>
+    <span class="attr">x-on:close-modal.window</span>=<span class="str">"
+        if ($event.detail.id === 'justificacion-cero') open = false
+    "</span><span class="op">&gt;</span>
+
+    <span class="op">&lt;</span><span class="kw">template</span> <span class="attr">x-if</span>=<span class="str">"open"</span><span class="op">&gt;</span>
+        <span class="op">&lt;</span><span class="kw">div</span> <span class="attr">class</span>=<span class="str">"fixed inset-0 z-50 flex items-center justify-center bg-black/50"</span><span class="op">&gt;</span>
+            <span class="op">&lt;</span><span class="kw">div</span> <span class="attr">class</span>=<span class="str">"max-w-md rounded-xl bg-white p-6 shadow-xl"</span><span class="op">&gt;</span>
+                <span class="cmt">&lt;!-- Radio buttons con opciones predefinidas --&gt;</span>
+                <span class="kw2">@foreach</span> (<span class="var">$motivosOpciones</span> <span class="kw">as</span> <span class="var">$value</span> => <span class="var">$label</span>)
+                    <span class="op">&lt;</span><span class="kw">label</span><span class="op">&gt;</span>
+                        <span class="op">&lt;</span><span class="kw">input</span> <span class="attr">type</span>=<span class="str">"radio"</span>
+                               <span class="attr">wire:model</span>=<span class="str">"justMotivo"</span>
+                               <span class="attr">value</span>=<span class="str">"{{ $value }}"</span><span class="op">&gt;</span>
+                        {{ <span class="var">$label</span> }}
+                    <span class="op">&lt;/</span><span class="kw">label</span><span class="op">&gt;</span>
+                <span class="kw2">@endforeach</span>
+
+                <span class="cmt">&lt;!-- Campo condicional para "Otro motivo" --&gt;</span>
+                <span class="op">&lt;</span><span class="kw">div</span> <span class="attr">x-show</span>=<span class="str">"$wire.justMotivo === 'otro'"</span><span class="op">&gt;</span>
+                    <span class="op">&lt;</span><span class="kw">input</span> <span class="attr">wire:model</span>=<span class="str">"justDetalle"</span>
+                           <span class="attr">maxlength</span>=<span class="str">"300"</span><span class="op">&gt;</span>
+                <span class="op">&lt;/</span><span class="kw">div</span><span class="op">&gt;</span>
+
+                <span class="op">&lt;</span><span class="kw">button</span> <span class="attr">wire:click</span>=<span class="str">"guardarJustificacion"</span><span class="op">&gt;</span>
+                    Confirmar y guardar
+                <span class="op">&lt;/</span><span class="kw">button</span><span class="op">&gt;</span>
+            <span class="op">&lt;/</span><span class="kw">div</span><span class="op">&gt;</span>
+        <span class="op">&lt;/</span><span class="kw">div</span><span class="op">&gt;</span>
+    <span class="op">&lt;/</span><span class="kw">template</span><span class="op">&gt;</span>
+<span class="op">&lt;/</span><span class="kw">div</span><span class="op">&gt;</span></code></pre>
+
+    <p>El flujo completo de justificación cero:</p>
+
+    <table class="info-table">
+        <thead><tr><th>Paso</th><th>Quién</th><th>Qué hace</th></tr></thead>
+        <tbody>
+            <tr><td>1</td><td>PHP (guardarX)</td><td>Detecta que la suma = 0, ejecuta <code>$this->dispatch('abrir-justificacion-cero', indicador: '...')</code></td></tr>
+            <tr><td>2</td><td>Alpine (modal)</td><td>Escucha el evento <code>x-on:abrir-justificacion-cero.window</code>, abre el modal</td></tr>
+            <tr><td>3</td><td>Alpine → Livewire</td><td><code>$wire.abrirJustificacion()</code> sincroniza el indicador con el PHP</td></tr>
+            <tr><td>4</td><td>Usuario</td><td>Selecciona un motivo (radio) y opcionalmente detalla</td></tr>
+            <tr><td>5</td><td>Livewire (trait)</td><td><code>guardarJustificacion()</code> persiste en <code>JustificacionCero</code> con updateOrCreate</td></tr>
+            <tr><td>6</td><td>Livewire → Alpine</td><td><code>dispatch('close-modal', id: 'justificacion-cero')</code> cierra el modal</td></tr>
+        </tbody>
+    </table>
+
+    <div class="callout info">
+        <strong>5 motivos predefinidos:</strong> no_hay_poblacion_activa_padron,
+        poblacion_migrada_temporal, atendida_otro_centro, no_se_presento_razon_desconocida, otro.
+        Cuando se elige "otro", <code>x-show="$wire.justMotivo === 'otro'"</code> muestra el
+        campo de detalle libre (<code>maxlength="300"</code>).
+    </div>
+</div>
+
+<!-- ───────────────── S11 ───────────────── -->
+<div class="section" id="s11">
+    <h2><span class="number">11</span> Resumen</h2>
+
+    <div class="lesson-summary">
+        <h3>Lo que aprendimos en esta lección</h3>
+        <ul>
+            <li><strong>Delete-and-recreate:</strong> Cuando las claves no son estables (diagnóstico
+                libre), es más seguro borrar y recrear que intentar updateOrCreate.</li>
+            <li><strong>Inicialización manual:</strong> Un for-loop genera el esqueleto de 10 posiciones
+                × 10 grupos con valores por defecto, luego se sobrescriben con datos de la BD.</li>
+            <li><strong>collect()->sum() en Blade:</strong> Totales por fila y por columna calculados
+                directamente en la vista con closures de colección.</li>
+            <li><strong>wire:model.lazy:</strong> Reduce peticiones al servidor sincronizando
+                solo al perder foco — crítico con 210+ inputs.</li>
+            <li><strong>wire:loading + wire:target:</strong> Feedback visual dirigido durante
+                operaciones asíncronas.</li>
+            <li><strong>FormularioMensualTrait:</strong> Centraliza mes/año (#[Url]), mesCerrado,
+                cerrarMes/reabrirMes (solo admin), justificación cero y header actions.</li>
+            <li><strong>Flujo de justificación:</strong> PHP dispatch → Alpine escucha evento →
+                abre modal → usuario elige motivo → Livewire persiste → cierra modal.</li>
+            <li><strong>Header actions condicionales:</strong> Filament Actions con
+                <code>requiresConfirmation()</code> que mutan según estado y rol del usuario.</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ───────────────── S12 ───────────────── -->
+<div class="section" id="s12">
+    <h2><span class="number">12</span> Cierre de Fase 7 — Formularios Mensuales</h2>
+
+    <div class="callout tip" style="border-left-color: #10b981;">
+        <strong>Fase 7 completada — 4 formularios mensuales</strong>
+        <table class="info-table" style="margin-top: 1rem;">
+            <thead><tr><th>Lección</th><th>Formulario</th><th>Modelos</th><th>Inputs</th><th>Patrón guardado</th></tr></thead>
+            <tbody>
+                <tr><td>36</td><td>FormularioServicios</td><td>6+ modelos</td><td>~500</td><td>updateOrCreate × 8</td></tr>
+                <tr><td>37</td><td>FormularioMaterna</td><td>6+ modelos</td><td>~300</td><td>updateOrCreate × 7</td></tr>
+                <tr><td>38</td><td>FormularioPai</td><td>3 modelos</td><td>~1.177</td><td>updateOrCreate (skip-empty)</td></tr>
+                <tr><td>39</td><td>FormularioCausas</td><td>1 modelo</td><td>210</td><td>delete + create</td></tr>
+            </tbody>
+        </table>
+
+        <p style="margin-top: 1rem;"><strong>Patrones compartidos de la fase:</strong></p>
+        <ul>
+            <li><strong>FormularioMensualTrait</strong> — mes/año por URL, mesCerrado, cierre/reapertura, justificación cero</li>
+            <li><strong>Alpine.js tabs</strong> — x-data/x-show/x-cloak para organizar secciones</li>
+            <li><strong>Arrays public static</strong> — catálogos SNIS como esquema de configuración</li>
+            <li><strong>Claves compuestas con <code>__</code></strong> — para keyBy con múltiples campos</li>
+            <li><strong>@unless($mesCerrado)</strong> — ocultar botones de guardado en mes cerrado</li>
+            <li><strong>@include partial</strong> — modal de justificación cero reutilizado</li>
+        </ul>
+
+        <p style="margin-top: 0.5rem;"><strong>Siguiente:</strong> Fase 8 — Observers y sincronización de prestaciones.</p>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════ NAV ══════════════════════════════ -->
+<div class="lesson-nav">
+    <a href="38-formulario-pai.html">← 38 · Formulario PAI</a>
+    <a href="40-sincroniza-prestacion.html">40 · SincronizaPrestacion →</a>
+</div>
+
+<!-- ════════════════════════════════════════════ FOOTER ════════════════════════════ -->
+<footer class="footer">
+    Tutorial SICSAL — Lección 39 de 58<br>
+    <small>FormularioCausasConsulta · FormularioMensualTrait · Justificación Cero · Cierre de Mes</small>
+</footer>
+
+</body>
+</html>

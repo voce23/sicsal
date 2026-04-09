@@ -1,0 +1,344 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 14 — Observers: sincronizar datos | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand"><span class="dot"></span> SICSAL — Lección 14</div>
+  <nav>
+    <a href="13-exportar-excel-pdf.html">← Anterior</a>
+    <a href="00-indice.html">Índice</a>
+    <a href="15-importar-ves.html">Siguiente →</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 14 de 16</span>
+    <h1>Observers: sincronizar datos automáticamente</h1>
+    <p>Cómo cada vacuna, control prenatal o parto actualiza automáticamente las tablas de prestaciones agregadas.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos</h2>
+    <table class="db-table">
+      <thead><tr><th>Archivo</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>app/Observers/VacunaNinoObserver.php</code></td><td>Sincroniza vacunas → prest_vacunas</td></tr>
+        <tr><td><code>app/Observers/ControlPrenatalObserver.php</code></td><td>Sincroniza controles → prest_prenatal</td></tr>
+        <tr><td><code>app/Observers/PartoObserver.php</code></td><td>Sincroniza partos → prest_partos + recién_nacidos + BCG</td></tr>
+        <tr><td><code>app/Observers/CrecimientoInfantilObserver.php</code></td><td>Sincroniza crecimiento → prest_crecimiento</td></tr>
+        <tr><td><code>app/Observers/MicronutrienteNinoObserver.php</code></td><td>Sincroniza micronutrientes → prest_micronutrientes</td></tr>
+        <tr><td><code>app/Observers/AnticoncepcionObserver.php</code></td><td>Sincroniza anticoncepción → prest_anticoncepcion</td></tr>
+        <tr><td><code>app/Observers/SincronizaPrestacion.php</code></td><td>Trait compartido con métodos de clasificación</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. ¿Qué es un Observer?</a></li>
+      <li><a href="#s2">2. El problema: datos individuales vs. agregados</a></li>
+      <li><a href="#s3">3. El trait SincronizaPrestacion</a></li>
+      <li><a href="#s4">4. VacunaNinoObserver: el patrón base</a></li>
+      <li><a href="#s5">5. PartoObserver: el más complejo</a></li>
+      <li><a href="#s6">6. Mapa completo Observer → prest_*</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es un Observer?</h2>
+
+    <p>Un <strong>Observer</strong> es una clase que "observa" los eventos de un modelo Eloquent. Cada vez que se crea, actualiza o elimina un registro, Laravel llama automáticamente al método correspondiente del Observer.</p>
+
+    <div class="code-block">
+      <div class="code-header">Eventos disponibles en un Observer</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">MiObserver</span>
+{
+    <span class="kw">public function</span> <span class="fn">created</span>(<span class="cls">MiModelo</span> <span class="var">$modelo</span>)  {} <span class="cmt">// Después de INSERT</span>
+    <span class="kw">public function</span> <span class="fn">updated</span>(<span class="cls">MiModelo</span> <span class="var">$modelo</span>)  {} <span class="cmt">// Después de UPDATE</span>
+    <span class="kw">public function</span> <span class="fn">deleted</span>(<span class="cls">MiModelo</span> <span class="var">$modelo</span>)  {} <span class="cmt">// Después de DELETE</span>
+    <span class="kw">public function</span> <span class="fn">creating</span>(<span class="cls">MiModelo</span> <span class="var">$modelo</span>) {} <span class="cmt">// Antes de INSERT</span>
+    <span class="kw">public function</span> <span class="fn">updating</span>(<span class="cls">MiModelo</span> <span class="var">$modelo</span>) {} <span class="cmt">// Antes de UPDATE</span>
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">¿Cuándo se ejecutan?</div>
+      <p>Los Observers se ejecutan <strong>automáticamente</strong>. No necesitas llamarlos manualmente. Si creas un registro con <code>VacunaNino::create([...])</code>, Laravel ejecutará <code>VacunaNinoObserver::created()</code> sin que lo pidas.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> El problema: datos individuales vs. agregados</h2>
+
+    <div class="arch-diagram">
+      <div class="arch-row">
+        <div class="arch-box" style="background: #e0f2f1; border-color: #00897B;">
+          <strong>Tabla individual</strong><br>
+          vacunas_ninos<br>
+          <small>Juan • BCG • 2025-03-15</small>
+        </div>
+        <div class="arch-arrow">→ Observer →</div>
+        <div class="arch-box" style="background: #fff3e0; border-color: #FF9800;">
+          <strong>Tabla agregada</strong><br>
+          prest_vacunas<br>
+          <small>Centro 5 • Marzo 2025 • BCG = 14</small>
+        </div>
+      </div>
+    </div>
+
+    <p>SICSAL maneja <strong>dos niveles de datos</strong>:</p>
+    <ol>
+      <li><strong>Individual</strong>: Cada vacuna, control prenatal, parto, etc. de cada persona.</li>
+      <li><strong>Agregado (SNIS)</strong>: Totales mensuales por centro de salud — lo que se reporta al ministerio.</li>
+    </ol>
+    <p>El Observer es el puente: cada vez que se registra un dato individual, el Observer actualiza automáticamente el total agregado.</p>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> El trait SincronizaPrestacion</h2>
+
+    <p>Los 6 Observers comparten lógica de clasificación a través de un trait:</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Observers/SincronizaPrestacion.php</div>
+      <pre class="code-body language-php"><span class="kw">trait</span> <span class="cls">SincronizaPrestacion</span>
+{
+    <span class="cmt">/**
+     * Clasifica la edad en un grupo etáreo para vacunas.
+     * Ejemplo: 3 meses → "menor_1", 18 meses → "12_23m"
+     */</span>
+    <span class="kw">protected function</span> <span class="fn">grupoEtareoVacuna</span>(<span class="kw">int</span> <span class="var">$edadMeses</span>): ?<span class="kw">string</span>
+    {
+        <span class="kw">return match</span> (<span class="kw2">true</span>) {
+            <span class="var">$edadMeses</span> < <span class="num">12</span>  => <span class="str">'menor_1'</span>,
+            <span class="var">$edadMeses</span> < <span class="num">24</span>  => <span class="str">'12_23m'</span>,
+            <span class="var">$edadMeses</span> < <span class="num">60</span>  => <span class="str">'24_59m'</span>,
+            <span class="kw">default</span>          => <span class="kw2">null</span>,
+        };
+    }
+
+    <span class="cmt">/**
+     * Clasifica la edad materna: 10–14, 15–19, 20+
+     */</span>
+    <span class="kw">protected function</span> <span class="fn">grupoEtareoMaterno</span>(<span class="kw">int</span> <span class="var">$edad</span>): <span class="kw">string</span>
+    {
+        <span class="kw">return match</span> (<span class="kw2">true</span>) {
+            <span class="var">$edad</span> < <span class="num">15</span> => <span class="str">'10_14'</span>,
+            <span class="var">$edad</span> < <span class="num">20</span> => <span class="str">'15_19'</span>,
+            <span class="kw">default</span>    => <span class="str">'20_mas'</span>,
+        };
+    }
+
+    <span class="cmt">/**
+     * Tipo de prenatal: nuevo, repetido, 4to+
+     */</span>
+    <span class="kw">protected function</span> <span class="fn">tipoPrenatal</span>(<span class="kw">int</span> <span class="var">$numControl</span>): <span class="kw">string</span> { ... }
+
+    <span class="cmt">/**
+     * Grupo de crecimiento infantil: RN, 1m, 2-5m, etc.
+     */</span>
+    <span class="kw">protected function</span> <span class="fn">grupoCrecimiento</span>(<span class="kw">int</span> <span class="var">$edadMeses</span>): <span class="kw">string</span> { ... }
+
+    <span class="cmt">/**
+     * Determina campo: dentro/fuera del área + sexo.
+     * Ejemplo: dentro_m, fuera_f
+     */</span>
+    <span class="kw">protected function</span> <span class="fn">campoDentroFueraSexo</span>(<span class="cls">Persona</span> <span class="var">$persona</span>): <span class="kw">string</span>
+    {
+        <span class="var">$ubicacion</span> = <span class="var">$persona</span>-><span class="var">dentro_area</span> ? <span class="str">'dentro'</span> : <span class="str">'fuera'</span>;
+        <span class="var">$sexo</span>      = <span class="fn">strtolower</span>(<span class="var">$persona</span>-><span class="var">sexo</span>);
+        <span class="kw">return</span> <span class="str">"{<span class="var">$ubicacion</span>}_{<span class="var">$sexo</span>}"</span>;
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">¿Por qué un trait?</div>
+      <p>Los 6 Observers necesitan las mismas funciones de clasificación. Un <strong>trait</strong> permite compartir código sin herencia. Cada Observer hace <code>use SincronizaPrestacion;</code> para tener todos los métodos disponibles.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> VacunaNinoObserver: el patrón base</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Observers/VacunaNinoObserver.php</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">VacunaNinoObserver</span>
+{
+    <span class="kw">use</span> <span class="cls">SincronizaPrestacion</span>;
+
+    <span class="cmt">// Cuando se crea una vacuna → sumar +1</span>
+    <span class="kw">public function</span> <span class="fn">created</span>(<span class="cls">VacunaNino</span> <span class="var">$vacuna</span>): <span class="kw">void</span>
+    {
+        <span class="var">$this</span>-><span class="fn">sincronizar</span>(<span class="var">$vacuna</span>, <span class="num">+1</span>);
+    }
+
+    <span class="cmt">// Cuando se elimina una vacuna → restar -1</span>
+    <span class="kw">public function</span> <span class="fn">deleted</span>(<span class="cls">VacunaNino</span> <span class="var">$vacuna</span>): <span class="kw">void</span>
+    {
+        <span class="var">$this</span>-><span class="fn">sincronizar</span>(<span class="var">$vacuna</span>, <span class="num">-1</span>);
+    }
+
+    <span class="kw">private function</span> <span class="fn">sincronizar</span>(<span class="cls">VacunaNino</span> <span class="var">$vacuna</span>, <span class="kw">int</span> <span class="var">$delta</span>): <span class="kw">void</span>
+    {
+        <span class="cmt">// 1. Obtener datos de la persona (edad, sexo, área)</span>
+        <span class="var">$persona</span> = <span class="var">$vacuna</span>-><span class="var">persona</span>;
+        <span class="var">$grupo</span>   = <span class="var">$this</span>-><span class="fn">grupoEtareoVacuna</span>(<span class="var">$vacuna</span>-><span class="var">edad_meses</span>);
+
+        <span class="kw">if</span> (!<span class="var">$grupo</span>) <span class="kw">return</span>; <span class="cmt">// Fuera de rango SNIS</span>
+
+        <span class="cmt">// 2. Buscar o crear el registro agregado del mes</span>
+        <span class="var">$prest</span> = <span class="cls">PrestVacuna</span>::<span class="fn">firstOrCreate</span>([
+            <span class="str">'centro_salud_id'</span> => <span class="var">$persona</span>-><span class="var">centro_salud_id</span>,
+            <span class="str">'anio'</span>            => <span class="var">$vacuna</span>-><span class="var">fecha</span>-><span class="var">year</span>,
+            <span class="str">'mes'</span>             => <span class="var">$vacuna</span>-><span class="var">fecha</span>-><span class="var">month</span>,
+            <span class="str">'tipo_vacuna'</span>     => <span class="var">$vacuna</span>-><span class="var">tipo</span>,
+            <span class="str">'grupo_etareo'</span>    => <span class="var">$grupo</span>,
+        ]);
+
+        <span class="cmt">// 3. Sumar o restar en el campo correcto</span>
+        <span class="var">$campo</span> = <span class="var">$this</span>-><span class="fn">campoDentroFueraSexo</span>(<span class="var">$persona</span>);
+        <span class="var">$prest</span>-><span class="fn">increment</span>(<span class="var">$campo</span>, <span class="var">$delta</span>);
+    }
+}</pre>
+    </div>
+
+    <div class="flow-diagram">
+      <div class="flow-step">Registrador crea VacunaNino</div>
+      <div class="flow-connector">↓</div>
+      <div class="flow-step">Laravel dispara created()</div>
+      <div class="flow-connector">↓</div>
+      <div class="flow-step">sincronizar(vacuna, +1)</div>
+      <div class="flow-connector">↓</div>
+      <div class="flow-step">grupoEtareoVacuna() → "menor_1"</div>
+      <div class="flow-connector">↓</div>
+      <div class="flow-step">campoDentroFueraSexo() → "dentro_m"</div>
+      <div class="flow-connector">↓</div>
+      <div class="flow-step">PrestVacuna::firstOrCreate + increment('dentro_m', +1)</div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> PartoObserver: el más complejo</h2>
+
+    <div class="code-block">
+      <div class="code-header">app/Observers/PartoObserver.php (simplificado)</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">PartoObserver</span>
+{
+    <span class="kw">use</span> <span class="cls">SincronizaPrestacion</span>;
+
+    <span class="kw">public function</span> <span class="fn">created</span>(<span class="cls">Parto</span> <span class="var">$parto</span>): <span class="kw">void</span>
+    {
+        <span class="cmt">// 1. Sincronizar prest_partos (tipo parto, grupo materno)</span>
+        <span class="var">$this</span>-><span class="fn">sincronizarParto</span>(<span class="var">$parto</span>, <span class="num">+1</span>);
+
+        <span class="cmt">// 2. Sincronizar prest_recien_nacidos (peso, talla, Apgar)</span>
+        <span class="var">$this</span>-><span class="fn">sincronizarRecienNacido</span>(<span class="var">$parto</span>, <span class="num">+1</span>);
+
+        <span class="cmt hl">// 3. ¡Crear BCG automáticamente!</span>
+        <span class="kw">if</span> (<span class="var">$parto</span>-><span class="var">recien_nacido_vivo</span>) {
+            <span class="cls">VacunaNino</span>::<span class="fn">create</span>([
+                <span class="str">'persona_id'</span> => <span class="var">$parto</span>-><span class="var">hijo_persona_id</span>,
+                <span class="str">'tipo'</span>       => <span class="str">'bcg'</span>,
+                <span class="str">'fecha'</span>      => <span class="var">$parto</span>-><span class="var">fecha</span>,
+                <span class="str">'dosis'</span>      => <span class="num">1</span>,
+            ]);
+            <span class="cmt">// Esto a su vez dispara VacunaNinoObserver::created() → ¡cadena!</span>
+        }
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Cascada de Observers</div>
+      <p>Cuando <code>PartoObserver</code> crea una <code>VacunaNino</code>, esto dispara <code>VacunaNinoObserver::created()</code>. Los Observers pueden formar <strong>cadenas</strong>. Esto es poderoso, pero hay que tener cuidado de no crear ciclos infinitos.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> Mapa completo Observer → prest_*</h2>
+
+    <table class="db-table">
+      <thead>
+        <tr><th>Observer</th><th>Modelo observado</th><th>Tabla destino (prest_*)</th><th>Clasificadores</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>VacunaNinoObserver</td>
+          <td>VacunaNino</td>
+          <td>prest_vacunas</td>
+          <td>grupoEtareoVacuna + campoDentroFueraSexo</td>
+        </tr>
+        <tr>
+          <td>ControlPrenatalObserver</td>
+          <td>ControlPrenatal</td>
+          <td>prest_prenatal</td>
+          <td>grupoEtareoMaterno + tipoPrenatal</td>
+        </tr>
+        <tr>
+          <td>PartoObserver</td>
+          <td>Parto</td>
+          <td>prest_partos + prest_recien_nacidos</td>
+          <td>grupoEtareoMaterno + auto-BCG</td>
+        </tr>
+        <tr>
+          <td>CrecimientoInfantilObserver</td>
+          <td>CrecimientoInfantil</td>
+          <td>prest_crecimiento</td>
+          <td>grupoCrecimiento + campoDentroFueraSexo</td>
+        </tr>
+        <tr>
+          <td>MicronutrienteNinoObserver</td>
+          <td>MicronutrienteNino</td>
+          <td>prest_micronutrientes</td>
+          <td>grupoEtareoVacuna + tipo micronutriente</td>
+        </tr>
+        <tr>
+          <td>AnticoncepcionObserver</td>
+          <td>Anticoncepcion</td>
+          <td>prest_anticoncepcion</td>
+          <td>grupoEtareoMaterno + método</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 14</h3>
+    <ul>
+      <li>Los <strong>Observers</strong> escuchan eventos de modelos Eloquent (<code>created</code>, <code>deleted</code>) y ejecutan lógica automáticamente.</li>
+      <li>El trait <strong>SincronizaPrestacion</strong> provee clasificadores compartidos: grupo etáreo, tipo prenatal, dentro/fuera + sexo.</li>
+      <li>El patrón es: <code>firstOrCreate</code> (buscar o crear registro agregado) + <code>increment/decrement</code> (sumar/restar).</li>
+      <li><strong>PartoObserver</strong> es el más complejo: sincroniza 2 tablas + crea BCG automáticamente (cascada de Observers).</li>
+      <li>SICSAL tiene <strong>6 Observers</strong> que sincronizan datos individuales → 7+ tablas <code>prest_*</code> agregadas.</li>
+    </ul>
+  </div>
+
+  <div class="lesson-nav">
+    <a href="13-exportar-excel-pdf.html">← Lección 13: Exportaciones</a>
+    <a href="15-importar-ves.html">Lección 15: Importar VES →</a>
+  </div>
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 14: Observers</span>
+    <span>Observer · SincronizaPrestacion · firstOrCreate · increment · cascade</span>
+  </div>
+</div>
+</body>
+</html>

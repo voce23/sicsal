@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 09 — Formularios Filament | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand"><span class="dot"></span> SICSAL — Lección 09</div>
+  <nav>
+    <a href="08-filament-resource.html">← Anterior</a>
+    <a href="00-indice.html">Índice</a>
+    <a href="10-filament-paginas.html">Siguiente →</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 09 de 16</span>
+    <h1>Formularios Filament a Profundidad</h1>
+    <p>Campos dinámicos, validación, relaciones, secciones — todo lo que necesitas para crear formularios completos en SICSAL.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos</h2>
+    <table class="db-table">
+      <thead><tr><th>Archivo</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>.../Schemas/PersonaForm.php</code></td><td>Formulario con toggles, live(), campos condicionales</td></tr>
+        <tr><td><code>.../Schemas/DefuncionForm.php</code></td><td>Búsqueda en padrón, auto-relleno de campos</td></tr>
+        <tr><td><code>.../Schemas/UserForm.php</code></td><td>Contraseña condicional, roles filtrados por permisos</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. Anatomía de un formulario</a></li>
+      <li><a href="#s2">2. Campos básicos: TextInput, Select, DatePicker</a></li>
+      <li><a href="#s3">3. Campos condicionales con live()</a></li>
+      <li><a href="#s4">4. Select con relación y búsqueda</a></li>
+      <li><a href="#s5">5. Auto-rellenar campos desde otro modelo</a></li>
+      <li><a href="#s6">6. Contraseña condicional (crear vs editar)</a></li>
+      <li><a href="#s7">7. Validación integrada</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> Anatomía de un formulario</h2>
+
+    <p>En Filament, un formulario se construye con <code>Section</code> y componentes de campo. Todo es PHP — sin HTML:</p>
+
+    <div class="code-block">
+      <div class="code-header">Estructura básica</div>
+      <pre class="code-body language-php"><span class="kw">return</span> <span class="var">$schema</span>-><span class="fn">components</span>([
+
+    <span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Nombre del grupo'</span>)
+        -><span class="fn">columns</span>(<span class="num">2</span>)                <span class="cmt">// 2 columnas lado a lado</span>
+        -><span class="fn">schema</span>([
+            <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'campo1'</span>)
+                -><span class="fn">required</span>()
+                -><span class="fn">label</span>(<span class="str">'Etiqueta'</span>),
+
+            <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'campo2'</span>)
+                -><span class="fn">options</span>([...])
+                -><span class="fn">label</span>(<span class="str">'Otro campo'</span>),
+        ]),
+
+    <span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Otro grupo'</span>)-><span class="fn">schema</span>([...]),
+
+]);</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Section = agrupación visual</div>
+      <p>Cada <code>Section</code> crea una caja con título. Los campos dentro pueden estar en 1, 2 o 3 columnas con <code>->columns(N)</code>. Un campo puede ocupar toda la fila con <code>->columnSpanFull()</code>.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> Campos básicos: TextInput, Select, DatePicker</h2>
+
+    <div class="code-block">
+      <div class="code-header">Schemas/PersonaForm.php — Datos personales</div>
+      <pre class="code-body language-php"><span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Datos personales'</span>)-><span class="fn">columns</span>(<span class="num">2</span>)-><span class="fn">schema</span>([
+
+    <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'nombres'</span>)
+        -><span class="fn">required</span>()              <span class="cmt">// No puede estar vacío</span>
+        -><span class="fn">maxLength</span>(<span class="num">100</span>)          <span class="cmt">// Máximo 100 caracteres</span>
+        -><span class="fn">label</span>(<span class="str">'Nombres'</span>),
+
+    <span class="cls">DatePicker</span>::<span class="fn">make</span>(<span class="str">'fecha_nacimiento'</span>)
+        -><span class="fn">required</span>()
+        -><span class="fn">maxDate</span>(<span class="fn">now</span>())          <span class="cmt">// No puede ser fecha futura</span>
+        -><span class="fn">label</span>(<span class="str">'Fecha de nacimiento'</span>),
+
+    <span class="cls">Radio</span>::<span class="fn">make</span>(<span class="str">'sexo'</span>)
+        -><span class="fn">options</span>([<span class="str">'M'</span> => <span class="str">'Masculino'</span>, <span class="str">'F'</span> => <span class="str">'Femenino'</span>])
+        -><span class="fn">required</span>()
+        -><span class="fn">inline</span>()               <span class="cmt">// Opciones en línea horizontal</span>
+        -><span class="fn">label</span>(<span class="str">'Sexo'</span>),
+
+    <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'ci'</span>)
+        -><span class="fn">maxLength</span>(<span class="num">20</span>)           <span class="cmt">// Opcional (sin required)</span>
+        -><span class="fn">label</span>(<span class="str">'Cédula de identidad'</span>),
+]),</pre>
+    </div>
+
+    <table class="db-table">
+      <thead><tr><th>Método</th><th>Qué hace</th></tr></thead>
+      <tbody>
+        <tr><td><code>->required()</code></td><td>Campo obligatorio — muestra asterisco rojo</td></tr>
+        <tr><td><code>->maxLength(N)</code></td><td>Límite de caracteres</td></tr>
+        <tr><td><code>->maxDate(now())</code></td><td>Fecha máxima seleccionable</td></tr>
+        <tr><td><code>->default('valor')</code></td><td>Valor predeterminado</td></tr>
+        <tr><td><code>->placeholder('...')</code></td><td>Texto guía dentro del campo</td></tr>
+        <tr><td><code>->label('...')</code></td><td>Etiqueta visible del campo</td></tr>
+        <tr><td><code>->helperText('...')</code></td><td>Texto de ayuda debajo del campo</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> Campos condicionales con live()</h2>
+
+    <p>Un campo puede mostrar u ocultar otros campos cuando cambia su valor. Esto se hace con <code>->live()</code> y <code>->hidden()</code>:</p>
+
+    <div class="code-block">
+      <div class="code-header">Schemas/PersonaForm.php — Mostrar campos de migración solo si estado = migrado</div>
+      <pre class="code-body language-php"><span class="cls">Section</span>::<span class="fn">make</span>(<span class="str">'Estado migratorio'</span>)-><span class="fn">columns</span>(<span class="num">2</span>)-><span class="fn">schema</span>([
+
+    <span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'estado'</span>)
+        -><span class="fn">options</span>([
+            <span class="str">'residente'</span> => <span class="str">'Residente'</span>,
+            <span class="str">'temporal'</span>  => <span class="str">'Temporal'</span>,
+            <span class="str">'migrado'</span>   => <span class="str">'Migrado'</span>,
+            <span class="str">'fallecido'</span> => <span class="str">'Fallecido'</span>,
+        ])
+        -><span class="fn">default</span>(<span class="str">'residente'</span>)
+        -><span class="fn">required</span>()
+        -><span class="fn">live</span>()                    <span class="cmt">// ← Reactivo: notifica cambios al servidor</span>
+        -><span class="fn">label</span>(<span class="str">'Estado'</span>),
+
+    <span class="cmt">// Este campo solo aparece cuando estado = 'migrado'</span>
+    <span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'destino_migracion'</span>)
+        -><span class="fn">maxLength</span>(<span class="num">150</span>)
+        -><span class="fn">label</span>(<span class="str">'Destino de migración'</span>)
+        -><span class="fn">hidden</span>(<span class="kw">fn</span> (<span class="var">$get</span>) => <span class="var">$get</span>(<span class="str">'estado'</span>) !== <span class="str">'migrado'</span>),
+                <span class="cmt">// ↑ $get() lee el valor actual de otro campo</span>
+
+    <span class="cls">DatePicker</span>::<span class="fn">make</span>(<span class="str">'fecha_migracion'</span>)
+        -><span class="fn">label</span>(<span class="str">'Fecha de migración'</span>)
+        -><span class="fn">hidden</span>(<span class="kw">fn</span> (<span class="var">$get</span>) => <span class="var">$get</span>(<span class="str">'estado'</span>) !== <span class="str">'migrado'</span>),
+]),</pre>
+    </div>
+
+    <div class="flow-diagram">
+      <div class="flow-step">
+        <div class="flow-icon">📋</div>
+        <div class="flow-label">Usuario selecciona "Estado: Migrado"</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">⚡</div>
+        <div class="flow-label">live() envía el cambio al servidor via Livewire</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">👁️</div>
+        <div class="flow-label">hidden() re-evalúa → muestra "destino" y "fecha migración"</div>
+      </div>
+    </div>
+
+    <p>Otro ejemplo: el toggle de verificación auto-rellena la fecha:</p>
+
+    <div class="code-block">
+      <div class="code-header">Schemas/PersonaForm.php — Toggle que auto-rellena fecha</div>
+      <pre class="code-body language-php"><span class="cls">Toggle</span>::<span class="fn">make</span>(<span class="str">'verificado'</span>)
+    -><span class="fn">label</span>(<span class="str">'Persona verificada'</span>)
+    -><span class="fn">live</span>()
+    -><span class="fn">afterStateUpdated</span>(<span class="kw">function</span> (<span class="var">$state</span>, <span class="kw">callable</span> <span class="var">$set</span>) {
+        <span class="kw">if</span> (<span class="var">$state</span>) {
+            <span class="var">$set</span>(<span class="str">'fecha_verificacion'</span>, <span class="fn">today</span>()-><span class="fn">format</span>(<span class="str">'Y-m-d'</span>));
+            <span class="var">$set</span>(<span class="str">'verificado_por'</span>, <span class="fn">auth</span>()-><span class="fn">id</span>());
+        }
+    }),
+<span class="cmt">// $set() modifica el valor de otro campo del formulario</span></pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> Select con relación y búsqueda</h2>
+
+    <div class="code-block">
+      <div class="code-header">Select simple con relationship()</div>
+      <pre class="code-body language-php"><span class="cmt">// Carga todas las comunidades del centro del usuario</span>
+<span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'comunidad_id'</span>)
+    -><span class="fn">relationship</span>(
+        <span class="str">'comunidad'</span>,              <span class="cmt">// Nombre de la relación en el modelo</span>
+        <span class="str">'nombre'</span>,                 <span class="cmt">// Campo a mostrar</span>
+        <span class="kw">fn</span> (<span class="var">$query</span>) => <span class="var">$query</span>-><span class="fn">where</span>(
+            <span class="str">'centro_salud_id'</span>,
+            <span class="fn">auth</span>()-><span class="fn">user</span>()?-><span class="var">centro_salud_id</span>
+        )                            <span class="cmt">// ← Filtrar por centro del usuario</span>
+    )
+    -><span class="fn">searchable</span>()                <span class="cmt">// El usuario puede escribir para buscar</span>
+    -><span class="fn">preload</span>()                   <span class="cmt">// Cargar opciones al abrir</span>
+    -><span class="fn">required</span>()
+    -><span class="fn">label</span>(<span class="str">'Comunidad'</span>),</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> Auto-rellenar campos desde otro modelo</h2>
+
+    <p>En el formulario de <strong>Defunciones</strong>, al seleccionar una persona del padrón, sus datos se copian automáticamente:</p>
+
+    <div class="code-block">
+      <div class="code-header">Schemas/DefuncionForm.php — Búsqueda y auto-fill</div>
+      <pre class="code-body language-php"><span class="cls">Select</span>::<span class="fn">make</span>(<span class="str">'persona_id'</span>)
+    -><span class="fn">label</span>(<span class="str">'Buscar en el padrón (opcional)'</span>)
+    -><span class="fn">searchable</span>()
+    -><span class="fn">getSearchResultsUsing</span>(
+        <span class="kw">fn</span> (<span class="kw">string</span> <span class="var">$search</span>) =>
+            <span class="cls">Persona</span>::<span class="fn">query</span>()
+                -><span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="fn">auth</span>()-><span class="fn">user</span>()?-><span class="var">centro_salud_id</span>)
+                -><span class="fn">where</span>(<span class="kw">function</span> (<span class="var">$q</span>) <span class="kw">use</span> (<span class="var">$search</span>) {
+                    <span class="var">$q</span>-><span class="fn">where</span>(<span class="str">'nombres'</span>, <span class="str">'like'</span>, <span class="str">"%{$search}%"</span>)
+                      -><span class="fn">orWhere</span>(<span class="str">'apellidos'</span>, <span class="str">'like'</span>, <span class="str">"%{$search}%"</span>);
+                })
+                -><span class="fn">limit</span>(<span class="num">20</span>)-><span class="fn">get</span>()
+                -><span class="fn">mapWithKeys</span>(<span class="kw">fn</span> (<span class="var">$p</span>) =>
+                    [<span class="var">$p</span>-><span class="var">id</span> => <span class="str">"{$p->nombres} {$p->apellidos}"</span>]
+                )-><span class="fn">toArray</span>()
+    )
+    -><span class="fn">live</span>()
+    -><span class="fn">afterStateUpdated</span>(<span class="kw">function</span> (<span class="var">$state</span>, <span class="cls">Set</span> <span class="var">$set</span>) {
+        <span class="kw">if</span> (!<span class="var">$state</span>) <span class="kw">return</span>;
+        <span class="var">$persona</span> = <span class="cls">Persona</span>::<span class="fn">find</span>(<span class="var">$state</span>);
+        <span class="kw">if</span> (!<span class="var">$persona</span>) <span class="kw">return</span>;
+
+        <span class="cmt">// Auto-rellenar campos del formulario</span>
+        <span class="var">$set</span>(<span class="str">'nombres'</span>,          <span class="var">$persona</span>-><span class="var">nombres</span>);
+        <span class="var">$set</span>(<span class="str">'apellidos'</span>,         <span class="var">$persona</span>-><span class="var">apellidos</span>);
+        <span class="var">$set</span>(<span class="str">'fecha_nacimiento'</span>,  <span class="var">$persona</span>-><span class="var">fecha_nacimiento</span>);
+        <span class="var">$set</span>(<span class="str">'sexo'</span>,              <span class="var">$persona</span>-><span class="var">sexo</span>);
+        <span class="var">$set</span>(<span class="str">'comunidad_id'</span>,      <span class="var">$persona</span>-><span class="var">comunidad_id</span>);
+    }),</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Patrón: Select → afterStateUpdated → $set</div>
+      <p>Este patrón se repite en SICSAL: cuando el usuario selecciona algo en un <code>Select</code>, <code>afterStateUpdated</code> se ejecuta y usa <code>$set()</code> para llenar otros campos del formulario automáticamente.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> Contraseña condicional (crear vs editar)</h2>
+
+    <p>En el formulario de usuarios, la contraseña es obligatoria al <strong>crear</strong> pero opcional al <strong>editar</strong>:</p>
+
+    <div class="code-block">
+      <div class="code-header">Schemas/UserForm.php — Contraseña inteligente</div>
+      <pre class="code-body language-php"><span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'password'</span>)
+    -><span class="fn">password</span>()-><span class="fn">revealable</span>()
+
+    <span class="cmt">// Obligatorio solo al crear, no al editar</span>
+    -><span class="fn">required</span>(<span class="kw">fn</span> (<span class="kw">string</span> <span class="var">$operation</span>) =>
+        <span class="var">$operation</span> === <span class="str">'create'</span>
+    )
+
+    <span class="cmt">// Solo guardar si el usuario escribió algo</span>
+    -><span class="fn">dehydrated</span>(<span class="kw">fn</span> (?<span class="kw">string</span> <span class="var">$state</span>) =>
+        <span class="fn">filled</span>(<span class="var">$state</span>)
+    )
+
+    -><span class="fn">minLength</span>(<span class="num">8</span>)
+    -><span class="fn">label</span>(<span class="kw">fn</span> (<span class="kw">string</span> <span class="var">$operation</span>) =>
+        <span class="var">$operation</span> === <span class="str">'create'</span>
+            ? <span class="str">'Contraseña'</span>
+            : <span class="str">'Nueva contraseña (vacío = no cambiar)'</span>
+    ),</pre>
+    </div>
+
+    <table class="db-table">
+      <thead><tr><th>Método</th><th>Qué hace</th></tr></thead>
+      <tbody>
+        <tr><td><code>->password()</code></td><td>Muestra asteriscos (campo de contraseña)</td></tr>
+        <tr><td><code>->revealable()</code></td><td>Botón de ojo para ver la contraseña</td></tr>
+        <tr><td><code>->required(fn ($operation) => ...)</code></td><td>Requerido condicionalmente</td></tr>
+        <tr><td><code>->dehydrated(fn ($state) => ...)</code></td><td>Solo envía al servidor si tiene valor</td></tr>
+        <tr><td><code>->unique(ignoreRecord: true)</code></td><td>Único en la tabla, excepto el registro actual</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 7 ════════════════════════ -->
+  <div class="section" id="s7">
+    <h2 class="section-title"><span class="number">7</span> Validación integrada</h2>
+
+    <p>Filament valida automáticamente según los métodos encadenados. También puedes agregar reglas personalizadas:</p>
+
+    <div class="code-block">
+      <div class="code-header">Validación automática + personalizada</div>
+      <pre class="code-body language-php"><span class="cmt">// Validación automática por encadenamiento</span>
+<span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'email'</span>)
+    -><span class="fn">email</span>()             <span class="cmt">// Valida formato email</span>
+    -><span class="fn">required</span>()          <span class="cmt">// No puede estar vacío</span>
+    -><span class="fn">maxLength</span>(<span class="num">255</span>)       <span class="cmt">// Máximo 255 caracteres</span>
+    -><span class="fn">unique</span>(<span class="str">ignoreRecord:</span> <span class="kw2">true</span>),  <span class="cmt">// Único en la tabla</span>
+
+<span class="cmt">// Validación personalizada con rules()</span>
+<span class="cls">TextInput</span>::<span class="fn">make</span>(<span class="str">'latitud'</span>)
+    -><span class="fn">numeric</span>()
+    -><span class="fn">rules</span>([<span class="str">'nullable'</span>, <span class="str">'between:-90,90'</span>]),  <span class="cmt">// Rango de latitud GPS</span></pre>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Validación en tiempo real</div>
+      <p>Gracias a Livewire, los errores de validación aparecen <strong>sin recargar la página</strong>. Si escribes un email inválido, el mensaje de error aparece instantáneamente debajo del campo.</p>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 09</h3>
+    <ul>
+      <li>Los formularios Filament se construyen encadenando métodos en PHP — sin HTML.</li>
+      <li><code>Section</code> agrupa campos visualmente; <code>->columns(2)</code> los pone lado a lado.</li>
+      <li><code>->live()</code> hace un campo reactivo para mostrar/ocultar otros con <code>->hidden(fn ($get) => ...)</code>.</li>
+      <li><code>afterStateUpdated</code> + <code>$set()</code> auto-rellena campos desde otro modelo.</li>
+      <li>La contraseña puede ser condicional con <code>->required(fn ($operation) => ...)</code>.</li>
+      <li>La validación es automática y en tiempo real gracias a Livewire.</li>
+    </ul>
+  </div>
+
+  <div class="lesson-nav">
+    <a href="08-filament-resource.html">← Lección 08: Filament Resources</a>
+    <a href="10-filament-paginas.html">Lección 10: Páginas y Widgets →</a>
+  </div>
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 09: Formularios Filament</span>
+    <span>Schema · live() · $get · $set · afterStateUpdated</span>
+  </div>
+</div>
+</body>
+</html>

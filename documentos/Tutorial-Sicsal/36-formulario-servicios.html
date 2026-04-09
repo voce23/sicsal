@@ -1,0 +1,671 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 36 — FormularioServicios | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 7 — Formularios Mensuales</div>
+    <div class="lesson-number">Lección 36 de 58</div>
+    <h1 class="lesson-title">FormularioServicios — 8 secciones del Form 301</h1>
+    <p class="lesson-subtitle">Consulta externa, referencias, odontología, enfermería, internaciones, actividades, observaciones y causas de consulta en una sola página con tabs Alpine.js. 309 líneas PHP + 390 líneas Blade.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 2 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~35 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Avanzado</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="35-pagina-importar.html" class="lesson-nav-btn">← Lección 35</a>
+    <a href="37-formulario-materna.html" class="lesson-nav-btn">Lección 37 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#estructura">Estructura de la clase y arrays estáticos</a></li>
+      <li><a href="#cargar">cargarDatos() — keyBy() para 7 modelos</a></li>
+      <li><a href="#guardar">Los 8 métodos guardarX() — updateOrCreate</a></li>
+      <li><a href="#tabs">Vista Blade — tabs con Alpine.js</a></li>
+      <li><a href="#consulta">Tab Consulta Externa — tabla M/F por grupo</a></li>
+      <li><a href="#odonto">Tab Odontología — matriz procedimiento × grupo</a></li>
+      <li><a href="#simples">Tabs simples — enfermería, internaciones, actividades</a></li>
+      <li><a href="#causas">Tab Causas de Consulta — mega-tabla 10 × 10</a></li>
+      <li><a href="#resumen">Resumen</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: ESTRUCTURA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="estructura">
+    <h2><span class="section-number">1</span> Estructura de la clase y arrays estáticos</h2>
+
+    <p>FormularioServicios es la página más grande del proyecto. Maneja <strong>8 secciones</strong> del formulario 301 del SNIS usando propiedades públicas de tipo array para cada sección. Las constantes estáticas definen los "diccionarios" de tipos con sus labels.</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Pages/FormularioServicios.php — declaración</div>
+      <div class="code-body">
+<pre><span class="kw">class</span> <span class="cls">FormularioServicios</span> <span class="kw">extends</span> <span class="cls">Page</span>
+{
+    <span class="kw">use</span> <span class="cls">FormularioMensualTrait</span>;  <span class="cmt">// $mes, $anio, $mesCerrado (lección 33)</span>
+
+    <span class="kw">protected</span> <span class="type">string</span> <span class="var">$view</span> <span class="op">=</span> <span class="str">'filament.pages.formulario-servicios'</span>;
+    <span class="kw">protected static</span> <span class="type">bool</span> <span class="var">$shouldRegisterNavigation</span> <span class="op">=</span> <span class="kw">false</span>;
+
+    <span class="kw">const</span> <span class="var">SECCION</span> <span class="op">=</span> <span class="str">'Servicios Generales'</span>;
+
+    <span class="cmt">// 8 propiedades públicas — una por sección</span>
+    <span class="kw">public array</span> <span class="var">$consultaExterna</span> <span class="op">=</span> [];
+    <span class="kw">public array</span> <span class="var">$referencias</span> <span class="op">=</span> [];
+    <span class="kw">public array</span> <span class="var">$odontologia</span> <span class="op">=</span> [];
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$observaciones</span> <span class="op">=</span> <span class="str">''</span>;
+    <span class="kw">public array</span> <span class="var">$enfermeria</span> <span class="op">=</span> [];
+    <span class="kw">public array</span> <span class="var">$internaciones</span> <span class="op">=</span> [];
+    <span class="kw">public array</span> <span class="var">$actividades</span> <span class="op">=</span> [];
+    <span class="kw">public array</span> <span class="var">$causasConsulta</span> <span class="op">=</span> [];
+}</pre>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">FormularioServicios.php — arrays estáticos (diccionarios)</div>
+      <div class="code-body">
+<pre><span class="cmt">// Tipos de referencia — Form 301 F21-F27</span>
+<span class="kw">public static array</span> <span class="var">$tiposReferencia</span> <span class="op">=</span> [
+    <span class="str">'ref_recibida_establecimiento'</span> <span class="op">=&gt;</span> <span class="str">'Pac. referidos recibidos por el establecimiento'</span>,
+    <span class="str">'ref_enviada'</span>                  <span class="op">=&gt;</span> <span class="str">'Pac. referidos a otros establecimientos'</span>,
+    <span class="str">'pcd_atendida_comunidad'</span>       <span class="op">=&gt;</span> <span class="str">'PCD referidos a Unidades de Calificación'</span>,
+    <span class="cmt">// ... 4 más ...</span>
+];
+
+<span class="cmt">// Procedimientos odontológicos — Form 301 F30-F42</span>
+<span class="kw">public static array</span> <span class="var">$procedimientosOdonto</span> <span class="op">=</span> [
+    <span class="str">'primera_consulta'</span>  <span class="op">=&gt;</span> <span class="str">'Primera consulta'</span>,
+    <span class="str">'restauraciones'</span>    <span class="op">=&gt;</span> <span class="str">'Restauraciones'</span>,
+    <span class="str">'endodoncias'</span>       <span class="op">=&gt;</span> <span class="str">'Endodoncia'</span>,
+    <span class="cmt">// ... 10 más (13 procedimientos total) ...</span>
+];
+
+<span class="cmt">// Grupos etáreos para odonto — 5 rangos</span>
+<span class="kw">public static array</span> <span class="var">$gruposOdonto</span> <span class="op">=</span> [
+    <span class="str">'menor_5'</span>  <span class="op">=&gt;</span> <span class="str">'&lt; 5 años'</span>,
+    <span class="str">'5_9'</span>      <span class="op">=&gt;</span> <span class="str">'5-13 años'</span>,
+    <span class="str">'15_19'</span>    <span class="op">=&gt;</span> <span class="str">'14-19 años'</span>,
+    <span class="str">'20_39'</span>    <span class="op">=&gt;</span> <span class="str">'20-59 años'</span>,
+    <span class="str">'mayor_60'</span> <span class="op">=&gt;</span> <span class="str">'≥ 60 años'</span>,
+];
+
+<span class="cmt">// Tipos de enfermería — 7 procedimientos</span>
+<span class="kw">public static array</span> <span class="var">$tiposEnfermeria</span> <span class="op">=</span> [
+    <span class="str">'sueros_administrados'</span>       <span class="op">=&gt;</span> <span class="str">'Sueros administrados'</span>,
+    <span class="str">'inyecciones_administradas'</span>  <span class="op">=&gt;</span> <span class="str">'Inyecciones administradas'</span>,
+    <span class="str">'curaciones'</span>                 <span class="op">=&gt;</span> <span class="str">'Curaciones'</span>,
+    <span class="cmt">// ... 4 más ...</span>
+];
+
+<span class="cmt">// Indicadores de internación — 6 métricas</span>
+<span class="kw">public static array</span> <span class="var">$indicadoresInternacion</span> <span class="op">=</span> [
+    <span class="str">'egresos'</span>                        <span class="op">=&gt;</span> <span class="str">'Nro. de egresos'</span>,
+    <span class="str">'fallecidos'</span>                     <span class="op">=&gt;</span> <span class="str">'Nro. de fallecidos'</span>,
+    <span class="str">'dias_cama_disponible'</span>           <span class="op">=&gt;</span> <span class="str">'Días cama disponible'</span>,
+    <span class="cmt">// ... 3 más ...</span>
+];</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">¿Por qué arrays estáticos públicos?</div>
+      <p>Declararlos como <code>public static</code> permite accederlos desde la vista Blade con <code>\App\Filament\Pages\FormularioServicios::$tiposReferencia</code>. Así la vista puede iterar los mismos diccionarios sin duplicar las listas. Es el patrón "única fuente de verdad" (single source of truth).</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: CARGAR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="cargar">
+    <h2><span class="section-number">2</span> cargarDatos() — keyBy() para 7 modelos</h2>
+
+    <p>Al montar la página, se cargan los datos existentes de las 7 tablas <code>prest_*</code> + observaciones + causas. El patrón clave es <code>->get()->keyBy('campo')</code> que convierte la colección en un diccionario indexado.</p>
+
+    <div class="code-block">
+      <div class="code-header">FormularioServicios.php — mount() + cargarDatos()</div>
+      <div class="code-body">
+<pre><span class="kw">public function</span> <span class="fn">mount</span>(): <span class="type">void</span>
+{
+    <span class="var">$this</span>-&gt;<span class="fn">mountFormulario</span>();  <span class="cmt">// FormularioMensualTrait — mes, anio, mesCerrado</span>
+    <span class="var">$this</span>-&gt;<span class="fn">cargarDatos</span>(<span class="fn">auth</span>()-&gt;<span class="fn">user</span>()-&gt;<span class="var">centro_salud_id</span>);
+}
+
+<span class="kw">private function</span> <span class="fn">cargarDatos</span>(<span class="type">int</span> <span class="var">$centroId</span>): <span class="type">void</span>
+{
+    <span class="cmt">// ─── Consulta Externa: 10 grupos × 6 campos ───</span>
+    <span class="var">$gruposConsulta</span> <span class="op">=</span> [<span class="str">'menor_6m'</span>, <span class="str">'6m_menor_1'</span>, <span class="str">'1_4'</span>, <span class="str">'5_9'</span>,
+        <span class="str">'10_14'</span>, <span class="str">'15_19'</span>, <span class="str">'20_39'</span>, <span class="str">'40_49'</span>, <span class="str">'50_59'</span>, <span class="str">'mayor_60'</span>];
+
+    <span class="hl"><span class="var">$rowsConsulta</span> <span class="op">=</span> <span class="cls">PrestConsultaExterna</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -&gt;<span class="fn">where</span>(<span class="str">'mes'</span>, <span class="var">$this</span>-&gt;<span class="var">mes</span>)-&gt;<span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-&gt;<span class="var">anio</span>)
+        -&gt;<span class="fn">get</span>()-&gt;<span class="fn">keyBy</span>(<span class="str">'grupo_etareo'</span>);</span>
+
+    <span class="kw">foreach</span> (<span class="var">$gruposConsulta</span> <span class="kw">as</span> <span class="var">$grupo</span>) {
+        <span class="var">$row</span> <span class="op">=</span> <span class="var">$rowsConsulta</span>-&gt;<span class="fn">get</span>(<span class="var">$grupo</span>);
+        <span class="var">$this</span>-&gt;<span class="var">consultaExterna</span>[<span class="var">$grupo</span>] <span class="op">=</span> [
+            <span class="str">'primera_m'</span>  <span class="op">=&gt;</span> <span class="var">$row</span>-&gt;<span class="var">primera_m</span>  <span class="op">??</span> <span class="num">0</span>,
+            <span class="str">'primera_f'</span>  <span class="op">=&gt;</span> <span class="var">$row</span>-&gt;<span class="var">primera_f</span>  <span class="op">??</span> <span class="num">0</span>,
+            <span class="str">'nueva_m'</span>    <span class="op">=&gt;</span> <span class="var">$row</span>-&gt;<span class="var">nueva_m</span>    <span class="op">??</span> <span class="num">0</span>,
+            <span class="str">'nueva_f'</span>    <span class="op">=&gt;</span> <span class="var">$row</span>-&gt;<span class="var">nueva_f</span>    <span class="op">??</span> <span class="num">0</span>,
+            <span class="str">'repetida_m'</span> <span class="op">=&gt;</span> <span class="var">$row</span>-&gt;<span class="var">repetida_m</span> <span class="op">??</span> <span class="num">0</span>,
+            <span class="str">'repetida_f'</span> <span class="op">=&gt;</span> <span class="var">$row</span>-&gt;<span class="var">repetida_f</span> <span class="op">??</span> <span class="num">0</span>,
+        ];
+    }
+
+    <span class="cmt">// ─── Referencias: 7 tipos × (M, F) ───</span>
+    <span class="var">$rowsRef</span> <span class="op">=</span> <span class="cls">PrestReferencia</span>::<span class="fn">where</span>(...)-&gt;<span class="fn">get</span>()-&gt;<span class="fn">keyBy</span>(<span class="str">'tipo'</span>);
+    <span class="kw">foreach</span> (<span class="fn">array_keys</span>(<span class="kw">self</span>::<span class="var">$tiposReferencia</span>) <span class="kw">as</span> <span class="var">$tipo</span>) {
+        <span class="var">$row</span> <span class="op">=</span> <span class="var">$rowsRef</span>-&gt;<span class="fn">get</span>(<span class="var">$tipo</span>);
+        <span class="var">$this</span>-&gt;<span class="var">referencias</span>[<span class="var">$tipo</span>] <span class="op">=</span> [
+            <span class="str">'masculino'</span> <span class="op">=&gt;</span> <span class="var">$row</span>-&gt;<span class="var">masculino</span> <span class="op">??</span> <span class="num">0</span>,
+            <span class="str">'femenino'</span>  <span class="op">=&gt;</span> <span class="var">$row</span>-&gt;<span class="var">femenino</span>  <span class="op">??</span> <span class="num">0</span>,
+        ];
+    }
+
+    <span class="cmt">// ─── Odontología: 13 proc × 5 grupos × (M, F) ───</span>
+    <span class="hl"><span class="var">$rowsOdonto</span> <span class="op">=</span> <span class="cls">PrestOdontologia</span>::<span class="fn">where</span>(...)
+        -&gt;<span class="fn">get</span>()-&gt;<span class="fn">keyBy</span>(<span class="kw">fn</span>(<span class="var">$r</span>) <span class="op">=&gt;</span> <span class="str">"{$r->procedimiento}__{$r->grupo_etareo}"</span>);</span>
+    <span class="kw">foreach</span> (<span class="fn">array_keys</span>(<span class="kw">self</span>::<span class="var">$procedimientosOdonto</span>) <span class="kw">as</span> <span class="var">$proc</span>) {
+        <span class="kw">foreach</span> (<span class="fn">array_keys</span>(<span class="kw">self</span>::<span class="var">$gruposOdonto</span>) <span class="kw">as</span> <span class="var">$ge</span>) {
+            <span class="var">$key</span> <span class="op">=</span> <span class="str">"{$proc}__{$ge}"</span>;
+            <span class="var">$row</span> <span class="op">=</span> <span class="var">$rowsOdonto</span>-&gt;<span class="fn">get</span>(<span class="var">$key</span>);
+            <span class="var">$this</span>-&gt;<span class="var">odontologia</span>[<span class="var">$key</span>] <span class="op">=</span> [
+                <span class="str">'masculino'</span> <span class="op">=&gt;</span> <span class="var">$row</span>-&gt;<span class="var">masculino</span> <span class="op">??</span> <span class="num">0</span>,
+                <span class="str">'femenino'</span>  <span class="op">=&gt;</span> <span class="var">$row</span>-&gt;<span class="var">femenino</span>  <span class="op">??</span> <span class="num">0</span>,
+            ];
+        }
+    }</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">keyBy() con closure para claves compuestas</div>
+      <p>Odontología usa <code>keyBy(fn($r) => "{$r->procedimiento}__{$r->grupo_etareo}")</code> para crear claves como <code>primera_consulta__menor_5</code>. Al separar con <code>__</code> (doble guion bajo), evitamos colisiones con nombres que contengan un solo <code>_</code>. El mismo patrón de clave se usa en <code>wire:model="odontologia.primera_consulta__menor_5.masculino"</code>.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">FormularioServicios.php — cargar Causas (10 posiciones × 10 grupos)</div>
+      <div class="code-body">
+<pre><span class="cmt">// Causas de Consulta Externa</span>
+<span class="var">$grupos</span> <span class="op">=</span> <span class="fn">array_keys</span>(<span class="cls">CausaConsultaExterna</span>::<span class="var">$grupos</span>);
+<span class="hl"><span class="var">$rowsCausas</span> <span class="op">=</span> <span class="cls">CausaConsultaExterna</span>::<span class="fn">where</span>(...)
+    -&gt;<span class="fn">get</span>()-&gt;<span class="fn">groupBy</span>(<span class="str">'posicion'</span>);</span>
+
+<span class="kw">for</span> (<span class="var">$pos</span> <span class="op">=</span> <span class="num">1</span>; <span class="var">$pos</span> <span class="op">&lt;=</span> <span class="num">10</span>; <span class="var">$pos</span><span class="op">++</span>) {
+    <span class="var">$registros</span> <span class="op">=</span> <span class="var">$rowsCausas</span>-&gt;<span class="fn">get</span>(<span class="var">$pos</span>, <span class="fn">collect</span>());
+    <span class="var">$diagnostico</span> <span class="op">=</span> <span class="var">$registros</span>-&gt;<span class="fn">first</span>()?-&gt;<span class="var">diagnostico</span> <span class="op">??</span> <span class="str">''</span>;
+
+    <span class="var">$grupoData</span> <span class="op">=</span> [];
+    <span class="kw">foreach</span> (<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$g</span>) {
+        <span class="var">$reg</span> <span class="op">=</span> <span class="var">$registros</span>-&gt;<span class="fn">firstWhere</span>(<span class="str">'grupo_etareo'</span>, <span class="var">$g</span>);
+        <span class="var">$grupoData</span>[<span class="var">$g</span>] <span class="op">=</span> [
+            <span class="str">'m'</span> <span class="op">=&gt;</span> <span class="var">$reg</span>-&gt;<span class="var">masculino</span> <span class="op">??</span> <span class="num">0</span>,
+            <span class="str">'f'</span> <span class="op">=&gt;</span> <span class="var">$reg</span>-&gt;<span class="var">femenino</span>  <span class="op">??</span> <span class="num">0</span>,
+        ];
+    }
+    <span class="var">$this</span>-&gt;<span class="var">causasConsulta</span>[<span class="var">$pos</span>] <span class="op">=</span> [
+        <span class="str">'diagnostico'</span> <span class="op">=&gt;</span> <span class="var">$diagnostico</span>,
+        <span class="str">'grupos'</span>      <span class="op">=&gt;</span> <span class="var">$grupoData</span>,
+    ];
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">groupBy() vs keyBy()</div>
+      <p><code>keyBy('campo')</code> produce un diccionario con UN registro por clave. <code>groupBy('posicion')</code> produce un diccionario donde cada clave tiene MÚLTIPLES registros (una colección). Causas usa <code>groupBy</code> porque cada posición tiene 10 registros (uno por grupo etáreo).</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: GUARDAR
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="guardar">
+    <h2><span class="section-number">3</span> Los 8 métodos guardarX() — updateOrCreate</h2>
+
+    <p>Cada sección tiene su propio botón "Guardar" que llama un método dedicado. Todos siguen el mismo patrón: verificar <code>$mesCerrado</code>, iterar el array público, y hacer <code>updateOrCreate()</code>.</p>
+
+    <div class="code-block">
+      <div class="code-header">FormularioServicios.php — guardarConsultaExterna()</div>
+      <div class="code-body">
+<pre><span class="kw">public function</span> <span class="fn">guardarConsultaExterna</span>(): <span class="type">void</span>
+{
+    <span class="hl"><span class="kw">if</span> (<span class="var">$this</span>-&gt;<span class="var">mesCerrado</span>) <span class="kw">return</span>;</span>  <span class="cmt">// Guard clause</span>
+    <span class="var">$centroId</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()-&gt;<span class="var">centro_salud_id</span>;
+
+    <span class="kw">foreach</span> (<span class="var">$this</span>-&gt;<span class="var">consultaExterna</span> <span class="kw">as</span> <span class="var">$grupo</span> <span class="op">=&gt;</span> <span class="var">$datos</span>) {
+        <span class="cls">PrestConsultaExterna</span>::<span class="fn">updateOrCreate</span>(
+            <span class="cmt">// Clave compuesta — busca por estos 4 campos</span>
+            [<span class="str">'centro_salud_id'</span> <span class="op">=&gt;</span> <span class="var">$centroId</span>,
+             <span class="str">'mes'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">mes</span>,
+             <span class="str">'anio'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">anio</span>,
+             <span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="var">$grupo</span>],
+            <span class="cmt">// Valores a guardar/actualizar</span>
+            <span class="fn">array_map</span>(<span class="str">'intval'</span>, <span class="var">$datos</span>)
+        );
+    }
+
+    <span class="cls">Notification</span>::<span class="fn">make</span>()-&gt;<span class="fn">title</span>(<span class="str">'Consulta externa guardada'</span>)
+        -&gt;<span class="fn">success</span>()-&gt;<span class="fn">send</span>();
+}</pre>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">FormularioServicios.php — guardarOdontologia() (clave con 5 campos)</div>
+      <div class="code-body">
+<pre><span class="kw">public function</span> <span class="fn">guardarOdontologia</span>(): <span class="type">void</span>
+{
+    <span class="kw">if</span> (<span class="var">$this</span>-&gt;<span class="var">mesCerrado</span>) <span class="kw">return</span>;
+    <span class="var">$centroId</span> <span class="op">=</span> <span class="fn">auth</span>()-&gt;<span class="fn">user</span>()-&gt;<span class="var">centro_salud_id</span>;
+
+    <span class="kw">foreach</span> (<span class="fn">array_keys</span>(<span class="kw">self</span>::<span class="var">$procedimientosOdonto</span>) <span class="kw">as</span> <span class="var">$proc</span>) {
+        <span class="kw">foreach</span> (<span class="fn">array_keys</span>(<span class="kw">self</span>::<span class="var">$gruposOdonto</span>) <span class="kw">as</span> <span class="var">$ge</span>) {
+            <span class="var">$key</span> <span class="op">=</span> <span class="str">"{$proc}__{$ge}"</span>;
+            <span class="var">$datos</span> <span class="op">=</span> <span class="var">$this</span>-&gt;<span class="var">odontologia</span>[<span class="var">$key</span>] <span class="op">??</span> [];
+
+            <span class="cls">PrestOdontologia</span>::<span class="fn">updateOrCreate</span>(
+                [<span class="str">'centro_salud_id'</span> <span class="op">=&gt;</span> <span class="var">$centroId</span>,
+                 <span class="str">'mes'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">mes</span>,
+                 <span class="str">'anio'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">anio</span>,
+                 <span class="hl"><span class="str">'procedimiento'</span> <span class="op">=&gt;</span> <span class="var">$proc</span>,
+                 <span class="str">'grupo_etareo'</span>  <span class="op">=&gt;</span> <span class="var">$ge</span></span>],
+                [<span class="str">'masculino'</span> <span class="op">=&gt;</span> (<span class="type">int</span>)(<span class="var">$datos</span>[<span class="str">'masculino'</span>] <span class="op">??</span> <span class="num">0</span>),
+                 <span class="str">'femenino'</span>  <span class="op">=&gt;</span> (<span class="type">int</span>)(<span class="var">$datos</span>[<span class="str">'femenino'</span>]  <span class="op">??</span> <span class="num">0</span>)]
+            );
+        }
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">array_map('intval', $datos) — sanitización simple</div>
+      <p>Los inputs HTML siempre envían strings. <code>array_map('intval', $datos)</code> convierte todos los valores a enteros de golpe. Para odontología, se usa <code>(int)($datos['masculino'] ?? 0)</code> porque hay que acceder a claves específicas dentro del array.</p>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">FormularioServicios.php — guardarCausasConsulta() (lógica de borrado)</div>
+      <div class="code-body">
+<pre><span class="kw">public function</span> <span class="fn">guardarCausasConsulta</span>(): <span class="type">void</span>
+{
+    <span class="kw">for</span> (<span class="var">$pos</span> <span class="op">=</span> <span class="num">1</span>; <span class="var">$pos</span> <span class="op">&lt;=</span> <span class="num">10</span>; <span class="var">$pos</span><span class="op">++</span>) {
+        <span class="var">$causa</span> <span class="op">=</span> <span class="var">$this</span>-&gt;<span class="var">causasConsulta</span>[<span class="var">$pos</span>] <span class="op">??</span> [];
+        <span class="var">$diagnostico</span> <span class="op">=</span> <span class="fn">trim</span>(<span class="var">$causa</span>[<span class="str">'diagnostico'</span>] <span class="op">??</span> <span class="str">''</span>);
+
+        <span class="kw">foreach</span> (<span class="var">$grupos</span> <span class="kw">as</span> <span class="var">$g</span>) {
+            <span class="var">$m</span> <span class="op">=</span> (<span class="type">int</span>)(<span class="var">$causa</span>[<span class="str">'grupos'</span>][<span class="var">$g</span>][<span class="str">'m'</span>] <span class="op">??</span> <span class="num">0</span>);
+            <span class="var">$f</span> <span class="op">=</span> (<span class="type">int</span>)(<span class="var">$causa</span>[<span class="str">'grupos'</span>][<span class="var">$g</span>][<span class="str">'f'</span>] <span class="op">??</span> <span class="num">0</span>);
+
+            <span class="hl"><span class="kw">if</span> (<span class="var">$diagnostico</span> <span class="op">===</span> <span class="str">''</span> <span class="op">&amp;&amp;</span> <span class="var">$m</span> <span class="op">===</span> <span class="num">0</span> <span class="op">&amp;&amp;</span> <span class="var">$f</span> <span class="op">===</span> <span class="num">0</span>) {
+                <span class="cmt">// Eliminar registros vacíos — no acumular ceros</span>
+                <span class="cls">CausaConsultaExterna</span>::<span class="fn">where</span>(...)-&gt;<span class="fn">delete</span>();
+                <span class="kw">continue</span>;
+            }</span>
+
+            <span class="cls">CausaConsultaExterna</span>::<span class="fn">updateOrCreate</span>(
+                [<span class="str">'centro_salud_id'</span> <span class="op">=&gt;</span> <span class="var">$centroId</span>, <span class="str">'mes'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">mes</span>,
+                 <span class="str">'anio'</span> <span class="op">=&gt;</span> <span class="var">$this</span>-&gt;<span class="var">anio</span>, <span class="str">'posicion'</span> <span class="op">=&gt;</span> <span class="var">$pos</span>, <span class="str">'grupo_etareo'</span> <span class="op">=&gt;</span> <span class="var">$g</span>],
+                [<span class="str">'diagnostico'</span> <span class="op">=&gt;</span> <span class="var">$diagnostico</span> <span class="op">?:</span> <span class="str">"Causa $pos"</span>,
+                 <span class="str">'masculino'</span> <span class="op">=&gt;</span> <span class="var">$m</span>, <span class="str">'femenino'</span> <span class="op">=&gt;</span> <span class="var">$f</span>]
+            );
+        }
+    }
+}</pre>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">Borrado condicional en Causas</div>
+      <p>Si el diagnóstico está vacío Y M=0 Y F=0, se <strong>eliminan</strong> esos registros. Esto evita acumular filas de ceros en la base. Si el usuario borra un diagnóstico, los registros se limpian automáticamente. Nota: si hay valores numéricos pero falta el diagnóstico, se usa un fallback <code>"Causa $pos"</code>.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: TABS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="tabs">
+    <h2><span class="section-number">4</span> Vista Blade — tabs con Alpine.js</h2>
+
+    <div class="code-block">
+      <div class="code-header">formulario-servicios.blade.php — sistema de tabs</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;x-filament-panels::page&gt;</span>
+  <span class="cmt">&lt;!-- Banner de mes cerrado --&gt;</span>
+  <span class="kw">@if</span> (<span class="var">$mesCerrado</span>)
+    <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"... border-green-300 bg-green-50 ..."</span><span class="dec">&gt;</span>
+      <span class="dec">&lt;x-heroicon-s-lock-closed</span> <span class="attr">class</span><span class="op">=</span><span class="str">"h-5 w-5"</span> <span class="dec">/&gt;</span>
+      Este mes está cerrado. Los datos son de solo lectura.
+    <span class="dec">&lt;/div&gt;</span>
+  <span class="kw">@endif</span>
+
+  <span class="cmt">&lt;!-- Contenedor Alpine -- una variable activeTab --&gt;</span>
+  <span class="hl"><span class="dec">&lt;div</span> <span class="attr">x-data</span><span class="op">=</span><span class="str">"{ activeTab: 'consulta' }"</span><span class="dec">&gt;</span></span>
+
+    <span class="cmt">&lt;!-- Barra de tabs --&gt;</span>
+    <span class="dec">&lt;nav</span> <span class="attr">class</span><span class="op">=</span><span class="str">"flex gap-1 rounded-xl bg-gray-100 p-1"</span><span class="dec">&gt;</span>
+      <span class="kw">@foreach</span> ([
+          <span class="str">'consulta'</span>      <span class="op">=&gt;</span> <span class="str">'1. Consulta Externa'</span>,
+          <span class="str">'referencias'</span>   <span class="op">=&gt;</span> <span class="str">'2. Referencias'</span>,
+          <span class="str">'odontologia'</span>   <span class="op">=&gt;</span> <span class="str">'3. Odontología'</span>,
+          <span class="str">'enfermeria'</span>    <span class="op">=&gt;</span> <span class="str">'4. Enfermería'</span>,
+          <span class="str">'internaciones'</span> <span class="op">=&gt;</span> <span class="str">'5. Internaciones'</span>,
+          <span class="str">'actividades'</span>   <span class="op">=&gt;</span> <span class="str">'6. Actividades'</span>,
+          <span class="str">'observaciones'</span> <span class="op">=&gt;</span> <span class="str">'7. Observaciones'</span>,
+          <span class="str">'causas'</span>        <span class="op">=&gt;</span> <span class="str">'8. Causas Consulta'</span>,
+      ] <span class="kw">as</span> <span class="var">$key</span> <span class="op">=&gt;</span> <span class="var">$label</span>)
+        <span class="dec">&lt;button</span>
+            <span class="hl"><span class="attr">x-on:click</span><span class="op">=</span><span class="str">"activeTab = '{{ $key }}'"</span></span>
+            <span class="attr">:class</span><span class="op">=</span><span class="str">"activeTab === '{{ $key }}'
+                ? 'bg-white text-primary-600 shadow'
+                : 'text-gray-600 hover:text-gray-800'"</span>
+            <span class="attr">class</span><span class="op">=</span><span class="str">"whitespace-nowrap rounded-lg px-3 py-2 text-sm"</span><span class="dec">&gt;</span>
+          {{ <span class="var">$label</span> }}
+        <span class="dec">&lt;/button&gt;</span>
+      <span class="kw">@endforeach</span>
+    <span class="dec">&lt;/nav&gt;</span>
+
+    <span class="cmt">&lt;!-- Cada tab con x-show --&gt;</span>
+    <span class="hl"><span class="dec">&lt;div</span> <span class="attr">x-show</span><span class="op">=</span><span class="str">"activeTab === 'consulta'"</span> <span class="attr">x-cloak</span><span class="dec">&gt;</span></span>
+      <span class="cmt">... contenido pestaña 1 ...</span>
+    <span class="dec">&lt;/div&gt;</span>
+
+    <span class="dec">&lt;div</span> <span class="attr">x-show</span><span class="op">=</span><span class="str">"activeTab === 'referencias'"</span> <span class="attr">x-cloak</span><span class="dec">&gt;</span>
+      <span class="cmt">... contenido pestaña 2 ...</span>
+    <span class="dec">&lt;/div&gt;</span>
+    <span class="cmt">&lt;!-- ... 6 tabs más ... --&gt;</span>
+  <span class="dec">&lt;/div&gt;</span>
+<span class="dec">&lt;/x-filament-panels::page&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">¿Por qué Alpine.js y no Livewire tabs?</div>
+      <p>Cambiar de tab con Alpine (<code>x-data</code>, <code>x-show</code>, <code>x-on:click</code>) es <strong>instantáneo — sin request al servidor</strong>. Los 8 tabs se renderizan en el HTML inicial pero se ocultan con CSS. Livewire solo interviene al hacer clic en "Guardar". Esto da una experiencia de usuario rápida incluso con las 8 secciones cargadas.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: CONSULTA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="consulta">
+    <h2><span class="section-number">5</span> Tab Consulta Externa — tabla M/F por grupo</h2>
+
+    <div class="code-block">
+      <div class="code-header">formulario-servicios.blade.php — tabla consulta externa</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;table</span> <span class="attr">class</span><span class="op">=</span><span class="str">"w-full text-sm"</span><span class="dec">&gt;</span>
+  <span class="dec">&lt;thead&gt;</span>
+    <span class="dec">&lt;tr&gt;</span>
+      <span class="dec">&lt;th&gt;</span>Grupo Etáreo<span class="dec">&lt;/th&gt;</span>
+      <span class="dec">&lt;th</span> <span class="attr">colspan</span><span class="op">=</span><span class="str">"2"</span><span class="dec">&gt;</span>Primera<span class="dec">&lt;/th&gt;</span>
+      <span class="dec">&lt;th</span> <span class="attr">colspan</span><span class="op">=</span><span class="str">"2"</span><span class="dec">&gt;</span>Nueva<span class="dec">&lt;/th&gt;</span>
+      <span class="dec">&lt;th</span> <span class="attr">colspan</span><span class="op">=</span><span class="str">"2"</span><span class="dec">&gt;</span>Repetida<span class="dec">&lt;/th&gt;</span>
+    <span class="dec">&lt;/tr&gt;</span>
+    <span class="dec">&lt;tr&gt;</span><span class="dec">&lt;th&gt;&lt;/th&gt;</span>
+      <span class="dec">&lt;th&gt;</span>M<span class="dec">&lt;/th&gt;&lt;th&gt;</span>F<span class="dec">&lt;/th&gt;</span>
+      <span class="dec">&lt;th&gt;</span>M<span class="dec">&lt;/th&gt;&lt;th&gt;</span>F<span class="dec">&lt;/th&gt;</span>
+      <span class="dec">&lt;th&gt;</span>M<span class="dec">&lt;/th&gt;&lt;th&gt;</span>F<span class="dec">&lt;/th&gt;</span>
+    <span class="dec">&lt;/tr&gt;</span>
+  <span class="dec">&lt;/thead&gt;</span>
+  <span class="dec">&lt;tbody&gt;</span>
+    <span class="kw">@foreach</span> (<span class="var">$labelsConsulta</span> <span class="kw">as</span> <span class="var">$grupo</span> <span class="op">=&gt;</span> <span class="var">$label</span>)
+      <span class="dec">&lt;tr&gt;</span>
+        <span class="dec">&lt;td&gt;</span>{{ <span class="var">$label</span> }}<span class="dec">&lt;/td&gt;</span>
+        <span class="kw">@foreach</span> ([<span class="str">'primera_m'</span>,<span class="str">'primera_f'</span>,<span class="str">'nueva_m'</span>,
+                   <span class="str">'nueva_f'</span>,<span class="str">'repetida_m'</span>,<span class="str">'repetida_f'</span>] <span class="kw">as</span> <span class="var">$campo</span>)
+          <span class="dec">&lt;td&gt;</span>
+            <span class="hl"><span class="dec">&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"number"</span> <span class="attr">min</span><span class="op">=</span><span class="str">"0"</span>
+                <span class="attr">wire:model</span><span class="op">=</span><span class="str">"consultaExterna.{{ $grupo }}.{{ $campo }}"</span>
+                {{ <span class="var">$mesCerrado</span> ? <span class="str">'disabled'</span> : <span class="str">''</span> }}<span class="dec">&gt;</span></span>
+          <span class="dec">&lt;/td&gt;</span>
+        <span class="kw">@endforeach</span>
+      <span class="dec">&lt;/tr&gt;</span>
+    <span class="kw">@endforeach</span>
+  <span class="dec">&lt;/tbody&gt;</span>
+<span class="dec">&lt;/table&gt;</span>
+
+<span class="kw">@unless</span> (<span class="var">$mesCerrado</span>)
+  <span class="dec">&lt;button</span> <span class="attr">wire:click</span><span class="op">=</span><span class="str">"guardarConsultaExterna"</span><span class="dec">&gt;</span>
+    Guardar Consulta Externa
+  <span class="dec">&lt;/button&gt;</span>
+<span class="kw">@endunless</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">wire:model con arrays anidados</div>
+      <p><code>wire:model="consultaExterna.menor_6m.primera_m"</code> enlaza directamente al valor <code>$this->consultaExterna['menor_6m']['primera_m']</code> en PHP. Livewire 4 maneja la notación punto automáticamente para arrays anidados. El resultado: 10 grupos × 6 campos = <strong>60 inputs</strong> en esta sola tabla, todos sincronizados.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: ODONTO
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="odonto">
+    <h2><span class="section-number">6</span> Tab Odontología — matriz procedimiento × grupo</h2>
+
+    <div class="code-block">
+      <div class="code-header">formulario-servicios.blade.php — tabla odontología</div>
+      <div class="code-body">
+<pre><span class="kw">@php</span>
+  <span class="var">$procedimientos</span> <span class="op">=</span> \<span class="cls">App\Filament\Pages\FormularioServicios</span>::<span class="var">$procedimientosOdonto</span>;
+  <span class="var">$gruposOd</span>       <span class="op">=</span> \<span class="cls">App\Filament\Pages\FormularioServicios</span>::<span class="var">$gruposOdonto</span>;
+<span class="kw">@endphp</span>
+
+<span class="dec">&lt;table&gt;</span>
+  <span class="dec">&lt;thead&gt;</span>
+    <span class="dec">&lt;tr&gt;</span>
+      <span class="dec">&lt;th&gt;</span>Procedimiento<span class="dec">&lt;/th&gt;</span>
+      <span class="kw">@foreach</span> (<span class="var">$gruposOd</span> <span class="kw">as</span> <span class="var">$geKey</span> <span class="op">=&gt;</span> <span class="var">$geLabel</span>)
+        <span class="dec">&lt;th</span> <span class="attr">colspan</span><span class="op">=</span><span class="str">"2"</span><span class="dec">&gt;</span>{{ <span class="var">$geLabel</span> }}<span class="dec">&lt;/th&gt;</span>
+      <span class="kw">@endforeach</span>
+    <span class="dec">&lt;/tr&gt;</span>
+    <span class="cmt">&lt;!-- Subheader: M F M F M F M F M F --&gt;</span>
+  <span class="dec">&lt;/thead&gt;</span>
+  <span class="dec">&lt;tbody&gt;</span>
+    <span class="kw">@foreach</span> (<span class="var">$procedimientos</span> <span class="kw">as</span> <span class="var">$procKey</span> <span class="op">=&gt;</span> <span class="var">$procLabel</span>)
+      <span class="dec">&lt;tr&gt;</span>
+        <span class="dec">&lt;td&gt;</span>{{ <span class="var">$procLabel</span> }}<span class="dec">&lt;/td&gt;</span>
+        <span class="kw">@foreach</span> (<span class="var">$gruposOd</span> <span class="kw">as</span> <span class="var">$geKey</span> <span class="op">=&gt;</span> <span class="var">$geLabel</span>)
+          <span class="hl"><span class="kw">@php</span> <span class="var">$key</span> <span class="op">=</span> <span class="str">"{$procKey}__{$geKey}"</span>; <span class="kw">@endphp</span></span>
+          <span class="dec">&lt;td&gt;</span>
+            <span class="dec">&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"number"</span>
+                <span class="attr">wire:model</span><span class="op">=</span><span class="str">"odontologia.{{ $key }}.masculino"</span><span class="dec">&gt;</span>
+          <span class="dec">&lt;/td&gt;</span>
+          <span class="dec">&lt;td&gt;</span>
+            <span class="dec">&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"number"</span>
+                <span class="attr">wire:model</span><span class="op">=</span><span class="str">"odontologia.{{ $key }}.femenino"</span><span class="dec">&gt;</span>
+          <span class="dec">&lt;/td&gt;</span>
+        <span class="kw">@endforeach</span>
+      <span class="dec">&lt;/tr&gt;</span>
+    <span class="kw">@endforeach</span>
+  <span class="dec">&lt;/tbody&gt;</span>
+<span class="dec">&lt;/table&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-warn">
+      <div class="callout-title">13 × 5 × 2 = 130 inputs en una tabla</div>
+      <p>La tabla de odontología genera <strong>130 celdas editables</strong> (13 procedimientos × 5 grupos × M/F). El patrón de clave compuesta <code>primera_consulta__menor_5</code> mantiene todo plano en el array PHP. El doble <code>@foreach</code> anidado construye la matriz automáticamente desde los arrays estáticos.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: SIMPLES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="simples">
+    <h2><span class="section-number">7</span> Tabs simples — enfermería, internaciones, actividades</h2>
+
+    <p>Estas 3 secciones usan un patrón más sencillo: un <strong>grid de cards</strong> con label + input numérico, sin tabla M/F.</p>
+
+    <div class="code-block">
+      <div class="code-header">formulario-servicios.blade.php — grid de enfermería</div>
+      <div class="code-body">
+<pre><span class="cmt">&lt;!-- Mismo patrón para Enfermería, Internaciones, Actividades --&gt;</span>
+<span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"grid gap-3 sm:grid-cols-2"</span><span class="dec">&gt;</span>
+  <span class="kw">@foreach</span> (\<span class="cls">FormularioServicios</span>::<span class="var">$tiposEnfermeria</span> <span class="kw">as</span> <span class="var">$tipo</span> <span class="op">=&gt;</span> <span class="var">$label</span>)
+    <span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"flex items-center justify-between rounded border px-3 py-2"</span><span class="dec">&gt;</span>
+      <span class="dec">&lt;label&gt;</span>{{ <span class="var">$label</span> }}<span class="dec">&lt;/label&gt;</span>
+      <span class="hl"><span class="dec">&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"number"</span> <span class="attr">min</span><span class="op">=</span><span class="str">"0"</span>
+             <span class="attr">wire:model</span><span class="op">=</span><span class="str">"enfermeria.{{ $tipo }}"</span>
+             {{ <span class="var">$mesCerrado</span> ? <span class="str">'disabled'</span> : <span class="str">''</span> }}<span class="dec">&gt;</span></span>
+    <span class="dec">&lt;/div&gt;</span>
+  <span class="kw">@endforeach</span>
+<span class="dec">&lt;/div&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">formulario-servicios.blade.php — observaciones (textarea)</div>
+      <div class="code-body">
+<pre><span class="dec">&lt;textarea</span> <span class="attr">wire:model</span><span class="op">=</span><span class="str">"observaciones"</span>
+          <span class="attr">rows</span><span class="op">=</span><span class="str">"6"</span> <span class="attr">maxlength</span><span class="op">=</span><span class="str">"1000"</span>
+          <span class="attr">placeholder</span><span class="op">=</span><span class="str">"Escriba las observaciones del mes..."</span>
+          {{ <span class="var">$mesCerrado</span> ? <span class="str">'disabled'</span> : <span class="str">''</span> }}<span class="dec">&gt;&lt;/textarea&gt;</span>
+<span class="dec">&lt;div</span> <span class="attr">class</span><span class="op">=</span><span class="str">"text-xs text-gray-400"</span><span class="dec">&gt;</span>
+  {{ <span class="fn">strlen</span>(<span class="var">$observaciones</span>) }}/1000
+<span class="dec">&lt;/div&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">Conteo de caracteres en tiempo real</div>
+      <p><code>strlen($observaciones)</code> se re-evalúa cada vez que Livewire sincroniza. Como <code>wire:model</code> es lazy (por defecto en Livewire 4), el conteo se actualiza al salir del campo. El <code>maxlength="1000"</code> en el HTML da una restricción adicional lado cliente.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 8: CAUSAS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="causas">
+    <h2><span class="section-number">8</span> Tab Causas de Consulta — mega-tabla 10 × 10</h2>
+
+    <div class="code-block">
+      <div class="code-header">formulario-servicios.blade.php — tabla causas consulta</div>
+      <div class="code-body">
+<pre><span class="kw">@php</span>
+  <span class="var">$gruposLabel</span> <span class="op">=</span> [
+    <span class="str">'menor_6m'</span> <span class="op">=&gt;</span> <span class="str">'&lt;6m'</span>, <span class="str">'6m_menor_1'</span> <span class="op">=&gt;</span> <span class="str">'6m-1a'</span>,
+    <span class="str">'1_4'</span> <span class="op">=&gt;</span> <span class="str">'1-4a'</span>, <span class="cmt">// ... 7 más ...</span>
+    <span class="str">'mayor_60'</span> <span class="op">=&gt;</span> <span class="str">'≥60a'</span>,
+  ];
+<span class="kw">@endphp</span>
+
+<span class="dec">&lt;table&gt;</span>
+  <span class="dec">&lt;thead&gt;</span>
+    <span class="dec">&lt;tr</span> <span class="attr">class</span><span class="op">=</span><span class="str">"bg-rose-700 text-white"</span><span class="dec">&gt;</span>
+      <span class="dec">&lt;th&gt;</span>N°<span class="dec">&lt;/th&gt;</span>
+      <span class="dec">&lt;th&gt;</span>Diagnóstico (CIE-10)<span class="dec">&lt;/th&gt;</span>
+      <span class="kw">@foreach</span> (<span class="var">$gruposLabel</span> <span class="kw">as</span> <span class="var">$gk</span> <span class="op">=&gt;</span> <span class="var">$gl</span>)
+        <span class="dec">&lt;th</span> <span class="attr">colspan</span><span class="op">=</span><span class="str">"2"</span><span class="dec">&gt;</span>{!! <span class="var">$gl</span> !!}<span class="dec">&lt;/th&gt;</span>
+      <span class="kw">@endforeach</span>
+      <span class="dec">&lt;th&gt;</span>Tot.M<span class="dec">&lt;/th&gt;&lt;th&gt;</span>Tot.F<span class="dec">&lt;/th&gt;&lt;th&gt;</span>Total<span class="dec">&lt;/th&gt;</span>
+    <span class="dec">&lt;/tr&gt;</span>
+  <span class="dec">&lt;/thead&gt;</span>
+
+  <span class="dec">&lt;tbody&gt;</span>
+    <span class="kw">@for</span> (<span class="var">$pos</span> <span class="op">=</span> <span class="num">1</span>; <span class="var">$pos</span> <span class="op">&lt;=</span> <span class="num">10</span>; <span class="var">$pos</span><span class="op">++</span>)
+      <span class="kw">@php</span>
+        <span class="var">$causa</span> <span class="op">=</span> <span class="var">$causasConsulta</span>[<span class="var">$pos</span>] <span class="op">??</span> [...];
+        <span class="hl"><span class="var">$totM</span> <span class="op">=</span> <span class="fn">collect</span>(<span class="var">$causa</span>[<span class="str">'grupos'</span>])-&gt;<span class="fn">sum</span>(<span class="str">'m'</span>);</span>
+        <span class="var">$totF</span> <span class="op">=</span> <span class="fn">collect</span>(<span class="var">$causa</span>[<span class="str">'grupos'</span>])-&gt;<span class="fn">sum</span>(<span class="str">'f'</span>);
+      <span class="kw">@endphp</span>
+
+      <span class="dec">&lt;tr&gt;</span>
+        <span class="dec">&lt;td</span> <span class="attr">class</span><span class="op">=</span><span class="str">"font-bold text-rose-600"</span><span class="dec">&gt;</span>{{ <span class="var">$pos</span> }}<span class="dec">&lt;/td&gt;</span>
+        <span class="dec">&lt;td&gt;</span>
+          <span class="dec">&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"text"</span>
+              <span class="attr">wire:model</span><span class="op">=</span><span class="str">"causasConsulta.{{ $pos }}.diagnostico"</span>
+              <span class="attr">placeholder</span><span class="op">=</span><span class="str">"Diagnóstico {{ $pos }}…"</span><span class="dec">&gt;</span>
+        <span class="dec">&lt;/td&gt;</span>
+        <span class="kw">@foreach</span> (<span class="fn">array_keys</span>(<span class="var">$gruposLabel</span>) <span class="kw">as</span> <span class="var">$g</span>)
+          <span class="dec">&lt;td&gt;&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"number"</span>
+              <span class="attr">wire:model</span><span class="op">=</span><span class="str">"causasConsulta.{{ $pos }}.grupos.{{ $g }}.m"</span><span class="dec">&gt;&lt;/td&gt;</span>
+          <span class="dec">&lt;td&gt;&lt;input</span> <span class="attr">type</span><span class="op">=</span><span class="str">"number"</span>
+              <span class="attr">wire:model</span><span class="op">=</span><span class="str">"causasConsulta.{{ $pos }}.grupos.{{ $g }}.f"</span><span class="dec">&gt;&lt;/td&gt;</span>
+        <span class="kw">@endforeach</span>
+        <span class="cmt">&lt;!-- Totales calculados lado servidor --&gt;</span>
+        <span class="dec">&lt;td</span> <span class="attr">class</span><span class="op">=</span><span class="str">"text-blue-700"</span><span class="dec">&gt;</span>{{ <span class="var">$totM</span> }}<span class="dec">&lt;/td&gt;</span>
+        <span class="dec">&lt;td</span> <span class="attr">class</span><span class="op">=</span><span class="str">"text-pink-700"</span><span class="dec">&gt;</span>{{ <span class="var">$totF</span> }}<span class="dec">&lt;/td&gt;</span>
+        <span class="dec">&lt;td</span> <span class="attr">class</span><span class="op">=</span><span class="str">"font-bold"</span><span class="dec">&gt;</span>{{ <span class="var">$totM</span> <span class="op">+</span> <span class="var">$totF</span> }}<span class="dec">&lt;/td&gt;</span>
+      <span class="dec">&lt;/tr&gt;</span>
+    <span class="kw">@endfor</span>
+  <span class="dec">&lt;/tbody&gt;</span>
+<span class="dec">&lt;/table&gt;</span></pre>
+      </div>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">10 × 10 × 2 + 10 = 210 inputs + 10 textos</div>
+      <p>Esta es la tabla más grande del sistema: 10 diagnósticos × 10 grupos × 2 sexos = 200 inputs numéricos + 10 campos de texto. Con los totales (3 columnas calculadas × 10 filas), la tabla tiene <strong>23 columnas</strong>. El <code>overflow-x-auto</code> permite scroll horizontal en pantallas pequeñas. Los totales se calculan con <code>collect($causa['grupos'])->sum('m')</code>.</p>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       RESUMEN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="resumen">
+    <h2><span class="section-number">9</span> Resumen</h2>
+
+    <div class="lesson-summary">
+      <h3>Lo que aprendimos en esta lección</h3>
+      <ul>
+        <li><strong>Arrays estáticos públicos</strong> como diccionarios compartidos entre PHP y Blade</li>
+        <li><strong>keyBy('campo')</strong> para indexar colecciones, y <strong>keyBy(fn())</strong> para claves compuestas</li>
+        <li><strong>groupBy() vs keyBy()</strong> — uno→muchos vs uno→uno</li>
+        <li><strong>8 tabs con Alpine.js</strong> (x-data, x-show, x-on:click, x-cloak) — sin roundtrip al servidor</li>
+        <li><strong>wire:model con arrays anidados</strong> — notación punto hasta 3-4 niveles</li>
+        <li><strong>updateOrCreate()</strong> con claves compuestas de 4-5 campos</li>
+        <li><strong>array_map('intval', $datos)</strong> para sanitizar todos los valores</li>
+        <li><strong>Borrado condicional</strong> de registros vacíos en causas de consulta</li>
+        <li><strong>{{ $mesCerrado ? 'disabled' : '' }}</strong> para read-only cuando el mes está cerrado</li>
+        <li><strong>@unless($mesCerrado)</strong> para ocultar botones en modo cerrado</li>
+        <li><strong>collect()->sum('m')</strong> para totales calculados en Blade</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav">
+    <a href="35-pagina-importar.html" class="lesson-nav-btn">← Lección 35</a>
+    <a href="37-formulario-materna.html" class="lesson-nav-btn">Lección 37 →</a>
+  </div>
+
+</div>
+
+<!-- ═══ Footer ═══ -->
+<footer class="footer">
+  <p>Tutorial SICSAL — Lección 36 de 58</p>
+</footer>
+
+</body>
+</html>

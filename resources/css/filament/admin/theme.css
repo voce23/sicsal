@@ -1,0 +1,128 @@
+@import '../../../../vendor/filament/filament/resources/css/theme.css';
+
+@source '../../../../app/Filament/**/*';
+@source '../../../../resources/views/filament/**/*';
+
+/* =========================================================
+   SICSAL — Sidebar personalizado para personal de salud
+   ========================================================= */
+
+/* --- Sidebar fondo suave --- */
+.fi-sidebar {
+    @apply bg-gradient-to-b from-green-50 to-white dark:from-gray-900 dark:to-gray-950;
+}
+
+/* --- Grupos de navegación: etiquetas con color y fondo redondeado --- */
+.fi-sidebar-group-btn {
+    @apply rounded-lg px-3 py-1.5 mt-1 transition-all duration-200;
+}
+
+.fi-sidebar-group-label {
+    @apply text-[13px] font-bold tracking-wide uppercase;
+}
+
+/* Colores por grupo usando data-group-label */
+.fi-sidebar-group[data-group-label="Configuración"] > .fi-sidebar-group-btn {
+    @apply bg-slate-100 dark:bg-slate-800/50;
+}
+.fi-sidebar-group[data-group-label="Configuración"] .fi-sidebar-group-label {
+    @apply text-slate-600 dark:text-slate-300;
+}
+.fi-sidebar-group[data-group-label="Configuración"] > .fi-sidebar-group-btn .fi-icon {
+    @apply text-slate-500 dark:text-slate-400;
+}
+
+.fi-sidebar-group[data-group-label="Padrón Poblacional"] > .fi-sidebar-group-btn {
+    @apply bg-blue-50 dark:bg-blue-900/30;
+}
+.fi-sidebar-group[data-group-label="Padrón Poblacional"] .fi-sidebar-group-label {
+    @apply text-blue-700 dark:text-blue-300;
+}
+.fi-sidebar-group[data-group-label="Padrón Poblacional"] > .fi-sidebar-group-btn .fi-icon {
+    @apply text-blue-500 dark:text-blue-400;
+}
+
+.fi-sidebar-group[data-group-label="Salud Infantil"] > .fi-sidebar-group-btn {
+    @apply bg-amber-50 dark:bg-amber-900/30;
+}
+.fi-sidebar-group[data-group-label="Salud Infantil"] .fi-sidebar-group-label {
+    @apply text-amber-700 dark:text-amber-300;
+}
+.fi-sidebar-group[data-group-label="Salud Infantil"] > .fi-sidebar-group-btn .fi-icon {
+    @apply text-amber-500 dark:text-amber-400;
+}
+
+.fi-sidebar-group[data-group-label="Salud Materna"] > .fi-sidebar-group-btn {
+    @apply bg-pink-50 dark:bg-pink-900/30;
+}
+.fi-sidebar-group[data-group-label="Salud Materna"] .fi-sidebar-group-label {
+    @apply text-pink-700 dark:text-pink-300;
+}
+.fi-sidebar-group[data-group-label="Salud Materna"] > .fi-sidebar-group-btn .fi-icon {
+    @apply text-pink-500 dark:text-pink-400;
+}
+
+.fi-sidebar-group[data-group-label="Prestaciones Mensuales"] > .fi-sidebar-group-btn {
+    @apply bg-emerald-50 dark:bg-emerald-900/30;
+}
+.fi-sidebar-group[data-group-label="Prestaciones Mensuales"] .fi-sidebar-group-label {
+    @apply text-emerald-700 dark:text-emerald-300;
+}
+.fi-sidebar-group[data-group-label="Prestaciones Mensuales"] > .fi-sidebar-group-btn .fi-icon {
+    @apply text-emerald-500 dark:text-emerald-400;
+}
+
+.fi-sidebar-group[data-group-label="Estadísticas"] > .fi-sidebar-group-btn {
+    @apply bg-violet-50 dark:bg-violet-900/30;
+}
+.fi-sidebar-group[data-group-label="Estadísticas"] .fi-sidebar-group-label {
+    @apply text-violet-700 dark:text-violet-300;
+}
+.fi-sidebar-group[data-group-label="Estadísticas"] > .fi-sidebar-group-btn .fi-icon {
+    @apply text-violet-500 dark:text-violet-400;
+}
+
+.fi-sidebar-group[data-group-label="Informes"] > .fi-sidebar-group-btn {
+    @apply bg-cyan-50 dark:bg-cyan-900/30;
+}
+.fi-sidebar-group[data-group-label="Informes"] .fi-sidebar-group-label {
+    @apply text-cyan-700 dark:text-cyan-300;
+}
+.fi-sidebar-group[data-group-label="Informes"] > .fi-sidebar-group-btn .fi-icon {
+    @apply text-cyan-500 dark:text-cyan-400;
+}
+
+/* --- Items de navegación: hover colorido y activo resaltado --- */
+.fi-sidebar-item-btn {
+    @apply rounded-lg mx-1;
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn {
+    @apply bg-green-100 shadow-sm dark:bg-green-900/40;
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-sidebar-item-label {
+    @apply text-green-800 font-semibold dark:text-green-200;
+}
+
+.fi-sidebar-item.fi-active > .fi-sidebar-item-btn > .fi-icon {
+    @apply text-green-600 dark:text-green-400;
+}
+
+.fi-sidebar-item.fi-sidebar-item-has-url > .fi-sidebar-item-btn:hover {
+    @apply bg-green-50 dark:bg-green-900/20;
+}
+
+/* --- Logo / Brand area con sombra sutil --- */
+.fi-body-has-topbar .fi-sidebar-header {
+    @apply bg-green-50 dark:bg-gray-900;
+}
+
+/* --- Separador visual entre el nav y el fondo --- */
+.fi-sidebar-nav {
+    @apply gap-y-4;
+}
+
+.fi-sidebar-nav-groups {
+    @apply gap-y-4;
+}

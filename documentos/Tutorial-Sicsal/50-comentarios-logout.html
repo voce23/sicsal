@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 50 · Comentarios y Logout — Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL · Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+  <span class="badge">Fase 10 — Livewire Público</span>
+  <h1>Lección 50 · Comentarios y Logout</h1>
+  <p class="subtitle">El componente reutilizable de comentarios con captcha matemático y avatares determinísticos, más la acción invocable de Logout.</p>
+  <p class="meta">Lección 50 de 58 · Tiempo estimado: 15 min</p>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="49-comunidades-causas.html">← Lección 49 · ComunidadesPoblacion y CausasConsulta</a>
+  <a href="51-export-excel-cai.html">Lección 51 · Export Excel CAI →</a>
+</nav>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">Modelo Comentario — 10 líneas</a></li>
+    <li><a href="#s2">Componente Comentarios — captcha y publicación</a></li>
+    <li><a href="#s3">Vista — formulario, captcha y lista</a></li>
+    <li><a href="#s4">Avatares determinísticos por inicial</a></li>
+    <li><a href="#s5">Integración en todas las páginas</a></li>
+    <li><a href="#s6">Acción Logout — invocable con seguridad</a></li>
+  </ol>
+</nav>
+
+<!-- ───── Secciones ───── -->
+
+<!-- ───── S1 ───── -->
+<section id="s1">
+  <h2>1 · Modelo Comentario — 10 líneas</h2>
+
+  <p>El modelo más simple del proyecto:</p>
+
+  <pre><code><span class="cmt">// app/Models/Comentario.php — 10 líneas</span>
+<span class="kw">class</span> <span class="cls">Comentario</span> <span class="kw">extends</span> <span class="cls">Model</span>
+{
+    <span class="kw">protected</span> <span class="var">$fillable</span> = [<span class="str">'pagina'</span>, <span class="str">'nombre'</span>, <span class="str">'contenido'</span>];
+}</code></pre>
+
+  <p>Sin relaciones, sin casts, sin scopes. La columna <code>pagina</code> actúa como discriminador que permite usar una sola tabla para comentarios de todas las vistas: <code>"blog-mi-slug"</code>, <code>"poblacion"</code>, <code>"cai"</code>, <code>"causas-consulta"</code>, <code>"comunidades"</code>.</p>
+
+  <div class="callout info">
+    <strong>Polimorfismo por convención</strong>: En vez de crear tablas separadas (comentarios_blog, comentarios_cai…), una sola tabla con discriminador <code>pagina</code> cubre todos los casos.
+  </div>
+</section>
+
+<!-- ───── S2 ───── -->
+<section id="s2">
+  <h2>2 · Componente Comentarios — captcha y publicación</h2>
+
+  <pre><code><span class="cmt">// app/Livewire/Comentarios.php — 70 líneas</span>
+<span class="kw">class</span> <span class="cls">Comentarios</span> <span class="kw">extends</span> <span class="cls">Component</span>
+{
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$pagina</span>;
+
+    #[<span class="cls">Validate</span>(<span class="str">'required|string|max:100'</span>)]
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$nombre</span> = <span class="str">''</span>;
+
+    #[<span class="cls">Validate</span>(<span class="str">'required|string|min:3|max:2000'</span>)]
+    <span class="kw">public</span> <span class="type">string</span> <span class="var">$contenido</span> = <span class="str">''</span>;
+
+    #[<span class="cls">Validate</span>(<span class="str">'required|integer'</span>)]
+    <span class="kw">public</span> ?<span class="type">int</span> <span class="var">$captchaRespuesta</span> = <span class="kw">null</span>;
+
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$captchaA</span> = <span class="num">0</span>;
+    <span class="kw">public</span> <span class="type">int</span> <span class="var">$captchaB</span> = <span class="num">0</span>;
+    <span class="kw">public</span> <span class="type">bool</span> <span class="var">$exito</span> = <span class="kw">false</span>;
+}</code></pre>
+
+  <h3>Captcha matemático</h3>
+  <pre><code><span class="kw">public function</span> <span class="fn">generarCaptcha</span>(): <span class="type">void</span>
+{
+    <span class="var">$this</span>-><span class="var">captchaA</span> = <span class="fn">random_int</span>(<span class="num">1</span>, <span class="num">15</span>);
+    <span class="var">$this</span>-><span class="var">captchaB</span> = <span class="fn">random_int</span>(<span class="num">1</span>, <span class="num">15</span>);
+    <span class="var">$this</span>-><span class="var">captchaRespuesta</span> = <span class="kw">null</span>;
+}</code></pre>
+
+  <h3>Publicación con sanitización</h3>
+  <pre><code><span class="kw">public function</span> <span class="fn">publicar</span>(): <span class="type">void</span>
+{
+    <span class="var">$this</span>-><span class="fn">validate</span>();
+
+    <span class="cmt">// Verificar captcha manualmente</span>
+    <span class="kw">if</span> ((<span class="type">int</span>) <span class="var">$this</span>-><span class="var">captchaRespuesta</span> !== (<span class="var">$this</span>-><span class="var">captchaA</span> + <span class="var">$this</span>-><span class="var">captchaB</span>)) {
+        <span class="var">$this</span>-><span class="fn">addError</span>(<span class="str">'captchaRespuesta'</span>, <span class="str">'La respuesta del captcha es incorrecta.'</span>);
+        <span class="var">$this</span>-><span class="fn">generarCaptcha</span>();  <span class="cmt">// Regenerar para evitar brute-force</span>
+        <span class="kw">return</span>;
+    }
+
+    <span class="cls">Comentario</span>::<span class="fn">create</span>([
+        <span class="str">'pagina'</span>    => <span class="var">$this</span>-><span class="var">pagina</span>,
+        <span class="str">'nombre'</span>    => <span class="fn">strip_tags</span>(<span class="var">$this</span>-><span class="var">nombre</span>),     <span class="cmt">// XSS prevention</span>
+        <span class="str">'contenido'</span> => <span class="fn">strip_tags</span>(<span class="var">$this</span>-><span class="var">contenido</span>),  <span class="cmt">// XSS prevention</span>
+    ]);
+
+    <span class="var">$this</span>-><span class="fn">reset</span>([<span class="str">'nombre'</span>, <span class="str">'contenido'</span>]);
+    <span class="var">$this</span>-><span class="fn">generarCaptcha</span>();
+    <span class="var">$this</span>-><span class="var">exito</span> = <span class="kw">true</span>;
+}</code></pre>
+
+  <div class="callout warning">
+    <strong>strip_tags()</strong>: Defensa contra XSS. Elimina todo HTML del nombre y contenido antes de persistir. Como estos comentarios son públicos (sin autenticación), la sanitización es esencial.
+  </div>
+
+  <h3>Computed — últimos 50 comentarios</h3>
+  <pre><code><span class="kw">public function</span> <span class="fn">getComentariosProperty</span>()
+{
+    <span class="kw">return</span> <span class="cls">Comentario</span>::<span class="fn">where</span>(<span class="str">'pagina'</span>, <span class="var">$this</span>-><span class="var">pagina</span>)
+        -><span class="fn">orderByDesc</span>(<span class="str">'created_at'</span>)
+        -><span class="fn">limit</span>(<span class="num">50</span>)
+        -><span class="fn">get</span>();
+}</code></pre>
+</section>
+
+<!-- ───── S3 ───── -->
+<section id="s3">
+  <h2>3 · Vista — formulario, captcha y lista</h2>
+
+  <p>La vista <code>comentarios.blade.php</code> (91 líneas) tiene tres áreas:</p>
+
+  <h3>Encabezado con conteo</h3>
+  <pre><code><span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"flex items-center gap-3"</span><span class="kw">&gt;</span>
+    <span class="cmt">&lt;!-- Ícono circular teal con SVG --&gt;</span>
+    <span class="kw">&lt;div&gt;</span>
+        <span class="kw">&lt;h2&gt;</span>Conversación<span class="kw">&lt;/h2&gt;</span>
+        <span class="kw">&lt;p&gt;</span>{{ <span class="var">$this</span>-><span class="var">comentarios</span>-><span class="fn">count</span>() }}
+            {{ <span class="var">$this</span>-><span class="var">comentarios</span>-><span class="fn">count</span>() === <span class="num">1</span>
+                ? <span class="str">'comentario'</span>
+                : <span class="str">'comentarios'</span> }}
+        <span class="kw">&lt;/p&gt;</span>
+    <span class="kw">&lt;/div&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <h3>Captcha inline con badge ámbar</h3>
+  <pre><code><span class="cmt">&lt;!-- "7 + 12 = ?" en badge ámbar + input numérico --&gt;</span>
+<span class="kw">&lt;span</span> <span class="attr">class</span>=<span class="str">"rounded-lg bg-amber-50 px-3 py-1.5 text-sm font-medium text-amber-700"</span><span class="kw">&gt;</span>
+    🔒 {{ <span class="var">$captchaA</span> }} + {{ <span class="var">$captchaB</span> }} = ?
+<span class="kw">&lt;/span&gt;</span>
+<span class="kw">&lt;input</span> <span class="attr">wire:model</span>=<span class="str">"captchaRespuesta"</span>
+       <span class="attr">type</span>=<span class="str">"number"</span>
+       <span class="attr">class</span>=<span class="str">"w-16 rounded-lg text-center text-sm font-semibold"</span> <span class="kw">/&gt;</span></code></pre>
+
+  <h3>Mensaje de éxito</h3>
+  <pre><code>@<span class="fn">if</span> (<span class="var">$exito</span>)
+    <span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"rounded-xl bg-emerald-50 px-4 py-3 text-sm text-emerald-700"</span><span class="kw">&gt;</span>
+        ✓ ¡Gracias! Tu comentario se publicó correctamente.
+    <span class="kw">&lt;/div&gt;</span>
+@<span class="fn">endif</span></code></pre>
+</section>
+
+<!-- ───── S4 ───── -->
+<section id="s4">
+  <h2>4 · Avatares determinísticos por inicial</h2>
+
+  <p>Cada comentario muestra un avatar circular con la primera letra del nombre y un <strong>color determinístico</strong>:</p>
+
+  <pre><code>@<span class="fn">php</span>
+    <span class="var">$colores</span> = [
+        <span class="str">'bg-teal-500'</span>, <span class="str">'bg-cyan-500'</span>, <span class="str">'bg-blue-500'</span>,
+        <span class="str">'bg-violet-500'</span>, <span class="str">'bg-rose-500'</span>, <span class="str">'bg-amber-500'</span>,
+        <span class="str">'bg-emerald-500'</span>,
+    ];
+    <span class="cmt">// ord() del primer carácter mod 7 → mismo nombre = mismo color</span>
+    <span class="var">$color</span> = <span class="var">$colores</span>[
+        <span class="fn">ord</span>(<span class="fn">mb_strtolower</span>(<span class="fn">mb_substr</span>(<span class="var">$c</span>-><span class="var">nombre</span>, <span class="num">0</span>, <span class="num">1</span>))) % <span class="fn">count</span>(<span class="var">$colores</span>)
+    ];
+@<span class="fn">endphp</span>
+
+<span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"size-10 rounded-full {{ $color }} text-white font-bold"</span><span class="kw">&gt;</span>
+    {{ <span class="fn">mb_strtoupper</span>(<span class="fn">mb_substr</span>(<span class="var">$c</span>-><span class="var">nombre</span>, <span class="num">0</span>, <span class="num">1</span>)) }}
+<span class="kw">&lt;/div&gt;</span></code></pre>
+
+  <p>El truco: <code>ord()</code> convierte el primer carácter Unicode a su valor numérico, y <code>% 7</code> lo mapea a uno de los 7 colores. Así, "Ana" siempre tendrá el mismo color en toda la aplicación, sin necesidad de almacenar preferencias.</p>
+
+  <h3>Bubble de chat asimétrico</h3>
+  <pre><code><span class="cmt">&lt;!-- rounded-2xl + rounded-tl-md = esquina superior-izquierda recta --&gt;</span>
+<span class="kw">&lt;div</span> <span class="attr">class</span>=<span class="str">"rounded-2xl rounded-tl-md border bg-white px-5 py-4
+            transition group-hover:shadow-md"</span><span class="kw">&gt;</span>
+    <span class="kw">&lt;span</span> <span class="attr">class</span>=<span class="str">"font-semibold"</span><span class="kw">&gt;</span>{{ <span class="var">$c</span>-><span class="var">nombre</span> }}<span class="kw">&lt;/span&gt;</span>
+    <span class="kw">&lt;span</span> <span class="attr">class</span>=<span class="str">"text-xs text-gray-400"</span><span class="kw">&gt;</span>{{ <span class="var">$c</span>-><span class="var">created_at</span>-><span class="fn">diffForHumans</span>() }}<span class="kw">&lt;/span&gt;</span>
+    <span class="kw">&lt;p&gt;</span>{{ <span class="var">$c</span>-><span class="var">contenido</span> }}<span class="kw">&lt;/p&gt;</span>
+<span class="kw">&lt;/div&gt;</span></code></pre>
+</section>
+
+<!-- ───── S5 ───── -->
+<section id="s5">
+  <h2>5 · Integración en todas las páginas</h2>
+
+  <p>El componente se incrusta como hijo Livewire en <strong>6 páginas públicas</strong>:</p>
+
+  <pre><code><span class="cmt">&lt;!-- Cada página pública incluye: --&gt;</span>
+<span class="kw">&lt;livewire:comentarios</span> <span class="attr">pagina</span>=<span class="str">"blog-{{ $post->slug }}"</span> <span class="kw">/&gt;</span>
+<span class="kw">&lt;livewire:comentarios</span> <span class="attr">pagina</span>=<span class="str">"poblacion"</span> <span class="kw">/&gt;</span>
+<span class="kw">&lt;livewire:comentarios</span> <span class="attr">pagina</span>=<span class="str">"cai"</span> <span class="kw">/&gt;</span>
+<span class="kw">&lt;livewire:comentarios</span> <span class="attr">pagina</span>=<span class="str">"causas-consulta"</span> <span class="kw">/&gt;</span>
+<span class="kw">&lt;livewire:comentarios</span> <span class="attr">pagina</span>=<span class="str">"comunidades"</span> <span class="kw">/&gt;</span></code></pre>
+
+  <p>El atributo <code>pagina</code> se pasa como parámetro del <code>mount()</code> y filtra los comentarios de esa vista específica. Un solo componente, múltiples instancias aisladas.</p>
+
+  <div class="callout tip">
+    <strong>IDs únicos</strong>: Los inputs usan <code>id="nombre-{{ $pagina }}"</code> para evitar conflictos si hubiera múltiples instancias en una misma página.
+  </div>
+</section>
+
+<!-- ───── S6 ───── -->
+<section id="s6">
+  <h2>6 · Acción Logout — invocable con seguridad</h2>
+
+  <p>El cierre de sesión es una <strong>clase invocable</strong> (Action) de 23 líneas:</p>
+
+  <pre><code><span class="cmt">// app/Livewire/Actions/Logout.php</span>
+<span class="kw">class</span> <span class="cls">Logout</span>
+{
+    <span class="kw">public function</span> <span class="fn">__invoke</span>()
+    {
+        <span class="cmt">// 1. Cerrar sesión del guard 'web'</span>
+        <span class="cls">Auth</span>::<span class="fn">guard</span>(<span class="str">'web'</span>)-><span class="fn">logout</span>();
+
+        <span class="cmt">// 2. Invalidar la sesión (destruir todos los datos)</span>
+        <span class="cls">Session</span>::<span class="fn">invalidate</span>();
+
+        <span class="cmt">// 3. Regenerar token CSRF (prevenir session fixation)</span>
+        <span class="cls">Session</span>::<span class="fn">regenerateToken</span>();
+
+        <span class="kw">return</span> <span class="fn">redirect</span>(<span class="str">'/'</span>);
+    }
+}</code></pre>
+
+  <p>Los tres pasos son <strong>obligatorios</strong> para seguridad:</p>
+  <table>
+    <thead>
+      <tr><th>Paso</th><th>Sin él, el riesgo es...</th></tr>
+    </thead>
+    <tbody>
+      <tr><td><code>Auth::guard('web')->logout()</code></td><td>El usuario queda autenticado aunque crea que cerró sesión</td></tr>
+      <tr><td><code>Session::invalidate()</code></td><td>Los datos de sesión (carrito, preferencias) persisten y podrían ser reutilizados</td></tr>
+      <tr><td><code>Session::regenerateToken()</code></td><td><strong>Session fixation attack</strong>: un atacante podría reutilizar el token CSRF de la sesión anterior</td></tr>
+    </tbody>
+  </table>
+
+  <div class="callout warning">
+    <strong>¿Por qué clase invocable?</strong> Patrón de Jetstream/Fortify. Se usa con <code>app(Logout::class)()</code> desde componentes Livewire sin necesidad de inyectar en un controlador. El <code>__invoke()</code> permite llamarla como función.
+  </div>
+</section>
+
+<!-- ───── Resumen ───── -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li><strong>Comentario</strong> es el modelo más simple: 3 campos fillable, sin relaciones. La columna <code>pagina</code> es un discriminador polimórfico.</li>
+    <li>El componente <strong>Comentarios</strong> (70 líneas) usa captcha matemático (random_int 1-15), validación con #[Validate], y <code>strip_tags()</code> contra XSS.</li>
+    <li>Los <strong>avatares</strong> son determinísticos: <code>ord()</code> de la inicial <code>% 7</code> mapea a un color fijo, sin persistencia.</li>
+    <li>Las burbujas usan <strong>rounded-2xl + rounded-tl-md</strong> para el efecto de chat asimétrico.</li>
+    <li>Se integra en <strong>6 páginas públicas</strong> con un simple <code>&lt;livewire:comentarios pagina="x" /&gt;</code>.</li>
+    <li><strong>Logout</strong> es una Action invocable de 23 líneas que ejecuta los 3 pasos de seguridad: logout, invalidate, regenerateToken.</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Próxima lección</strong>: En la Lección 51 entramos a la <strong>Fase 11 — Exportaciones</strong> con el Export Excel del Informe CAI: InformeCAIExport con multi-sheet.
+  </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="49-comunidades-causas.html">← Lección 49 · ComunidadesPoblacion y CausasConsulta</a>
+  <a href="51-export-excel-cai.html">Lección 51 · Export Excel CAI →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+  Tutorial SICSAL · <span id="year"></span>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</footer>
+
+</body>
+</html>

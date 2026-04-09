@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 10 — Páginas Custom y Widgets | SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<div class="topbar">
+  <div class="topbar-brand"><span class="dot"></span> SICSAL — Lección 10</div>
+  <nav>
+    <a href="09-filament-formularios.html">← Anterior</a>
+    <a href="00-indice.html">Índice</a>
+    <a href="11-livewire.html">Siguiente →</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <div class="lesson-hero">
+    <span class="lesson-badge">Lección 10 de 16</span>
+    <h1>Páginas Custom y Widgets Filament</h1>
+    <p>Prestaciones mensuales, dashboard con alertas, cierres de mes — funcionalidad que va más allá de un CRUD.</p>
+  </div>
+
+  <div class="section">
+    <h2 class="section-title"><span class="number">📁</span> Archivos que veremos</h2>
+    <table class="db-table">
+      <thead><tr><th>Archivo</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>app/Filament/Pages/Prestaciones.php</code></td><td>Selector de mes con estado (vacío/parcial/cerrado)</td></tr>
+        <tr><td><code>app/Filament/Pages/Concerns/FormularioMensualTrait.php</code></td><td>Trait compartido: cierre de mes, justificación cero</td></tr>
+        <tr><td><code>app/Filament/Widgets/AlertasWidget.php</code></td><td>Widget: meses sin cerrar, total personas</td></tr>
+        <tr><td><code>app/Filament/Widgets/CoberturaMensual.php</code></td><td>Widget: cobertura BCG, prenatal, crecimiento</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="toc">
+    <div class="toc-title">Contenidos</div>
+    <ul>
+      <li><a href="#s1">1. Páginas custom vs Resources</a></li>
+      <li><a href="#s2">2. Prestaciones: el selector de meses</a></li>
+      <li><a href="#s3">3. FormularioMensualTrait: lógica compartida</a></li>
+      <li><a href="#s4">4. Cero justificado</a></li>
+      <li><a href="#s5">5. Cierre de mes</a></li>
+      <li><a href="#s6">6. Widgets del dashboard</a></li>
+      <li><a href="#s7">7. Widget de coberturas</a></li>
+    </ul>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 1 ════════════════════════ -->
+  <div class="section" id="s1">
+    <h2 class="section-title"><span class="number">1</span> Páginas custom vs Resources</h2>
+
+    <div class="cards">
+      <div class="card">
+        <div class="card-title">Resource (Lección 08)</div>
+        <div class="card-body">
+          <p>Para operaciones <strong>CRUD estándar</strong>: listar, crear, editar, eliminar.</p>
+          <p>Ejemplo: PersonaResource, CentroSaludResource.</p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Página Custom (esta lección)</div>
+        <div class="card-body">
+          <p>Para <strong>lógica especializada</strong> que no encaja en un CRUD.</p>
+          <p>Ejemplo: Prestaciones mensuales, importar .ves, reportes.</p>
+        </div>
+      </div>
+    </div>
+
+    <p>Las páginas de SICSAL:</p>
+    <table class="db-table">
+      <thead><tr><th>Página</th><th>Propósito</th></tr></thead>
+      <tbody>
+        <tr><td><code>Prestaciones</code></td><td>Selector de meses con estado de cada uno</td></tr>
+        <tr><td><code>FormularioPai</code></td><td>Formulario mensual del Programa Ampliado de Inmunización</td></tr>
+        <tr><td><code>FormularioMaterna</code></td><td>Formulario de salud materna (prenatal, parto, puerperio)</td></tr>
+        <tr><td><code>FormularioServicios</code></td><td>Odontología, enfermería, internación, etc.</td></tr>
+        <tr><td><code>FormularioCausasConsulta</code></td><td>Causas de consulta externa por diagnóstico</td></tr>
+        <tr><td><code>ImportarDesdeVes</code></td><td>Importar archivos .ves del SNIS (Lección 15)</td></tr>
+        <tr><td><code>Reportes</code></td><td>Generación de informes PDF y Excel</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 2 ════════════════════════ -->
+  <div class="section" id="s2">
+    <h2 class="section-title"><span class="number">2</span> Prestaciones: el selector de meses</h2>
+
+    <p>Esta página muestra los 12 meses del año, cada uno con su estado y enlaces a los formularios:</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Pages/Prestaciones.php — Estructura</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">Prestaciones</span> <span class="kw">extends</span> <span class="cls">Page</span>
+{
+    <span class="cmt">// Vista Blade personalizada (no una tabla de Filament)</span>
+    <span class="kw">protected string</span> <span class="var">$view</span> = <span class="str">'filament.pages.prestaciones'</span>;
+
+    <span class="kw">protected static</span> <span class="var">$navigationIcon</span>  = <span class="cls">Heroicon</span>::<span class="var">OutlinedClipboardDocumentList</span>;
+    <span class="kw">protected static</span> <span class="var">$navigationGroup</span> = <span class="str">'Prestaciones Mensuales'</span>;
+    <span class="kw">protected static</span> <span class="var">$navigationLabel</span> = <span class="str">'Prestaciones'</span>;
+
+    <span class="kw">public int</span> <span class="var">$anio</span>;
+
+    <span class="kw">public function</span> <span class="fn">mount</span>(): <span class="kw">void</span>
+    {
+        <span class="var">$this</span>-><span class="var">anio</span> = (<span class="kw">int</span>) <span class="fn">date</span>(<span class="str">'Y'</span>);
+    }
+}</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">Prestaciones.php — getViewData() determina el estado de cada mes</div>
+      <pre class="code-body language-php"><span class="kw">public function</span> <span class="fn">getViewData</span>(): <span class="kw">array</span>
+{
+    <span class="var">$centroId</span> = <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">centro_salud_id</span>;
+
+    <span class="cmt">// ¿Qué meses están cerrados?</span>
+    <span class="var">$mesesCerrados</span> = <span class="cls">MesCerrado</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+        -><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)-><span class="fn">pluck</span>(<span class="str">'mes'</span>)-><span class="fn">toArray</span>();
+
+    <span class="cmt">// ¿Qué meses tienen algún dato? (consultar TODAS las tablas prest_*)</span>
+    <span class="var">$mesesConDato</span> = <span class="fn">collect</span>();
+    <span class="kw">foreach</span> ([<span class="cls">PrestVacuna</span>::<span class="kw">class</span>, <span class="cls">PrestPrenatal</span>::<span class="kw">class</span>, ...] <span class="kw">as</span> <span class="var">$model</span>) {
+        <span class="var">$mesesConDato</span> = <span class="var">$mesesConDato</span>-><span class="fn">merge</span>(
+            <span class="var">$model</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$centroId</span>)
+                -><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)
+                -><span class="fn">distinct</span>()-><span class="fn">pluck</span>(<span class="str">'mes'</span>)
+        );
+    }
+
+    <span class="cmt">// Construir datos para la vista</span>
+    <span class="kw">for</span> (<span class="var">$m</span> = <span class="num">1</span>; <span class="var">$m</span> <= <span class="num">12</span>; <span class="var">$m</span>++) {
+        <span class="var">$meses</span>[<span class="var">$m</span>] = [
+            <span class="str">'nombre'</span>  => <span class="var">$nombresMeses</span>[<span class="var">$m</span>],
+            <span class="str">'estado'</span>  => <span class="fn">in_array</span>(<span class="var">$m</span>, <span class="var">$mesesCerrados</span>)
+                ? <span class="str">'cerrado'</span>       <span class="cmt">// 🔒 Verde: datos completos</span>
+                : (<span class="fn">in_array</span>(<span class="var">$m</span>, <span class="var">$mesesConDato</span>)
+                    ? <span class="str">'parcial'</span>    <span class="cmt">// ⚠️ Amarillo: tiene datos</span>
+                    : <span class="str">'vacio'</span>),     <span class="cmt">// ⬜ Gris: sin datos</span>
+            <span class="str">'urls'</span> => [
+                [<span class="str">'label'</span> => <span class="str">'PAI'</span>,      <span class="str">'url'</span> => <span class="cls">FormularioPai</span>::<span class="fn">getUrl</span>([...])],
+                [<span class="str">'label'</span> => <span class="str">'Materna'</span>,  <span class="str">'url'</span> => <span class="cls">FormularioMaterna</span>::<span class="fn">getUrl</span>([...])],
+                [<span class="str">'label'</span> => <span class="str">'Servicios'</span>,<span class="str">'url'</span> => <span class="cls">FormularioServicios</span>::<span class="fn">getUrl</span>([...])],
+            ],
+        ];
+    }
+
+    <span class="kw">return</span> [<span class="str">'meses'</span> => <span class="var">$meses</span>];
+}</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 3 ════════════════════════ -->
+  <div class="section" id="s3">
+    <h2 class="section-title"><span class="number">3</span> FormularioMensualTrait: lógica compartida</h2>
+
+    <p>Las 4 páginas de formularios mensuales comparten un <strong>trait</strong> con la lógica común:</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Pages/Concerns/FormularioMensualTrait.php</div>
+      <pre class="code-body language-php"><span class="kw">trait</span> <span class="cls">FormularioMensualTrait</span>
+{
+    #[<span class="cls">Url</span>]
+    <span class="kw">public int</span> <span class="var">$mes</span> = <span class="num">1</span>;     <span class="cmt">// Viene de ?mes=3</span>
+
+    #[<span class="cls">Url</span>]
+    <span class="kw">public int</span> <span class="var">$anio</span> = <span class="num">0</span>;    <span class="cmt">// Viene de ?anio=2026</span>
+
+    <span class="kw">public bool</span> <span class="var">$mesCerrado</span> = <span class="kw2">false</span>;
+
+    <span class="cmt">// Props para la modal de justificación</span>
+    <span class="kw">public string</span> <span class="var">$justIndicador</span> = <span class="str">''</span>;
+    <span class="kw">public string</span> <span class="var">$justMotivo</span> = <span class="str">''</span>;
+    <span class="kw">public string</span> <span class="var">$justDetalle</span> = <span class="str">''</span>;
+
+    <span class="kw">public function</span> <span class="fn">getTitle</span>(): <span class="kw">string</span>
+    {
+        <span class="kw">return</span> <span class="kw">static</span>::<span class="var">SECCION</span> . <span class="str">' — '</span>
+            . <span class="kw">self</span>::<span class="var">$nombresMeses</span>[<span class="var">$this</span>-><span class="var">mes</span>]
+            . <span class="str">' '</span> . <span class="var">$this</span>-><span class="var">anio</span>;
+        <span class="cmt">// "PAI — Marzo 2026"</span>
+    }
+
+    <span class="kw">public function</span> <span class="fn">mountFormulario</span>(): <span class="kw">void</span>
+    {
+        <span class="var">$this</span>-><span class="var">mes</span>  = (<span class="kw">int</span>) <span class="fn">request</span>()-><span class="fn">query</span>(<span class="str">'mes'</span>, <span class="fn">date</span>(<span class="str">'n'</span>));
+        <span class="var">$this</span>-><span class="var">anio</span> = (<span class="kw">int</span>) <span class="fn">request</span>()-><span class="fn">query</span>(<span class="str">'anio'</span>, <span class="fn">date</span>(<span class="str">'Y'</span>));
+
+        <span class="var">$this</span>-><span class="var">mesCerrado</span> = <span class="cls">MesCerrado</span>::<span class="fn">where</span>(...)
+            -><span class="fn">exists</span>();
+    }
+}</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <div class="callout-title">¿Qué es un trait?</div>
+      <p>Un <strong>trait</strong> es una colección de métodos reutilizables. En vez de copiar las mismas funciones en 4 páginas diferentes, las pones en un trait y cada página hace <code>use FormularioMensualTrait</code>. Es como un "plugin" de funcionalidad.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 4 ════════════════════════ -->
+  <div class="section" id="s4">
+    <h2 class="section-title"><span class="number">4</span> Cero justificado</h2>
+
+    <p>Regla de negocio del SNIS: si un indicador reporta <strong>cero</strong>, se debe justificar el motivo. El trait maneja esto:</p>
+
+    <div class="code-block">
+      <div class="code-header">FormularioMensualTrait.php — Justificación de cero</div>
+      <pre class="code-body language-php"><span class="kw">public function</span> <span class="fn">abrirJustificacion</span>(<span class="kw">string</span> <span class="var">$indicador</span>): <span class="kw">void</span>
+{
+    <span class="var">$this</span>-><span class="var">justIndicador</span> = <span class="var">$indicador</span>;  <span class="cmt">// Ej: "bcg_dentro_m"</span>
+    <span class="var">$this</span>-><span class="fn">dispatch</span>(<span class="str">'open-modal'</span>, <span class="str">id:</span> <span class="str">'justificacion-cero'</span>);
+}
+
+<span class="kw">public function</span> <span class="fn">guardarJustificacion</span>(): <span class="kw">void</span>
+{
+    <span class="var">$this</span>-><span class="fn">validate</span>([<span class="str">'justMotivo'</span> => <span class="str">'required'</span>]);
+
+    <span class="cls">JustificacionCero</span>::<span class="fn">updateOrCreate</span>(
+        [
+            <span class="str">'centro_salud_id'</span> => <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">centro_salud_id</span>,
+            <span class="str">'mes'</span>             => <span class="var">$this</span>-><span class="var">mes</span>,
+            <span class="str">'anio'</span>            => <span class="var">$this</span>-><span class="var">anio</span>,
+            <span class="str">'indicador'</span>       => <span class="var">$this</span>-><span class="var">justIndicador</span>,
+        ],
+        [
+            <span class="str">'motivo'</span>          => <span class="var">$this</span>-><span class="var">justMotivo</span>,
+            <span class="str">'registrado_por'</span>  => <span class="fn">auth</span>()-><span class="fn">id</span>(),
+        ]
+    );
+
+    <span class="cls">Notification</span>::<span class="fn">make</span>()-><span class="fn">title</span>(<span class="str">'Justificación registrada'</span>)
+        -><span class="fn">success</span>()-><span class="fn">send</span>();
+}</pre>
+    </div>
+
+    <div class="callout callout-danger">
+      <div class="callout-title">Regla SNIS: cero justificado</div>
+      <p>Si un centro de salud reporta 0 vacunas BCG en marzo, debe explicar por qué. Opciones: no hubo pacientes, falta de insumos, personal ausente, etc. Esto es obligatorio para el cierre del mes.</p>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 5 ════════════════════════ -->
+  <div class="section" id="s5">
+    <h2 class="section-title"><span class="number">5</span> Cierre de mes</h2>
+
+    <div class="code-block">
+      <div class="code-header">FormularioMensualTrait.php — Solo admin/superadmin</div>
+      <pre class="code-body language-php"><span class="kw">public function</span> <span class="fn">cerrarMes</span>(): <span class="kw">void</span>
+{
+    <span class="var">$user</span> = <span class="fn">auth</span>()-><span class="fn">user</span>();
+
+    <span class="cmt">// Solo admin y superadmin pueden cerrar</span>
+    <span class="kw">if</span> (!<span class="var">$user</span>-><span class="fn">hasAnyRole</span>([<span class="str">'superadmin'</span>, <span class="str">'admin'</span>])) {
+        <span class="kw">return</span>;
+    }
+
+    <span class="cls">MesCerrado</span>::<span class="fn">updateOrCreate</span>(
+        [<span class="str">'centro_salud_id'</span> => <span class="var">$user</span>-><span class="var">centro_salud_id</span>,
+         <span class="str">'mes'</span> => <span class="var">$this</span>-><span class="var">mes</span>, <span class="str">'anio'</span> => <span class="var">$this</span>-><span class="var">anio</span>],
+        [<span class="str">'cerrado_por'</span> => <span class="var">$user</span>-><span class="var">id</span>, <span class="str">'fecha_cierre'</span> => <span class="fn">now</span>()]
+    );
+
+    <span class="var">$this</span>-><span class="var">mesCerrado</span> = <span class="kw2">true</span>;
+}
+
+<span class="kw">public function</span> <span class="fn">reabrirMes</span>(): <span class="kw">void</span>
+{
+    <span class="cmt">// Misma verificación de roles...</span>
+    <span class="var">$mc</span> = <span class="cls">MesCerrado</span>::<span class="fn">where</span>(...)
+        -><span class="fn">first</span>();
+
+    <span class="kw">if</span> (<span class="var">$mc</span>) {
+        <span class="var">$mc</span>-><span class="fn">update</span>([<span class="str">'reabierto_por'</span> => <span class="var">$user</span>-><span class="var">id</span>]);
+        <span class="var">$mc</span>-><span class="fn">delete</span>();
+    }
+    <span class="var">$this</span>-><span class="var">mesCerrado</span> = <span class="kw2">false</span>;
+}</pre>
+    </div>
+
+    <div class="flow-diagram">
+      <div class="flow-step">
+        <div class="flow-icon">📊</div>
+        <div class="flow-label">Registrador llena datos del mes (vacunas, prenatales, etc.)</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">0️⃣</div>
+        <div class="flow-label">Indicadores en cero → justificación obligatoria</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">🔒</div>
+        <div class="flow-label">Admin cierra el mes → datos bloqueados</div>
+      </div>
+      <div class="flow-connector">▼</div>
+      <div class="flow-step">
+        <div class="flow-icon">🔓</div>
+        <div class="flow-label">(Si es necesario) Admin reabre → edición permitida de nuevo</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 6 ════════════════════════ -->
+  <div class="section" id="s6">
+    <h2 class="section-title"><span class="number">6</span> Widgets del dashboard</h2>
+
+    <p>Los <strong>widgets</strong> son componentes que aparecen en el dashboard de Filament. SICSAL tiene 4:</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Widgets/AlertasWidget.php</div>
+      <pre class="code-body language-php"><span class="kw">class</span> <span class="cls">AlertasWidget</span> <span class="kw">extends</span> <span class="cls">Widget</span>
+{
+    <span class="kw">protected string</span> <span class="var">$view</span> = <span class="str">'filament.widgets.alertas-widget'</span>;
+
+    <span class="kw">protected int</span>|<span class="kw">string</span>|<span class="kw">array</span> <span class="var">$columnSpan</span> = <span class="str">'full'</span>;  <span class="cmt">// Ancho completo</span>
+
+    <span class="kw">protected static</span> ?<span class="kw">int</span> <span class="var">$sort</span> = <span class="num">2</span>;  <span class="cmt">// Orden en el dashboard</span>
+
+    <span class="kw">public function</span> <span class="fn">getDatosProperty</span>(): <span class="kw">array</span>
+    {
+        <span class="var">$centroId</span> = <span class="fn">auth</span>()-><span class="fn">user</span>()-><span class="var">centro_salud_id</span>;
+        <span class="var">$mesActual</span> = (<span class="kw">int</span>) <span class="fn">date</span>(<span class="str">'n'</span>);
+
+        <span class="cmt">// Buscar meses que deberían estar cerrados pero no lo están</span>
+        <span class="var">$mesesCerrados</span> = <span class="cls">MesCerrado</span>::<span class="fn">where</span>(...)
+            -><span class="fn">pluck</span>(<span class="str">'mes'</span>)-><span class="fn">toArray</span>();
+
+        <span class="var">$mesesSinCerrar</span> = [];
+        <span class="kw">for</span> (<span class="var">$m</span> = <span class="num">1</span>; <span class="var">$m</span> < <span class="var">$mesActual</span>; <span class="var">$m</span>++) {
+            <span class="kw">if</span> (!<span class="fn">in_array</span>(<span class="var">$m</span>, <span class="var">$mesesCerrados</span>)) {
+                <span class="var">$mesesSinCerrar</span>[] = <span class="var">$nombresMeses</span>[<span class="var">$m</span>];
+            }
+        }
+
+        <span class="kw">return</span> [
+            <span class="str">'mesesSinCerrar'</span> => <span class="var">$mesesSinCerrar</span>,
+            <span class="str">'totalPersonas'</span>  => <span class="cls">Persona</span>::<span class="fn">where</span>(...)-><span class="fn">count</span>(),
+        ];
+    }
+}</pre>
+    </div>
+  </div>
+
+  <!-- ════════════════════════ SECCIÓN 7 ════════════════════════ -->
+  <div class="section" id="s7">
+    <h2 class="section-title"><span class="number">7</span> Widget de coberturas</h2>
+
+    <p>Calcula coberturas comparando datos reportados vs metas INE:</p>
+
+    <div class="code-block">
+      <div class="code-header">app/Filament/Widgets/CoberturaMensual.php — Cálculo</div>
+      <pre class="code-body language-php"><span class="kw">public function</span> <span class="fn">getDatosProperty</span>(): <span class="kw">array</span>
+{
+    <span class="cmt">// Meta mensual = meta anual / 12</span>
+    <span class="var">$metaBcg</span> = <span class="var">$metasIne</span>
+        -><span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="str">'nacimientos_esperados'</span>)
+        -><span class="fn">sum</span>(<span class="str">'cantidad'</span>) / <span class="num">12</span>;
+
+    <span class="cmt">// Datos reales del mes</span>
+    <span class="var">$vacunasBcg</span> = <span class="cls">PrestVacuna</span>::<span class="fn">where</span>(...)
+        -><span class="fn">where</span>(<span class="str">'tipo_vacuna'</span>, <span class="str">'BCG'</span>)
+        -><span class="fn">selectRaw</span>(<span class="str">'SUM(dentro_m + dentro_f + fuera_m + fuera_f) as total'</span>)
+        -><span class="fn">value</span>(<span class="str">'total'</span>) ?? <span class="num">0</span>;
+
+    <span class="cmt">// Cobertura = (atendidos / meta) × 100</span>
+    <span class="kw">return</span> [
+        [<span class="str">'nombre'</span> => <span class="str">'BCG'</span>,       <span class="str">'meta'</span> => <span class="var">$metaBcg</span>,      <span class="str">'atendidos'</span> => <span class="var">$vacunasBcg</span>],
+        [<span class="str">'nombre'</span> => <span class="str">'Prenatal'</span>,  <span class="str">'meta'</span> => <span class="var">$metaPrenatal</span>, <span class="str">'atendidos'</span> => <span class="var">$prenatales</span>],
+        [<span class="str">'nombre'</span> => <span class="str">'Crecimiento'</span>,<span class="str">'meta'</span> => <span class="var">$metaCrecimiento</span>,<span class="str">'atendidos'</span> => <span class="var">$crecimiento</span>],
+    ];
+}</pre>
+    </div>
+
+    <div class="callout callout-info">
+      <div class="callout-title">Fórmula de cobertura</div>
+      <p><strong>Cobertura = (atendidos / meta INE mensual) × 100</strong>. Si la meta anual de BCG es 12 y en marzo se vacunaron 2, la cobertura es <code>2 / (12/12) × 100 = 200%</code>. Esto indica que ese mes se vacunó el doble de lo esperado.</p>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>Resumen de la Lección 10</h3>
+    <ul>
+      <li><strong>Páginas custom</strong> se usan para lógica que no encaja en un CRUD estándar.</li>
+      <li><code>Prestaciones</code> es un selector de meses que muestra estado: vacío, parcial o cerrado.</li>
+      <li><code>FormularioMensualTrait</code> comparte lógica de cierre de mes y cero justificado entre 4 páginas.</li>
+      <li>El <strong>cero justificado</strong> es una regla del SNIS: todo indicador en cero necesita explicación.</li>
+      <li>Solo admin/superadmin pueden cerrar y reabrir meses.</li>
+      <li><strong>Widgets</strong> muestran alertas y coberturas en el dashboard: <code>$sort</code> controla el orden, <code>$columnSpan</code> el ancho.</li>
+    </ul>
+  </div>
+
+  <div class="lesson-nav">
+    <a href="09-filament-formularios.html">← Lección 09: Formularios Filament</a>
+    <a href="11-livewire.html">Lección 11: Componentes Livewire →</a>
+  </div>
+  <div class="lesson-footer">
+    <span>SICSAL — Lección 10: Páginas y Widgets</span>
+    <span>Page · FormularioMensualTrait · Widget · Cero Justificado</span>
+  </div>
+</div>
+</body>
+</html>

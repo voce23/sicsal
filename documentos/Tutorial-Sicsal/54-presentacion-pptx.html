@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 54 · Presentación PowerPoint CAI — Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ───── Topbar ───── -->
+<div class="topbar">Tutorial SICSAL · Sistema de Información de Centros de Salud</div>
+
+<!-- ───── Hero ───── -->
+<section class="hero">
+  <span class="badge">Fase 11 — Exportaciones</span>
+  <h1>Lección 54 · Presentación PowerPoint CAI</h1>
+  <p class="subtitle">961 líneas de PhpPresentation: 20+ slides generados dinámicamente con gráficos, tablas con semáforo, paleta institucional y layout profesional 1280×720.</p>
+  <p class="meta">Lección 54 de 58 · Tiempo estimado: 35 min</p>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="53-export-causas-consulta.html">← Lección 53 · Export Causas de Consulta</a>
+  <a href="55-commands-importacion.html">Lección 55 · Comandos de Importación →</a>
+</nav>
+
+<!-- ───── TOC ───── -->
+<nav class="toc">
+  <h2>Contenido</h2>
+  <ol>
+    <li><a href="#s1">Arquitectura general y constructor</a></li>
+    <li><a href="#s2">Paleta institucional y constantes de layout</a></li>
+    <li><a href="#s3">Layout helpers: txt(), rect(), banner(), footer()</a></li>
+    <li><a href="#s4">chart() — gráficos de barras nativos</a></li>
+    <li><a href="#s5">tbl() y colorGrid() — tablas profesionales</a></li>
+    <li><a href="#s6">generate() — 20+ slides en secuencia</a></li>
+    <li><a href="#s7">Slides de contenido: cobertura, deserción, semáforo</a></li>
+    <li><a href="#s8">Data helpers y consultas DB</a></li>
+  </ol>
+</nav>
+
+<!-- ───── Secciones ───── -->
+
+<!-- ───── S1 ───── -->
+<section id="s1">
+  <h2>1 · Arquitectura general y constructor</h2>
+
+  <p><code>PresentacionCAI</code> es una clase de servicio de <strong>961 líneas</strong> que genera un archivo <code>.pptx</code> completo usando PhpPresentation (PhpOffice):</p>
+
+  <pre><code><span class="cmt">// app/Exports/PresentacionCAI.php</span>
+<span class="kw">class</span> <span class="cls">PresentacionCAI</span>
+{
+    <span class="kw">private</span> <span class="cls">PhpPresentation</span> <span class="var">$pptx</span>;
+    <span class="kw">private</span> <span class="type">int</span> <span class="var">$municipioId</span>;
+    <span class="kw">private</span> <span class="type">string</span> <span class="var">$periodo</span>;       <span class="cmt">// 'cai1', 'cai2', 'anual'</span>
+    <span class="kw">private</span> <span class="type">int</span> <span class="var">$anio</span>;
+    <span class="kw">private</span> <span class="var">$centros</span>;              <span class="cmt">// Collection de CentroSalud</span>
+    <span class="kw">private</span> <span class="type">array</span> <span class="var">$meses</span>;          <span class="cmt">// [1,2,3,4] o [1..8] o [1..12]</span>
+    <span class="kw">private</span> <span class="type">float</span> <span class="var">$factorMeta</span>;     <span class="cmt">// Siempre 1.0 (meta anual completa)</span>
+}</code></pre>
+
+  <p>El constructor carga datos del municipio y configura el layout:</p>
+  <pre><code><span class="kw">public function</span> <span class="fn">__construct</span>(<span class="type">int</span> <span class="var">$municipioId</span>, <span class="type">string</span> <span class="var">$periodo</span>, <span class="type">int</span> <span class="var">$anio</span>)
+{
+    <span class="var">$mun</span> = <span class="cls">Municipio</span>::<span class="fn">findOrFail</span>(<span class="var">$municipioId</span>);
+    <span class="var">$this</span>-><span class="var">municipioNombre</span> = <span class="fn">mb_strtoupper</span>(<span class="var">$mun</span>-><span class="var">nombre</span>);
+    <span class="var">$this</span>-><span class="var">centros</span> = <span class="cls">CentroSalud</span>::<span class="fn">where</span>(<span class="str">'municipio_id'</span>, <span class="var">$municipioId</span>)
+        -><span class="fn">orderByDesc</span>(<span class="str">'poblacion_ine'</span>)-><span class="fn">get</span>();
+
+    <span class="cmt">// Meses según período del CAI</span>
+    <span class="var">$this</span>-><span class="var">meses</span> = <span class="kw">match</span> (<span class="var">$periodo</span>) {
+        <span class="str">'cai1'</span>, <span class="str">'enero-abril'</span> => [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>],
+        <span class="str">'cai2'</span>                => [<span class="num">1</span>, <span class="num">2</span>, <span class="num">3</span>, <span class="num">4</span>, <span class="num">5</span>, <span class="num">6</span>, <span class="num">7</span>, <span class="num">8</span>],
+        <span class="kw">default</span>               => <span class="fn">range</span>(<span class="num">1</span>, <span class="num">12</span>),
+    };
+
+    <span class="var">$this</span>-><span class="var">pptx</span> = <span class="kw">new</span> <span class="cls">PhpPresentation</span>();
+    <span class="cmt">// Layout 1280×720 (16:9 HD) en EMU: 12192000 × 6858000</span>
+    <span class="var">$this</span>-><span class="var">pptx</span>-><span class="fn">getLayout</span>()-><span class="fn">setDocumentLayout</span>([
+        <span class="str">'cx'</span> => <span class="num">12192000</span>, <span class="str">'cy'</span> => <span class="num">6858000</span>
+    ]);
+}</code></pre>
+
+  <div class="callout info">
+    <strong>EMU (English Metric Units)</strong>: PhpPresentation usa EMU para dimensiones: 1 pulgada = 914400 EMU. 1280px × 720px ≈ 13.333″ × 7.5″.
+  </div>
+</section>
+
+<!-- ───── S2 ───── -->
+<section id="s2">
+  <h2>2 · Paleta institucional y constantes de layout</h2>
+
+  <pre><code><span class="cmt">// 20 constantes de color para pantalla grande (más vibrantes que Excel)</span>
+<span class="kw">private const</span> <span class="var">CYAN</span>       = <span class="str">'00ACC1'</span>;
+<span class="kw">private const</span> <span class="var">CYAN_DARK</span>  = <span class="str">'00838F'</span>;
+<span class="kw">private const</span> <span class="var">TEAL</span>       = <span class="str">'00897B'</span>;
+<span class="kw">private const</span> <span class="var">TEAL_DARK</span>  = <span class="str">'004D40'</span>;
+<span class="kw">private const</span> <span class="var">BLUE</span>       = <span class="str">'1565C0'</span>;
+<span class="kw">private const</span> <span class="var">PINK</span>       = <span class="str">'AD1457'</span>;
+<span class="kw">private const</span> <span class="var">ORANGE</span>     = <span class="str">'EF6C00'</span>;
+<span class="cmt">// ... 13 constantes más</span>
+
+<span class="cmt">// Bandas de color por grupo etáreo (slides de vacunación)</span>
+<span class="kw">private const</span> <span class="var">BAND_MENOR1</span> = <span class="str">'00ACC1'</span>; <span class="cmt">// Cyan</span>
+<span class="kw">private const</span> <span class="var">BAND_1ANIO</span>  = <span class="str">'0277BD'</span>; <span class="cmt">// Azul</span>
+<span class="kw">private const</span> <span class="var">BAND_10ANIO</span> = <span class="str">'AD1457'</span>; <span class="cmt">// Rosa</span>
+
+<span class="cmt">// Dimensiones en px</span>
+<span class="kw">private const</span> <span class="var">W</span> = <span class="num">1280</span>;    <span class="cmt">// Ancho del slide</span>
+<span class="kw">private const</span> <span class="var">H</span> = <span class="num">720</span>;     <span class="cmt">// Alto del slide</span>
+<span class="kw">private const</span> <span class="var">M</span> = <span class="num">40</span>;      <span class="cmt">// Margen estándar</span></code></pre>
+</section>
+
+<!-- ───── S3 ───── -->
+<section id="s3">
+  <h2>3 · Layout helpers: txt(), rect(), banner(), footer()</h2>
+
+  <p>Seis helpers componen el sistema de layout:</p>
+
+  <h3>txt() — texto con fuente Calibri</h3>
+  <pre><code><span class="kw">private function</span> <span class="fn">txt</span>(<span class="cls">AbstractSlide</span> <span class="var">$slide</span>, <span class="type">string</span> <span class="var">$text</span>,
+    <span class="type">int</span> <span class="var">$x</span>, <span class="type">int</span> <span class="var">$y</span>, <span class="type">int</span> <span class="var">$w</span>, <span class="type">int</span> <span class="var">$h</span>,
+    <span class="type">int</span> <span class="var">$size</span>, <span class="type">string</span> <span class="var">$color</span>, <span class="type">bool</span> <span class="var">$bold</span>, <span class="type">string</span> <span class="var">$align</span>): <span class="cls">RichText</span>
+{
+    <span class="var">$s</span> = <span class="var">$slide</span>-><span class="fn">createRichTextShape</span>()
+        -><span class="fn">setOffsetX</span>(<span class="var">$x</span>)-><span class="fn">setOffsetY</span>(<span class="var">$y</span>)
+        -><span class="fn">setWidth</span>(<span class="var">$w</span>)-><span class="fn">setHeight</span>(<span class="var">$h</span>);
+    <span class="var">$r</span> = <span class="var">$s</span>-><span class="fn">createTextRun</span>(<span class="var">$text</span>);
+    <span class="var">$r</span>-><span class="fn">getFont</span>()-><span class="fn">setName</span>(<span class="str">'Calibri'</span>)-><span class="fn">setSize</span>(<span class="var">$size</span>)
+      -><span class="fn">setBold</span>(<span class="var">$bold</span>)-><span class="fn">setColor</span>(<span class="kw">new</span> <span class="cls">Color</span>(<span class="str">'FF'</span> . <span class="var">$color</span>));
+}</code></pre>
+
+  <h3>rect() — rectángulo sólido</h3>
+  <pre><code><span class="kw">private function</span> <span class="fn">rect</span>(<span class="cls">AbstractSlide</span> <span class="var">$slide</span>,
+    <span class="type">int</span> <span class="var">$x</span>, <span class="type">int</span> <span class="var">$y</span>, <span class="type">int</span> <span class="var">$w</span>, <span class="type">int</span> <span class="var">$h</span>, <span class="type">string</span> <span class="var">$color</span>): <span class="cls">RichText</span>
+{
+    <span class="var">$s</span> = <span class="var">$slide</span>-><span class="fn">createRichTextShape</span>()
+        -><span class="fn">setOffsetX</span>(<span class="var">$x</span>)-><span class="fn">setOffsetY</span>(<span class="var">$y</span>)-><span class="fn">setWidth</span>(<span class="var">$w</span>)-><span class="fn">setHeight</span>(<span class="var">$h</span>);
+    <span class="var">$s</span>-><span class="fn">getFill</span>()-><span class="fn">setFillType</span>(<span class="cls">Fill</span>::<span class="var">FILL_SOLID</span>)
+      -><span class="fn">getStartColor</span>()-><span class="fn">setARGB</span>(<span class="str">'FF'</span> . <span class="var">$color</span>);
+}</code></pre>
+
+  <h3>banner() — header profesional con doble capa</h3>
+  <pre><code><span class="kw">private function</span> <span class="fn">banner</span>(<span class="cls">AbstractSlide</span> <span class="var">$slide</span>, <span class="type">string</span> <span class="var">$title</span>, <span class="type">string</span> <span class="var">$sub</span> = <span class="str">''</span>): <span class="type">void</span>
+{
+    <span class="var">$this</span>-><span class="fn">slideBg</span>(<span class="var">$slide</span>);  <span class="cmt">// Fondo gris + barra izquierda cyan + accent inferior</span>
+
+    <span class="cmt">// Efecto de profundidad: 2 rectángulos superpuestos</span>
+    <span class="var">$bh</span> = <span class="var">$sub</span> ? <span class="num">92</span> : <span class="num">68</span>;
+    <span class="var">$this</span>-><span class="fn">rect</span>(<span class="var">$slide</span>, <span class="num">8</span>, <span class="num">0</span>, <span class="kw">self</span>::<span class="var">W</span> - <span class="num">8</span>, <span class="var">$bh</span>,     <span class="kw">self</span>::<span class="var">CYAN_DARK</span>);  <span class="cmt">// Sombra</span>
+    <span class="var">$this</span>-><span class="fn">rect</span>(<span class="var">$slide</span>, <span class="num">8</span>, <span class="num">0</span>, <span class="kw">self</span>::<span class="var">W</span> - <span class="num">8</span>, <span class="var">$bh</span> - <span class="num">8</span>, <span class="kw">self</span>::<span class="var">CYAN</span>);       <span class="cmt">// Principal</span>
+    <span class="var">$this</span>-><span class="fn">rect</span>(<span class="var">$slide</span>, <span class="num">8</span>, <span class="var">$bh</span> - <span class="num">4</span>, <span class="kw">self</span>::<span class="var">W</span> - <span class="num">8</span>, <span class="num">4</span>, <span class="kw">self</span>::<span class="var">TEAL_DARK</span>); <span class="cmt">// Accent</span>
+}</code></pre>
+
+  <h3>footer() — barra institucional</h3>
+  <pre><code><span class="kw">private function</span> <span class="fn">footer</span>(<span class="cls">AbstractSlide</span> <span class="var">$slide</span>): <span class="type">void</span>
+{
+    <span class="var">$this</span>-><span class="fn">rect</span>(<span class="var">$slide</span>, <span class="num">0</span>, <span class="kw">self</span>::<span class="var">H</span> - <span class="num">30</span>, <span class="kw">self</span>::<span class="var">W</span>, <span class="num">30</span>, <span class="kw">self</span>::<span class="var">TEAL_DARK</span>);
+    <span class="var">$this</span>-><span class="fn">txt</span>(<span class="var">$slide</span>, <span class="str">'Fuente: SNIS - RNVe / INE'</span>, ...);
+    <span class="var">$this</span>-><span class="fn">txt</span>(<span class="var">$slide</span>, <span class="str">"SIMUES · Municipio ... · "</span> . <span class="fn">now</span>()-><span class="fn">format</span>(<span class="str">'d/m/Y'</span>), ...);
+}</code></pre>
+</section>
+
+<!-- ───── S4 ───── -->
+<section id="s4">
+  <h2>4 · chart() — gráficos de barras nativos</h2>
+
+  <p>El helper <code>chart()</code> genera gráficos de barras de PhpPresentation (no imágenes):</p>
+
+  <pre><code><span class="kw">private function</span> <span class="fn">chart</span>(<span class="cls">AbstractSlide</span> <span class="var">$slide</span>,
+    <span class="type">array</span> <span class="var">$cats</span>, <span class="type">array</span> <span class="var">$seriesData</span>,
+    <span class="type">int</span> <span class="var">$x</span>, <span class="type">int</span> <span class="var">$y</span>, <span class="type">int</span> <span class="var">$w</span>, <span class="type">int</span> <span class="var">$h</span>): <span class="type">void</span>
+{
+    <span class="var">$bar</span> = <span class="kw">new</span> <span class="cls">Bar</span>();
+    <span class="var">$bar</span>-><span class="fn">setBarDirection</span>(<span class="cls">Bar</span>::<span class="var">DIRECTION_VERTICAL</span>);
+    <span class="var">$bar</span>-><span class="fn">setBarGrouping</span>(<span class="cls">Bar</span>::<span class="var">GROUPING_CLUSTERED</span>);
+    <span class="var">$bar</span>-><span class="fn">setGapWidthPercent</span>(<span class="num">60</span>);
+
+    <span class="kw">foreach</span> (<span class="var">$seriesData</span> <span class="kw">as</span> [<span class="var">$label</span>, <span class="var">$data</span>, <span class="var">$color</span>]) {
+        <span class="var">$series</span> = <span class="kw">new</span> <span class="cls">Series</span>(<span class="var">$label</span>, <span class="var">$data</span>);
+        <span class="var">$series</span>-><span class="fn">setShowValue</span>(<span class="kw">true</span>);
+        <span class="var">$series</span>-><span class="fn">setLabelPosition</span>(<span class="cls">Series</span>::<span class="var">LABEL_OUTSIDEEND</span>);
+        <span class="var">$series</span>-><span class="fn">getFill</span>()-><span class="fn">setFillType</span>(<span class="cls">Fill</span>::<span class="var">FILL_SOLID</span>)
+            -><span class="fn">getStartColor</span>()-><span class="fn">setARGB</span>(<span class="str">'FF'</span> . <span class="var">$color</span>);
+        <span class="var">$bar</span>-><span class="fn">addSeries</span>(<span class="var">$series</span>);
+    }
+
+    <span class="var">$chart</span> = <span class="var">$slide</span>-><span class="fn">createChartShape</span>();
+    <span class="var">$chart</span>-><span class="fn">getPlotArea</span>()-><span class="fn">setType</span>(<span class="var">$bar</span>);
+    <span class="var">$chart</span>-><span class="fn">getLegend</span>()-><span class="fn">setVisible</span>(<span class="fn">count</span>(<span class="var">$seriesData</span>) > <span class="num">1</span>);
+}</code></pre>
+
+  <div class="callout info">
+    <strong>Gráficos nativos PPTX</strong>: A diferencia de exportar imágenes PNG, los gráficos de PhpPresentation son objetos nativos de PowerPoint — editables, escalables y con datos vivos.
+  </div>
+
+  <p>El patrón de uso en los slides:</p>
+  <pre><code><span class="cmt">// $seriesData = [[label, data_array, color], ...]</span>
+<span class="var">$this</span>-><span class="fn">chart</span>(<span class="var">$slide</span>, <span class="var">$cats</span>, [
+    [<span class="str">'Meta ajustada'</span>,     <span class="var">$metaVals</span>,  <span class="kw">self</span>::<span class="var">GRAY_MID</span>],
+    [<span class="str">'Hierro entregado'</span>,  <span class="var">$hierroVals</span>, <span class="kw">self</span>::<span class="var">TEAL</span>],
+], <span class="kw">self</span>::<span class="var">M</span>, <span class="num">100</span>, <span class="kw">self</span>::<span class="var">W</span> - <span class="kw">self</span>::<span class="var">M</span> * <span class="num">2</span>, <span class="num">280</span>);</code></pre>
+</section>
+
+<!-- ───── S5 ───── -->
+<section id="s5">
+  <h2>5 · tbl() y colorGrid() — tablas profesionales</h2>
+
+  <h3>tbl() — tabla estándar con alternancia</h3>
+  <pre><code><span class="kw">private function</span> <span class="fn">tbl</span>(<span class="cls">AbstractSlide</span> <span class="var">$slide</span>,
+    <span class="type">array</span> <span class="var">$headers</span>, <span class="type">array</span> <span class="var">$rows</span>,
+    <span class="type">int</span> <span class="var">$x</span>, <span class="type">int</span> <span class="var">$y</span>, <span class="type">int</span> <span class="var">$w</span>,
+    <span class="type">int</span> <span class="var">$rh</span> = <span class="num">28</span>, <span class="type">string</span> <span class="var">$hdrBg</span> = <span class="kw">self</span>::<span class="var">TEAL</span>): <span class="cls">Table</span>
+{
+    <span class="cmt">// Header: fondo teal, texto blanco 11pt bold</span>
+    <span class="cmt">// Datos: alternancia blanco/gris, primera columna bold</span>
+    <span class="cmt">// Bordes: sin líneas laterales, separador bottom E0E0E0</span>
+}</code></pre>
+
+  <h3>colorGrid() — semáforo con colores por celda</h3>
+  <pre><code><span class="kw">private function</span> <span class="fn">colorGrid</span>(<span class="cls">AbstractSlide</span> <span class="var">$slide</span>,
+    <span class="type">array</span> <span class="var">$headers</span>, <span class="type">array</span> <span class="var">$rows</span>,
+    <span class="type">int</span> <span class="var">$x</span>, <span class="type">int</span> <span class="var">$y</span>, <span class="type">int</span> <span class="var">$w</span>,
+    <span class="type">int</span> <span class="var">$rh</span> = <span class="num">30</span>, <span class="type">array</span> <span class="var">$hdrColors</span> = [], <span class="type">int</span> <span class="var">$firstColW</span> = <span class="num">180</span>): <span class="cls">Table</span></code></pre>
+
+  <p>La clave de <code>colorGrid()</code> es su soporte para celdas coloreadas individualmente:</p>
+  <pre><code><span class="cmt">// Celda normal: valor string → fondo gris claro</span>
+<span class="var">$row</span>[] = <span class="str">'42'</span>;
+
+<span class="cmt">// Celda coloreada: [valor, colorHex] → fondo custom + texto blanco</span>
+<span class="var">$row</span>[] = [<span class="str">'95%'</span>, <span class="str">'4CAF50'</span>]; <span class="cmt">// Verde</span>
+<span class="var">$row</span>[] = [<span class="str">'72%'</span>, <span class="str">'FF9800'</span>]; <span class="cmt">// Naranja</span>
+<span class="var">$row</span>[] = [<span class="str">'30%'</span>, <span class="str">'F44336'</span>]; <span class="cmt">// Rojo</span></code></pre>
+
+  <p>Esto permite colorear celdas con el semáforo sin necesidad de post-procesamiento.</p>
+</section>
+
+<!-- ───── S6 ───── -->
+<section id="s6">
+  <h2>6 · generate() — 20+ slides en secuencia</h2>
+
+  <pre><code><span class="kw">public function</span> <span class="fn">generate</span>(): <span class="type">string</span>
+{
+    <span class="var">$this</span>-><span class="fn">slidePortada</span>();
+    <span class="var">$this</span>-><span class="fn">slidePoblacion</span>();
+    <span class="var">$this</span>-><span class="fn">slidePiramide</span>();
+    <span class="var">$this</span>-><span class="fn">slideCoberturaVacunalMunicipio</span>();
+
+    <span class="cmt">// Un slide por cada centro de salud del municipio</span>
+    <span class="kw">foreach</span> (<span class="var">$this</span>-><span class="var">centros</span> <span class="kw">as</span> <span class="var">$cs</span>) {
+        <span class="var">$this</span>-><span class="fn">slideCoberturaVacunalCentro</span>(<span class="var">$cs</span>);
+    }
+
+    <span class="var">$this</span>-><span class="fn">slideDesercionMunicipal</span>();
+    <span class="var">$this</span>-><span class="fn">slideDesercionPorCentro</span>();
+    <span class="var">$this</span>-><span class="fn">slideSeparador</span>(<span class="str">'MICRONUTRIENTES'</span>, <span class="str">'...'</span>);
+    <span class="var">$this</span>-><span class="fn">slideVitaminaA</span>();
+    <span class="var">$this</span>-><span class="fn">slideHierroMenor1</span>();
+    <span class="var">$this</span>-><span class="fn">slideHierro2a5</span>();
+    <span class="var">$this</span>-><span class="fn">slideSeparador</span>(<span class="str">'MUJER EN EDAD FÉRTIL'</span>, <span class="str">'...'</span>);
+    <span class="var">$this</span>-><span class="fn">slidePartoInstitucional</span>();
+    <span class="var">$this</span>-><span class="fn">slideMetodosModernos</span>();
+    <span class="var">$this</span>-><span class="fn">slideEmbarazoAdolescente</span>();
+    <span class="var">$this</span>-><span class="fn">slideSeparador</span>(<span class="str">'PROGRAMAS'</span>, <span class="str">'...'</span>);
+    <span class="var">$this</span>-><span class="fn">slideSintomaticoRespiratorio</span>();
+    <span class="var">$this</span>-><span class="fn">slideSeparador</span>(<span class="str">'INTEGRALIDAD'</span>, <span class="str">'...'</span>);
+    <span class="var">$this</span>-><span class="fn">slideIntegralidad</span>();     <span class="cmt">// Semáforo 13 vacunas × N centros</span>
+    <span class="var">$this</span>-><span class="fn">slideAtencionMujer</span>();     <span class="cmt">// 10 indicadores × N centros</span>
+    <span class="var">$this</span>-><span class="fn">slideCierre</span>();
+
+    <span class="cmt">// Guardar como archivo temporal</span>
+    <span class="var">$tmp</span> = <span class="fn">tempnam</span>(<span class="fn">sys_get_temp_dir</span>(), <span class="str">'cai_'</span>) . <span class="str">'.pptx'</span>;
+    <span class="cls">IOFactory</span>::<span class="fn">createWriter</span>(<span class="var">$this</span>-><span class="var">pptx</span>, <span class="str">'PowerPoint2007'</span>)-><span class="fn">save</span>(<span class="var">$tmp</span>);
+    <span class="kw">return</span> <span class="var">$tmp</span>;
+}</code></pre>
+
+  <p>Con un municipio de 5 centros de salud, se generan <strong>~26 slides</strong>. La primera llamada <code>removeSlideByIndex(0)</code> en <code>slidePortada()</code> elimina el slide vacío que PhpPresentation crea por defecto.</p>
+
+  <table>
+    <thead>
+      <tr><th>Grupo</th><th>Slides</th><th>Contenido</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>Portada</td><td>1</td><td>Título, municipio, período, departamento</td></tr>
+      <tr><td>Población</td><td>2</td><td>Gráfico + tabla INE, pirámide etárea</td></tr>
+      <tr><td>Vacunación</td><td>2 + N</td><td>Cobertura municipal + 1 slide por centro</td></tr>
+      <tr><td>Deserción</td><td>2</td><td>Municipal (Penta+SRP) + por centro</td></tr>
+      <tr><td>Micronutrientes</td><td>4</td><td>Separador + Vit A + Hierro &lt;1 + Hierro 2-5</td></tr>
+      <tr><td>MEF</td><td>4</td><td>Separador + parto + métodos + emb. adolescente</td></tr>
+      <tr><td>Programas</td><td>2</td><td>Separador + sintomático respiratorio</td></tr>
+      <tr><td>Integralidad</td><td>3</td><td>Separador + semáforo vacunas + atención mujer</td></tr>
+      <tr><td>Cierre</td><td>1</td><td>"GRACIAS" con fondo TEAL_DARK</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- ───── S7 ───── -->
+<section id="s7">
+  <h2>7 · Slides de contenido: cobertura, deserción, semáforo</h2>
+
+  <h3>Slide de cobertura vacunal con bandas de color</h3>
+  <pre><code><span class="cmt">// 3 bandas de color indican el grupo etáreo de cada vacuna</span>
+<span class="var">$totalVac</span> = <span class="num">19</span>;
+<span class="var">$cW</span> = (<span class="kw">self</span>::<span class="var">W</span> - <span class="num">100</span>) / <span class="var">$totalVac</span>;  <span class="cmt">// Ancho por vacuna</span>
+
+<span class="cmt">// Banda cyan: 14 vacunas de menor a 1 año</span>
+<span class="var">$this</span>-><span class="fn">rect</span>(<span class="var">$slide</span>, <span class="num">60</span>, <span class="var">$bandY</span>, (<span class="type">int</span>)(<span class="var">$cW</span> * <span class="num">14</span>), <span class="num">26</span>, <span class="kw">self</span>::<span class="var">BAND_MENOR1</span>);
+<span class="cmt">// Banda azul: 3 vacunas de 1 año (SRP, FA)</span>
+<span class="var">$this</span>-><span class="fn">rect</span>(<span class="var">$slide</span>, <span class="var">$x2</span>, <span class="var">$bandY</span>, (<span class="type">int</span>)(<span class="var">$cW</span> * <span class="num">3</span>), <span class="num">26</span>, <span class="kw">self</span>::<span class="var">BAND_1ANIO</span>);
+<span class="cmt">// Banda rosa: 2 vacunas VPH (10 años)</span>
+<span class="var">$this</span>-><span class="fn">rect</span>(<span class="var">$slide</span>, <span class="var">$x3</span>, <span class="var">$bandY</span>, (<span class="type">int</span>)(<span class="var">$cW</span> * <span class="num">2</span>), <span class="num">26</span>, <span class="kw">self</span>::<span class="var">BAND_10ANIO</span>);</code></pre>
+
+  <h3>Slide de integralidad — semáforo completo</h3>
+  <pre><code><span class="cmt">// 17 columnas + N centros de salud → colorGrid con semáforo</span>
+<span class="var">$headers</span> = [<span class="str">'Establecimiento'</span>, <span class="str">'Partos'</span>, <span class="str">'BCG'</span>, <span class="str">'Dif.'</span>,
+            <span class="str">'1P'</span>, <span class="str">'2P'</span>, <span class="str">'3P'</span>, ...]; <span class="cmt">// 13 vacunas</span>
+
+<span class="cmt">// Cada celda de vacuna usa semaforoColor()</span>
+<span class="var">$pct</span> = <span class="var">$this</span>-><span class="fn">cobPct</span>(<span class="var">$app</span>, <span class="var">$metaM1</span>);
+<span class="var">$row</span>[] = [(<span class="type">string</span>) <span class="var">$app</span>, <span class="var">$this</span>-><span class="fn">semaforoColor</span>(<span class="var">$pct</span>)];</code></pre>
+</section>
+
+<!-- ───── S8 ───── -->
+<section id="s8">
+  <h2>8 · Data helpers y consultas DB</h2>
+
+  <p>Tres helpers encapsulan las consultas a la base de datos:</p>
+
+  <pre><code><span class="cmt">// Meta INE por grupo etáreo</span>
+<span class="kw">private function</span> <span class="fn">metaIne</span>(<span class="type">int</span> <span class="var">$csId</span>, <span class="type">string</span> <span class="var">$grupo</span>): <span class="type">int</span>
+{
+    <span class="kw">return</span> (<span class="type">int</span>) <span class="cls">MetaIne</span>::<span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$csId</span>)
+        -><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)
+        -><span class="fn">where</span>(<span class="str">'grupo_etareo'</span>, <span class="var">$grupo</span>)
+        -><span class="fn">value</span>(<span class="str">'cantidad'</span>);
+}
+
+<span class="cmt">// Suma de vacunas aplicadas por tipo</span>
+<span class="kw">private function</span> <span class="fn">sumVacuna</span>(<span class="type">int</span> <span class="var">$csId</span>, <span class="type">string</span> <span class="var">$tipo</span>): <span class="type">int</span>
+{
+    <span class="kw">return</span> (<span class="type">int</span>) <span class="cls">DB</span>::<span class="fn">table</span>(<span class="str">'prest_vacunas'</span>)
+        -><span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$csId</span>)
+        -><span class="fn">where</span>(<span class="str">'anio'</span>, <span class="var">$this</span>-><span class="var">anio</span>)
+        -><span class="fn">whereIn</span>(<span class="str">'mes'</span>, <span class="var">$this</span>-><span class="var">meses</span>)
+        -><span class="fn">where</span>(<span class="str">'tipo_vacuna'</span>, <span class="var">$tipo</span>)
+        -><span class="fn">selectRaw</span>(<span class="str">'SUM(dentro_m+dentro_f+fuera_m+fuera_f) as t'</span>)
+        -><span class="fn">value</span>(<span class="str">'t'</span>);
+}
+
+<span class="cmt">// Cobertura con factor meta y protección división por cero</span>
+<span class="kw">private function</span> <span class="fn">cobPct</span>(<span class="type">int</span> <span class="var">$applied</span>, <span class="type">int</span> <span class="var">$meta</span>): <span class="type">float</span>
+{
+    <span class="var">$adj</span> = <span class="fn">max</span>(<span class="num">1</span>, <span class="fn">round</span>(<span class="var">$meta</span> * <span class="var">$this</span>-><span class="var">factorMeta</span>));
+    <span class="kw">return</span> <span class="var">$adj</span> > <span class="num">0</span> ? <span class="fn">round</span>(<span class="var">$applied</span> / <span class="var">$adj</span> * <span class="num">100</span>, <span class="num">1</span>) : <span class="num">0</span>;
+}
+
+<span class="cmt">// Semáforo de 4 niveles (colores más vibrantes para PPTX)</span>
+<span class="kw">private function</span> <span class="fn">semaforoColor</span>(<span class="type">float</span> <span class="var">$pct</span>): <span class="type">string</span>
+{
+    <span class="kw">if</span> (<span class="var">$pct</span> >= <span class="num">95</span>) <span class="kw">return</span> <span class="str">'4CAF50'</span>; <span class="cmt">// Green Material</span>
+    <span class="kw">if</span> (<span class="var">$pct</span> >= <span class="num">80</span>) <span class="kw">return</span> <span class="str">'FFC107'</span>; <span class="cmt">// Amber Material</span>
+    <span class="kw">if</span> (<span class="var">$pct</span> >= <span class="num">50</span>) <span class="kw">return</span> <span class="str">'FF9800'</span>; <span class="cmt">// Orange Material</span>
+    <span class="kw">return</span> <span class="str">'F44336'</span>;                  <span class="cmt">// Red Material</span>
+}</code></pre>
+
+  <div class="callout warning">
+    <strong>Paletas diferentes por formato</strong>: El PPTX usa colores Material Design más vibrantes (4CAF50, FFC107) porque se proyectan en pantallas grandes. El Excel usa colores más suaves del trait EstiloExcel (Lección 51).
+  </div>
+</section>
+
+<!-- ───── Resumen ───── -->
+<section class="lesson-summary">
+  <h2>Resumen de la lección</h2>
+  <ul>
+    <li><code>PresentacionCAI</code> (961 líneas) genera un <strong>.pptx completo</strong> con 20+ slides usando PhpPresentation.</li>
+    <li>El layout es HD 16:9 (1280×720px) con paleta cyan/teal y fuente Calibri.</li>
+    <li><strong>6 helpers de layout</strong> (<code>txt, rect, banner, footer, slideBg, periodStrip</code>) construyen una identidad visual consistente.</li>
+    <li><strong>chart()</strong> genera gráficos de barras nativos PPTX (editables en PowerPoint).</li>
+    <li><strong>colorGrid()</strong> genera tablas con celdas coloreadas individualmente — la base del semáforo de coberturas.</li>
+    <li>Slides dinámicos: <code>foreach ($centros)</code> genera 1 slide de cobertura por cada centro del municipio.</li>
+    <li><code>slideSeparador()</code> crea slides decorativos para dividir secciones temáticas.</li>
+    <li>Los data helpers (<code>metaIne, sumVacuna, cobPct, semaforoColor</code>) encapsulan consultas directas a DB con protección contra división por cero.</li>
+  </ul>
+
+  <div class="callout tip">
+    <strong>Próxima lección</strong>: En la Lección 55 entraremos a la Fase 12 con los <strong>comandos Artisan de importación SNIS</strong>.
+  </div>
+</section>
+
+<!-- ───── Nav ───── -->
+<nav class="lesson-nav">
+  <a href="53-export-causas-consulta.html">← Lección 53 · Export Causas de Consulta</a>
+  <a href="55-commands-importacion.html">Lección 55 · Comandos de Importación →</a>
+</nav>
+
+<!-- ───── Footer ───── -->
+<footer>
+  Tutorial SICSAL · <span id="year"></span>
+  <script>document.getElementById('year').textContent = new Date().getFullYear();</script>
+</footer>
+
+</body>
+</html>

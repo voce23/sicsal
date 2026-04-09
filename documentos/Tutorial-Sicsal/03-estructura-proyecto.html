@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 03 — Estructura del Proyecto | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 1 — Fundamentos</div>
+    <div class="lesson-number">Lección 03 de 58</div>
+    <h1 class="lesson-title">Estructura del Proyecto</h1>
+    <p class="lesson-subtitle">Entender las carpetas de Laravel, el ciclo de vida de una petición, y el rol de Artisan.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 0 archivos nuevos</span>
+      <span class="lesson-meta-item">⏱️ ~25 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Principiante</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="02-crear-proyecto.html" class="lesson-nav-btn">← Lección 02</a>
+    <a href="04-vite-tailwind.html" class="lesson-nav-btn">Lección 04 →</a>
+  </div>
+
+  <!-- ═══ Tabla de Contenidos ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#vision-general">Visión general de las carpetas</a></li>
+      <li><a href="#carpeta-app">La carpeta app/ — tu código</a></li>
+      <li><a href="#carpeta-database">La carpeta database/</a></li>
+      <li><a href="#carpeta-resources">La carpeta resources/</a></li>
+      <li><a href="#carpeta-routes">La carpeta routes/</a></li>
+      <li><a href="#carpeta-config">La carpeta config/</a></li>
+      <li><a href="#carpeta-bootstrap">La carpeta bootstrap/</a></li>
+      <li><a href="#carpeta-public">La carpeta public/</a></li>
+      <li><a href="#artisan">Artisan: la herramienta de línea de comandos</a></li>
+      <li><a href="#ciclo-vida">Ciclo de vida de una petición</a></li>
+      <li><a href="#estructura-sicsal">Estructura final de SICSAL</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: VISIÓN GENERAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="vision-general">
+    <h2 class="section-title"><span class="number">1</span> Visión general de las carpetas</h2>
+
+    <p>Abre VS Code en <code class="inline">C:\laragon\www\sicsal</code> y observa la estructura. Estas son las carpetas principales de un proyecto Laravel:</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">sicsal/</div>
+      <ul>
+        <li><span class="ft-dir">app/</span> — <strong>Tu código PHP</strong> (modelos, controladores, livewire, etc.)</li>
+        <li><span class="ft-dir">bootstrap/</span> — Arranque de la aplicación y caché</li>
+        <li><span class="ft-dir">config/</span> — Archivos de configuración</li>
+        <li><span class="ft-dir">database/</span> — Migraciones, seeders y factories</li>
+        <li><span class="ft-dir">public/</span> — Punto de entrada web (index.php, assets compilados)</li>
+        <li><span class="ft-dir">resources/</span> — Vistas Blade, CSS, JavaScript sin compilar</li>
+        <li><span class="ft-dir">routes/</span> — Definición de rutas (URLs)</li>
+        <li><span class="ft-dir">storage/</span> — Logs, caché, archivos subidos</li>
+        <li><span class="ft-dir">tests/</span> — Tests automatizados</li>
+        <li><span class="ft-dir">vendor/</span> — Dependencias de Composer (no tocar)</li>
+        <li><span class="ft-file">artisan</span> — Herramienta CLI de Laravel</li>
+        <li><span class="ft-file">composer.json</span> — Manifiesto de dependencias PHP</li>
+        <li><span class="ft-file">package.json</span> — Manifiesto de dependencias npm</li>
+        <li><span class="ft-file">.env</span> — Variables de entorno (no se sube a Git)</li>
+        <li><span class="ft-file">vite.config.js</span> — Configuración del bundler</li>
+      </ul>
+    </div>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">Regla de oro</div>
+        <strong>app/</strong> = tu código · <strong>vendor/</strong> = código de terceros (nunca lo edites, se sobreescribe con cada <code class="inline">composer install</code>).
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: CARPETA APP
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="carpeta-app">
+    <h2 class="section-title"><span class="number">2</span> La carpeta app/ — tu código</h2>
+
+    <p>Aquí es donde vivirá el <strong>90% del código de SICSAL</strong>. Veamos qué contiene ahora (recién creada) y qué agregaremos durante el tutorial:</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">app/</div>
+      <ul>
+        <li><span class="ft-dir">Actions/</span> — Acciones de Fortify (crear usuario, reset password)</li>
+        <li><span class="ft-dir">Console/</span> — Comandos artisan personalizados</li>
+        <li><span class="ft-dir">Concerns/</span> — Traits compartidos (HasCentroSelector, etc.)</li>
+        <li><span class="ft-dir">Exports/</span> — Clases de exportación Excel/PPT</li>
+        <li><span class="ft-dir">Filament/</span> — Recursos, páginas y widgets del panel admin</li>
+        <li><span class="ft-dir">Helpers/</span> — Funciones utilitarias (CaiHelper, OmsHelper)</li>
+        <li><span class="ft-dir">Http/</span> — Controladores y middleware</li>
+        <li><span class="ft-dir">Livewire/</span> — Componentes Livewire (Blog, InformeCAI, etc.)</li>
+        <li><span class="ft-dir">Models/</span> — Modelos Eloquent (37 en total)</li>
+        <li><span class="ft-dir">Observers/</span> — Observers que sincronizan datos automáticamente</li>
+        <li><span class="ft-dir">Providers/</span> — Service providers</li>
+        <li><span class="ft-dir">Services/</span> — Servicios complejos (VesMdbReader)</li>
+      </ul>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Carpetas que Laravel no crea por defecto</div>
+        Las carpetas <code class="inline">Concerns/</code>, <code class="inline">Exports/</code>, <code class="inline">Helpers/</code>, <code class="inline">Livewire/</code>, <code class="inline">Observers/</code> y <code class="inline">Services/</code> las crearemos nosotros a medida que avancemos. Laravel solo crea <code class="inline">Http/</code>, <code class="inline">Models/</code>, <code class="inline">Providers/</code> y <code class="inline">Console/</code> automáticamente.
+      </div>
+    </div>
+
+    <h3 class="subsection-title">Subcarpetas de app/Filament/ (panel admin)</h3>
+
+    <p>Filament organiza su código así:</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">app/Filament/</div>
+      <ul>
+        <li><span class="ft-dir">Pages/</span> — Páginas personalizadas (Prestaciones, Reportes, Importar)</li>
+        <li><span class="ft-dir">Resources/</span> — CRUD de entidades (Persona, CentroSalud, etc.)</li>
+        <li><span class="ft-dir">Widgets/</span> — Widgets del dashboard (alertas, coberturas)</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: CARPETA DATABASE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="carpeta-database">
+    <h2 class="section-title"><span class="number">3</span> La carpeta database/</h2>
+
+    <p>Aquí definimos la estructura de la base de datos con código PHP, sin escribir SQL directamente:</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">database/</div>
+      <ul>
+        <li><span class="ft-dir">factories/</span> — Factories para generar datos de prueba</li>
+        <li><span class="ft-dir">migrations/</span> — <strong>50 archivos</strong> que crean/modifican tablas</li>
+        <li><span class="ft-dir">seeders/</span> — <strong>8 archivos</strong> que insertan datos iniciales</li>
+      </ul>
+    </div>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Concepto</th>
+          <th>Qué hace</th>
+          <th>Ejemplo</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Migración</strong></td>
+          <td>Crea o modifica una tabla</td>
+          <td><code>create_personas_table.php</code></td>
+        </tr>
+        <tr>
+          <td><strong>Seeder</strong></td>
+          <td>Inserta datos iniciales</td>
+          <td><code>MunicipioSeeder.php</code> (190 municipios)</td>
+        </tr>
+        <tr>
+          <td><strong>Factory</strong></td>
+          <td>Genera datos falsos para tests</td>
+          <td><code>UserFactory.php</code></td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">¿Por qué migraciones y no SQL directo?</div>
+        Las migraciones son <strong>versionables</strong> (van en Git), <strong>reversibles</strong> (se pueden deshacer) y <strong>portables</strong> (funcionan en cualquier motor de BD). Todo el equipo comparte la misma estructura solo con <code class="inline">php artisan migrate</code>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: CARPETA RESOURCES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="carpeta-resources">
+    <h2 class="section-title"><span class="number">4</span> La carpeta resources/</h2>
+
+    <p>Contiene todo lo visual que no es PHP: vistas, CSS, JavaScript.</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">resources/</div>
+      <ul>
+        <li><span class="ft-dir">css/</span> — Hojas de estilo (app.css, theme para Filament)</li>
+        <li><span class="ft-dir">js/</span> — JavaScript (app.js, chart.js imports)</li>
+        <li><span class="ft-dir">views/</span> — <strong>59 archivos Blade</strong> (.blade.php)</li>
+      </ul>
+    </div>
+
+    <h3 class="subsection-title">¿Qué es Blade?</h3>
+
+    <p>Blade es el <strong>motor de plantillas</strong> de Laravel. Los archivos <code class="inline">.blade.php</code> mezclan HTML con directivas especiales:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Ejemplo Blade</span>
+        <span class="code-lang">blade</span>
+      </div>
+      <pre class="code-body"><span class="cmt">{{-- Esto es un comentario Blade --}}</span>
+<span class="op">&lt;</span><span class="kw">h1</span><span class="op">&gt;</span>Bienvenido, <span class="var">{{ $usuario->nombre }}</span><span class="op">&lt;/</span><span class="kw">h1</span><span class="op">&gt;</span>
+
+<span class="dec">@if</span>(<span class="var">$usuario</span><span class="op">-></span><span class="fn">hasRole</span>(<span class="str">'admin'</span>))
+    <span class="op">&lt;</span><span class="kw">p</span><span class="op">&gt;</span>Tienes acceso al panel.<span class="op">&lt;/</span><span class="kw">p</span><span class="op">&gt;</span>
+<span class="dec">@endif</span>
+
+<span class="dec">@foreach</span>(<span class="var">$personas</span> <span class="kw">as</span> <span class="var">$p</span>)
+    <span class="op">&lt;</span><span class="kw">li</span><span class="op">&gt;</span><span class="var">{{ $p->nombre_completo }}</span><span class="op">&lt;/</span><span class="kw">li</span><span class="op">&gt;</span>
+<span class="dec">@endforeach</span></pre>
+    </div>
+
+    <p>Las directivas principales son:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Directiva</th>
+          <th>Qué hace</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code>{{ $var }}</code></td><td>Imprime con escape HTML (seguro)</td></tr>
+        <tr><td><code>{!! $html !!}</code></td><td>Imprime sin escape (cuidado: solo para HTML confiable)</td></tr>
+        <tr><td><code>@if / @else / @endif</code></td><td>Condicionales</td></tr>
+        <tr><td><code>@foreach / @endforeach</code></td><td>Bucles</td></tr>
+        <tr><td><code>@extends('layout')</code></td><td>Hereda de un layout</td></tr>
+        <tr><td><code>@section / @yield</code></td><td>Secciones de contenido</td></tr>
+        <tr><td><code>@livewire('componente')</code></td><td>Inserta un componente Livewire</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: CARPETA ROUTES
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="carpeta-routes">
+    <h2 class="section-title"><span class="number">5</span> La carpeta routes/</h2>
+
+    <p>Define las URLs de la aplicación. SICSAL tiene 3 archivos de rutas:</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">routes/</div>
+      <ul>
+        <li><span class="ft-file">web.php</span> — Rutas principales (páginas públicas, descargas, importar)</li>
+        <li><span class="ft-file">console.php</span> — Comandos artisan personalizados</li>
+        <li><span class="ft-file">settings.php</span> — Rutas de configuración de usuario (perfil, contraseña)</li>
+      </ul>
+    </div>
+
+    <p>Ejemplo de una ruta:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">routes/web.php (ejemplo simplificado)</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">use</span> <span class="cls">Illuminate\Support\Facades\Route</span>;
+
+<span class="cmt">// Cuando el usuario visita http://sicsal.test/</span>
+<span class="cls">Route</span><span class="op">::</span><span class="fn">get</span>(<span class="str">'/'</span>, <span class="kw">function</span> () {
+    <span class="kw">return</span> <span class="fn">view</span>(<span class="str">'inicio'</span>);  <span class="cmt">// Muestra resources/views/inicio.blade.php</span>
+});</pre>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">Rutas de Filament</div>
+        Filament registra sus propias rutas automáticamente bajo <code class="inline">/admin</code>. No necesitas definirlas en <code class="inline">web.php</code>. Las páginas como CentroSalud, Persona, etc. se acceden en <code class="inline">http://sicsal.test/admin/centros-salud</code>.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: CARPETA CONFIG
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="carpeta-config">
+    <h2 class="section-title"><span class="number">6</span> La carpeta config/</h2>
+
+    <p>Archivos que controlan el comportamiento de Laravel y sus paquetes. Los valores se leen del <code class="inline">.env</code>:</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">config/</div>
+      <ul>
+        <li><span class="ft-file">app.php</span> — Nombre, timezone, locale</li>
+        <li><span class="ft-file">auth.php</span> — Configuración de autenticación</li>
+        <li><span class="ft-file">database.php</span> — Conexiones de BD (MySQL, SQLite, etc.)</li>
+        <li><span class="ft-file">filesystems.php</span> — Discos de almacenamiento</li>
+        <li><span class="ft-file">fortify.php</span> — Configuración de Fortify (2FA, email verification)</li>
+        <li><span class="ft-file">mail.php</span> — Configuración de correo</li>
+        <li><span class="ft-file">permission.php</span> — Configuración de Spatie Permission</li>
+        <li><span class="ft-file">session.php</span> — Sesiones</li>
+      </ul>
+    </div>
+
+    <p>Patrón típico de un config: lee del <code class="inline">.env</code> con un valor por defecto:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">config/app.php (fragmento)</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// Lee APP_NAME del .env; si no existe, usa 'Laravel'</span>
+<span class="str">'name'</span> <span class="op">=></span> <span class="fn">env</span>(<span class="str">'APP_NAME'</span>, <span class="str">'Laravel'</span>),
+
+<span class="cmt">// Lee APP_DEBUG del .env; si no existe, usa false</span>
+<span class="str">'debug'</span> <span class="op">=></span> (<span class="type">bool</span>) <span class="fn">env</span>(<span class="str">'APP_DEBUG'</span>, <span class="kw">false</span>),</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 7: CARPETA BOOTSTRAP
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="carpeta-bootstrap">
+    <h2 class="section-title"><span class="number">7</span> La carpeta bootstrap/</h2>
+
+    <p>Contiene el código de arranque de la aplicación. Casi nunca la editaremos directamente.</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">bootstrap/</div>
+      <ul>
+        <li><span class="ft-file">app.php</span> — Configura rutas, middleware, excepciones</li>
+        <li><span class="ft-file">providers.php</span> — Lista de Service Providers</li>
+        <li><span class="ft-dir">cache/</span> — Caché de configuración y rutas (auto-generada)</li>
+      </ul>
+    </div>
+
+    <p>El archivo <code class="inline">bootstrap/providers.php</code> es donde se registran los providers de SICSAL:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">bootstrap/providers.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">return</span> [
+    <span class="cls">App\Providers\AppServiceProvider</span><span class="op">::</span><span class="kw">class</span>,
+    <span class="cls">App\Providers\Filament\AdminPanelProvider</span><span class="op">::</span><span class="kw">class</span>,
+    <span class="cls">App\Providers\FortifyServiceProvider</span><span class="op">::</span><span class="kw">class</span>,
+];</pre>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 8: CARPETA PUBLIC
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="carpeta-public">
+    <h2 class="section-title"><span class="number">8</span> La carpeta public/</h2>
+
+    <p>Es el <strong>document root</strong> del servidor web. Apache apunta aquí. Todo lo que debe ser accesible por URL va en <code class="inline">public/</code>.</p>
+
+    <div class="file-tree">
+      <div class="file-tree-title">public/</div>
+      <ul>
+        <li><span class="ft-file">index.php</span> — Punto de entrada (recibe TODAS las peticiones)</li>
+        <li><span class="ft-file">robots.txt</span> — Instrucciones para buscadores</li>
+        <li><span class="ft-dir">build/</span> — CSS y JS compilados por Vite</li>
+        <li><span class="ft-dir">css/</span> — CSS estáticos</li>
+        <li><span class="ft-dir">fonts/</span> — Fuentes tipográficas</li>
+        <li><span class="ft-dir">js/</span> — JS estáticos</li>
+        <li><span class="ft-file">storage</span> → symlink a <code>storage/app/public</code></li>
+      </ul>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">Seguridad</div>
+        <strong>Nunca pongas .env, modelos, o código PHP en public/</strong>. Solo <code class="inline">index.php</code> y assets estáticos. Todo lo demás queda inaccesible al navegador gracias a que Apache apunta a <code class="inline">public/</code>, no a la raíz del proyecto.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 9: ARTISAN
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="artisan">
+    <h2 class="section-title"><span class="number">9</span> Artisan: la herramienta de línea de comandos</h2>
+
+    <p><code class="inline">artisan</code> es el CLI integrado de Laravel. Lo usaremos constantemente. Algunos comandos clave:</p>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Terminal</span>
+        <span class="code-lang">bash</span>
+      </div>
+      <pre class="code-body bash"><span class="cmt"># Ver todos los comandos disponibles</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan list
+
+<span class="cmt"># Ejecutar migraciones (crear tablas en la BD)</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate
+
+<span class="cmt"># Revertir la última migración</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan migrate:rollback
+
+<span class="cmt"># Ejecutar seeders (insertar datos iniciales)</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan db:seed
+
+<span class="cmt"># Crear un modelo con migración</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan make:model Persona <span class="flag">-m</span>
+
+<span class="cmt"># Limpiar toda la caché</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan optimize:clear
+
+<span class="cmt"># Consola interactiva (tinker)</span>
+<span class="prompt">$</span> <span class="cmd">php</span> artisan tinker</pre>
+    </div>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Comando</th>
+          <th>Uso en SICSAL</th>
+          <th>Lección</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><code>migrate</code></td><td>Crear las 50 tablas</td><td>06-11</td></tr>
+        <tr><td><code>db:seed</code></td><td>Insertar municipios, centros, roles</td><td>22-23</td></tr>
+        <tr><td><code>make:model</code></td><td>Crear los 37 modelos</td><td>12-16</td></tr>
+        <tr><td><code>make:filament-resource</code></td><td>Crear recursos del panel admin</td><td>25-31</td></tr>
+        <tr><td><code>make:livewire</code></td><td>Crear componentes Livewire</td><td>45-50</td></tr>
+        <tr><td><code>optimize:clear</code></td><td>Limpiar caché tras cambios</td><td>Siempre</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 10: CICLO DE VIDA
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="ciclo-vida">
+    <h2 class="section-title"><span class="number">10</span> Ciclo de vida de una petición</h2>
+
+    <p>Cuando un usuario visita <code class="inline">http://sicsal.test/admin/personas</code>, esto es lo que sucede:</p>
+
+    <div class="flow-diagram">
+      <div class="flow-step">
+        <div class="flow-num">1</div>
+        <div class="flow-label">Navegador envía petición HTTP</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">
+        <div class="flow-num">2</div>
+        <div class="flow-label">Apache recibe → public/index.php</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">
+        <div class="flow-num">3</div>
+        <div class="flow-label">Laravel bootstrap → carga .env, config, providers</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">
+        <div class="flow-num">4</div>
+        <div class="flow-label">Router busca la ruta → Filament la resuelve</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">
+        <div class="flow-num">5</div>
+        <div class="flow-label">Middleware: auth, permisos, centro_salud</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">
+        <div class="flow-num">6</div>
+        <div class="flow-label">PersonaResource → consulta Persona::query()</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">
+        <div class="flow-num">7</div>
+        <div class="flow-label">MySQL devuelve datos → modelo Persona</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">
+        <div class="flow-num">8</div>
+        <div class="flow-label">Blade renderiza tabla HTML</div>
+      </div>
+      <div class="flow-arrow">↓</div>
+      <div class="flow-step">
+        <div class="flow-num">9</div>
+        <div class="flow-label">Respuesta HTTP → navegador muestra la página</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 11: ESTRUCTURA FINAL
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="estructura-sicsal">
+    <h2 class="section-title"><span class="number">11</span> Estructura final de SICSAL</h2>
+
+    <p>Al terminar las 58 lecciones, el proyecto tendrá <strong>278+ archivos</strong> distribuidos así:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Carpeta</th>
+          <th>Archivos</th>
+          <th>Líneas</th>
+          <th>Qué contiene</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>database/migrations/</td><td>50</td><td>~1,676</td><td>Estructura de todas las tablas</td></tr>
+        <tr><td>app/Models/</td><td>37</td><td>~1,188</td><td>Modelos Eloquent</td></tr>
+        <tr><td>app/Filament/</td><td>58</td><td>~4,434</td><td>Panel admin (Resources + Pages + Widgets)</td></tr>
+        <tr><td>resources/views/</td><td>59</td><td>~5,269</td><td>Vistas Blade</td></tr>
+        <tr><td>app/Console/Commands/</td><td>7</td><td>~3,081</td><td>Importadores SNIS</td></tr>
+        <tr><td>app/Exports/</td><td>17</td><td>~2,508</td><td>Excel, PDF, PowerPoint</td></tr>
+        <tr><td>app/Livewire/</td><td>8</td><td>~835</td><td>Componentes reactivos</td></tr>
+        <tr><td>app/Helpers/</td><td>3</td><td>~706</td><td>Cálculos CAI, OMS</td></tr>
+        <tr><td>database/seeders/</td><td>8</td><td>~638</td><td>Datos iniciales</td></tr>
+        <tr><td>Resto</td><td>31+</td><td>~2,665</td><td>Config, routes, providers, etc.</td></tr>
+      </tbody>
+      <tfoot>
+        <tr><td><strong>Total</strong></td><td><strong>278+</strong></td><td><strong>~23,000</strong></td><td></td></tr>
+      </tfoot>
+    </table>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">No te abrumes</div>
+        Son muchos archivos, pero los crearemos <strong>uno a uno</strong> en orden lógico. Cada lección te dice exactamente qué escribir. Al final de cada lección, el proyecto compilará y funcionará correctamente.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 03</h3>
+    <ul>
+      <li><strong>app/</strong> — tu código PHP: modelos, controladores, Filament, Livewire, exports</li>
+      <li><strong>database/</strong> — migraciones (estructura) y seeders (datos iniciales)</li>
+      <li><strong>resources/views/</strong> — vistas Blade (plantillas HTML)</li>
+      <li><strong>routes/</strong> — definición de URLs (web.php, settings.php, console.php)</li>
+      <li><strong>config/</strong> — archivos de configuración que leen del .env</li>
+      <li><strong>public/</strong> — punto de entrada web y assets compilados</li>
+      <li><strong>artisan</strong> — herramienta CLI para migraciones, seeders, generadores</li>
+      <li>El ciclo de vida: petición → index.php → router → middleware → controller/resource → modelo → vista → respuesta</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="02-crear-proyecto.html" class="lesson-nav-btn">← Lección 02: Crear el Proyecto</a>
+    <a href="04-vite-tailwind.html" class="lesson-nav-btn">Lección 04: Vite, Tailwind y Assets →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 03 de 58</span>
+    <span>Siguiente: Vite, Tailwind CSS y Assets</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>

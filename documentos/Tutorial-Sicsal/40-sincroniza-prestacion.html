@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lección 40 · SincronizaPrestacion — Trait de Cálculo para Observers | Tutorial SICSAL</title>
+    <link rel="stylesheet" href="css/leccion.css">
+    <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════ TOPBAR ═══════════════════════════ -->
+<div class="topbar">
+    <a href="00-indice.html" class="topbar-brand">📘 Tutorial SICSAL</a>
+    <span class="topbar-sep">·</span>
+    <span class="topbar-context">Fase 8 — Observers y Sincronización</span>
+</div>
+
+<!-- ════════════════════════════════════════════ HERO ═════════════════════════════ -->
+<div class="hero">
+    <span class="badge">Fase 8 · Observers y Sincronización</span>
+    <h1 class="hero-title">Lección 40 — SincronizaPrestacion<br>
+        <small>Trait de Cálculo para Observers</small></h1>
+    <p class="hero-subtitle">Un trait compartido con 5 métodos de clasificación etárea que
+        traduce datos individuales (vacunas, partos, controles) en las claves que usan los
+        formularios mensuales Prest*.</p>
+    <div class="hero-meta">
+        📄 app/Observers/Concerns/SincronizaPrestacion.php &nbsp;|&nbsp;
+        🕐 Lectura ~12 min &nbsp;|&nbsp; Lección 40 de 58
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════ NAV ══════════════════════════════ -->
+<div class="lesson-nav">
+    <a href="39-formulario-causas.html">← 39 · Formulario Causas</a>
+    <a href="41-observers.html">41 · Observers →</a>
+</div>
+
+<!-- ════════════════════════════════════════════ TOC ══════════════════════════════ -->
+<nav class="toc">
+    <h2 class="toc-title">Índice de la lección</h2>
+    <ol class="toc-list">
+        <li><a href="#s1">Contexto — registros individuales vs totales mensuales</a></li>
+        <li><a href="#s2">Arquitectura de sincronización</a></li>
+        <li><a href="#s3">grupoEtareoVacuna() — 11 rangos por edad en meses</a></li>
+        <li><a href="#s4">grupoEtareoMaterno() — 6 rangos maternos</a></li>
+        <li><a href="#s5">grupoCrecimiento() — edad + dentro/fuera</a></li>
+        <li><a href="#s6">tipoPrenatal() — clasificación por control y trimestre</a></li>
+        <li><a href="#s7">campoDentroFueraSexo() — combinador de campos</a></li>
+        <li><a href="#s8">Resumen</a></li>
+    </ol>
+</nav>
+
+<!-- ════════════════════════════════════════════ CONTENIDO ═════════════════════════ -->
+
+<!-- ───────────────── S1 ───────────────── -->
+<div class="section" id="s1">
+    <h2><span class="number">1</span> Contexto — registros individuales vs totales mensuales</h2>
+
+    <p>SICSAL mantiene dos niveles de datos:</p>
+
+    <table class="info-table">
+        <thead><tr><th>Nivel</th><th>Ejemplo</th><th>Tabla</th></tr></thead>
+        <tbody>
+            <tr><td>Individual</td><td>Vacuna aplicada a Juan Pérez el 15/marzo</td><td><code>vacunas_ninos</code></td></tr>
+            <tr><td>Consolidado mensual</td><td>Total BCG menores de 1 año, dentro, masculino = 12</td><td><code>prest_vacunas</code></td></tr>
+        </tbody>
+    </table>
+
+    <p>Los formularios mensuales (Fase 7) trabajan con las tablas <code>prest_*</code>.
+    Pero cuando un registrador ingresa un registro individual, el total mensual debe actualizarse
+    automáticamente. Ahí entran los <strong>Observers</strong> y este trait.</p>
+
+    <div class="callout info">
+        <strong>16 tablas Prest*</strong> consolidan los totales: PrestVacuna, PrestMicronutriente,
+        PrestCrecimiento, PrestParto, PrestPrenatal, PrestAnticoncepcion, PrestRecienNacido, etc.
+        Cada una corresponde a una sección de los formularios SNIS.
+    </div>
+</div>
+
+<!-- ───────────────── S2 ───────────────── -->
+<div class="section" id="s2">
+    <h2><span class="number">2</span> Arquitectura de sincronización</h2>
+
+    <p>El flujo es unidireccional: registro individual → Observer → Prest* (totales):</p>
+
+<pre><code><span class="cmt">┌─────────────────────┐     Observer      ┌──────────────────┐</span>
+<span class="cmt">│  VacunaNino::create  │ ──────────────→  │  PrestVacuna     │</span>
+<span class="cmt">│  (registro individual)│   +1 / -1       │  (total mensual) │</span>
+<span class="cmt">└─────────────────────┘                    └──────────────────┘</span>
+                         <span class="hl">SincronizaPrestacion</span>
+                      (calcula grupo_etareo, campo, etc.)</code></pre>
+
+    <p>El trait <code>SincronizaPrestacion</code> vive en <code>app/Observers/Concerns/</code>
+    y provee 5 métodos <code>protected</code> que los observers utilizan para clasificar:</p>
+
+    <table class="info-table">
+        <thead><tr><th>Método</th><th>Recibe</th><th>Devuelve</th><th>Usado por</th></tr></thead>
+        <tbody>
+            <tr><td><code>grupoEtareoVacuna()</code></td><td>edad en meses</td><td>clave grupo etáreo (11 valores)</td><td>VacunaNinoObserver</td></tr>
+            <tr><td><code>grupoEtareoMaterno()</code></td><td>fecha_nac + referencia</td><td>clave grupo (6 valores)</td><td>PartoObserver, ControlPrenatalObserver, AnticoncepcionObserver</td></tr>
+            <tr><td><code>grupoCrecimiento()</code></td><td>edad en meses + dentro/fuera</td><td>clave compuesta</td><td>CrecimientoInfantilObserver</td></tr>
+            <tr><td><code>tipoPrenatal()</code></td><td>nro_control + semanas</td><td>tipo control prenatal</td><td>ControlPrenatalObserver</td></tr>
+            <tr><td><code>campoDentroFueraSexo()</code></td><td>dentro/fuera + sexo</td><td>nombre de campo</td><td>VacunaNinoObserver</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<!-- ───────────────── S3 ───────────────── -->
+<div class="section" id="s3">
+    <h2><span class="number">3</span> grupoEtareoVacuna() — 11 rangos por edad en meses</h2>
+
+    <p>Este método traduce la edad en meses del paciente al grupo etáreo de PrestVacuna.
+    Cubre tanto <code>$gruposMenores5</code> como <code>$gruposOtrasVac</code> del FormularioPai:</p>
+
+<pre><code><span class="kw">protected function</span> <span class="fn">grupoEtareoVacuna</span>(<span class="type">int</span> <span class="var">$edadMeses</span>): <span class="type">string</span>
+{
+    <span class="kw">if</span> (<span class="var">$edadMeses</span> < <span class="num">12</span>)  <span class="kw">return</span> <span class="str">'menor_1'</span>;
+    <span class="kw">if</span> (<span class="var">$edadMeses</span> < <span class="num">24</span>)  <span class="kw">return</span> <span class="str">'12_23m'</span>;
+
+    <span class="var">$anios</span> = (<span class="type">int</span>) <span class="fn">floor</span>(<span class="var">$edadMeses</span> / <span class="num">12</span>);
+
+    <span class="kw">if</span> (<span class="var">$anios</span> === <span class="num">2</span>)   <span class="kw">return</span> <span class="str">'2_anios'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> === <span class="num">3</span>)   <span class="kw">return</span> <span class="str">'3_anios'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> === <span class="num">4</span>)   <span class="kw">return</span> <span class="str">'4_anios'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">10</span>)   <span class="kw">return</span> <span class="str">'5_9'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> === <span class="num">10</span>)  <span class="kw">return</span> <span class="str">'10_anios'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> === <span class="num">11</span>)  <span class="kw">return</span> <span class="str">'11_anios'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> <= <span class="num">20</span>)  <span class="kw">return</span> <span class="str">'12_20'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">60</span>)   <span class="kw">return</span> <span class="str">'21_59'</span>;
+
+    <span class="kw">return</span> <span class="str">'60_mas'</span>;
+}</code></pre>
+
+    <div class="callout tip">
+        <strong>Correspondencia directa:</strong> Los strings devueltos coinciden exactamente con
+        las claves de los arrays <code>$gruposMenores5</code> y <code>$gruposOtrasVac</code>
+        del FormularioPai (lección 38). Así el observer escribe en la misma fila que el formulario lee.
+    </div>
+
+    <p>Las primeras 5 claves (<code>menor_1</code> a <code>4_anios</code>) corresponden a
+    menores de 5 años; las 6 restantes a "Otras vacunaciones".</p>
+</div>
+
+<!-- ───────────────── S4 ───────────────── -->
+<div class="section" id="s4">
+    <h2><span class="number">4</span> grupoEtareoMaterno() — 6 rangos maternos</h2>
+
+    <p>Para prenatales, partos y anticoncepción, los grupos se basan en la edad de la madre:</p>
+
+<pre><code><span class="kw">protected function</span> <span class="fn">grupoEtareoMaterno</span>(
+    <span class="cls">Carbon</span> <span class="var">$fechaNac</span>,
+    <span class="cls">Carbon</span> <span class="var">$referencia</span>
+): <span class="type">string</span>
+{
+    <span class="var">$anios</span> = <span class="var">$fechaNac</span>-><span class="fn">diffInYears</span>(<span class="var">$referencia</span>);
+
+    <span class="kw">if</span> (<span class="var">$anios</span> < <span class="num">10</span>)   <span class="kw">return</span> <span class="str">'menor_10'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> <= <span class="num">14</span>)  <span class="kw">return</span> <span class="str">'10_14'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> <= <span class="num">19</span>)  <span class="kw">return</span> <span class="str">'15_19'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> <= <span class="num">34</span>)  <span class="kw">return</span> <span class="str">'20_34'</span>;
+    <span class="kw">if</span> (<span class="var">$anios</span> <= <span class="num">49</span>)  <span class="kw">return</span> <span class="str">'35_49'</span>;
+
+    <span class="kw">return</span> <span class="str">'50_mas'</span>;
+}</code></pre>
+
+    <div class="callout info">
+        <strong>Carbon typed parameters:</strong> El método exige objetos <code>Carbon</code>,
+        no strings. Los observers son responsables de parsear las fechas antes de llamar al trait.
+        La fecha de referencia es el evento (parto, control, etc.), no "hoy".
+    </div>
+</div>
+
+<!-- ───────────────── S5 ───────────────── -->
+<div class="section" id="s5">
+    <h2><span class="number">5</span> grupoCrecimiento() — edad + dentro/fuera</h2>
+
+    <p>Para crecimiento infantil, la clave combina rango de edad y ubicación:</p>
+
+<pre><code><span class="kw">protected function</span> <span class="fn">grupoCrecimiento</span>(
+    <span class="type">int</span> <span class="var">$edadMeses</span>,
+    <span class="type">string</span> <span class="var">$dentroDuera</span>
+): <span class="type">string</span>
+{
+    <span class="var">$base</span> = <span class="kw">match</span> (<span class="kw">true</span>) {
+        <span class="var">$edadMeses</span> < <span class="num">12</span> => <span class="str">'menor_1'</span>,
+        <span class="var">$edadMeses</span> < <span class="num">24</span> => <span class="str">'1_menor_2'</span>,
+        <span class="kw">default</span>         => <span class="str">'2_menor_5'</span>,
+    };
+
+    <span class="kw">return</span> <span class="var">$base</span> . <span class="str">'_'</span> . <span class="var">$dentroDuera</span>;
+    <span class="cmt">// Ejemplo: 'menor_1_dentro', '2_menor_5_fuera'</span>
+}</code></pre>
+
+    <div class="callout tip">
+        <strong>match(true):</strong> PHP 8.0+ permite usar <code>match(true)</code> como alternativa
+        elegante a if/elseif. Cada rama evalúa una expresión booleana y devuelve un valor.
+        Es más compacto que la cadena de if/return del método de vacunas.
+    </div>
+
+    <p>Las 6 claves resultantes corresponden exactamente a las filas de <code>$labelsCrec</code>
+    en la vista de crecimiento (lección 38).</p>
+</div>
+
+<!-- ───────────────── S6 ───────────────── -->
+<div class="section" id="s6">
+    <h2><span class="number">6</span> tipoPrenatal() — clasificación por control y trimestre</h2>
+
+    <p>Traduce el número de control prenatal y las semanas de gestación al tipo del formulario:</p>
+
+<pre><code><span class="kw">protected function</span> <span class="fn">tipoPrenatal</span>(
+    <span class="type">int</span> <span class="var">$numeroControl</span>,
+    <span class="type">int</span> <span class="var">$semanasGestacion</span>
+): <span class="type">string</span>
+{
+    <span class="kw">if</span> (<span class="var">$numeroControl</span> >= <span class="num">4</span>) <span class="kw">return</span> <span class="str">'con_4to_control'</span>;
+    <span class="kw">if</span> (<span class="var">$numeroControl</span> > <span class="num">1</span>)  <span class="kw">return</span> <span class="str">'repetida'</span>;
+
+    <span class="cmt">// Primer control → clasificar por trimestre</span>
+    <span class="kw">if</span> (<span class="var">$semanasGestacion</span> <= <span class="num">13</span>) <span class="kw">return</span> <span class="str">'nueva_1er_trim'</span>;
+    <span class="kw">if</span> (<span class="var">$semanasGestacion</span> <= <span class="num">27</span>) <span class="kw">return</span> <span class="str">'nueva_2do_trim'</span>;
+
+    <span class="kw">return</span> <span class="str">'nueva_3er_trim'</span>;
+}</code></pre>
+
+    <div class="callout warning">
+        <strong>Lógica de negocio SNIS:</strong>
+        <ul>
+            <li><strong>≥ 4to control:</strong> Se cuenta como "con 4to control" (indicador clave)</li>
+            <li><strong>2do o 3er control:</strong> Se cuenta como "repetida"</li>
+            <li><strong>1er control:</strong> Se clasifica por trimestre de captación
+                (1er trimestre es mejor que 3er — detección temprana)</li>
+        </ul>
+        Son las mismas claves que usa $tiposPrenatal en FormularioMaterna (lección 37).
+    </div>
+</div>
+
+<!-- ───────────────── S7 ───────────────── -->
+<div class="section" id="s7">
+    <h2><span class="number">7</span> campoDentroFueraSexo() — combinador de campos</h2>
+
+    <p>El método más simple — concatena dentro/fuera con el sexo para obtener el nombre del
+    campo de la tabla Prest*:</p>
+
+<pre><code><span class="kw">protected function</span> <span class="fn">campoDentroFueraSexo</span>(
+    <span class="type">string</span> <span class="var">$dentroDuera</span>,
+    <span class="type">string</span> <span class="var">$sexo</span>
+): <span class="type">string</span>
+{
+    <span class="kw">return</span> <span class="var">$dentroDuera</span> . <span class="str">'_'</span> . <span class="fn">strtolower</span>(<span class="var">$sexo</span>);
+    <span class="cmt">// 'dentro' + 'M' → 'dentro_m'</span>
+    <span class="cmt">// 'fuera'  + 'F' → 'fuera_f'</span>
+}</code></pre>
+
+    <p>Los 4 campos resultantes (<code>dentro_m</code>, <code>dentro_f</code>, <code>fuera_m</code>,
+    <code>fuera_f</code>) son exactamente las columnas de <code>prest_vacunas</code> y el
+    modelo PrestVacuna.</p>
+</div>
+
+<!-- ───────────────── S8 ───────────────── -->
+<div class="section" id="s8">
+    <h2><span class="number">8</span> Resumen</h2>
+
+    <div class="lesson-summary">
+        <h3>Lo que aprendimos en esta lección</h3>
+        <ul>
+            <li><strong>Trait en Observers/Concerns:</strong> Centraliza la lógica de clasificación
+                etárea que 5 observers comparten.</li>
+            <li><strong>Puente individual → consolidado:</strong> Los métodos traducen datos del
+                registro individual (edad, fecha, ubicación) a las claves de las tablas Prest*.</li>
+            <li><strong>Correspondencia exacta:</strong> Las claves devueltas coinciden con los
+                arrays static de los formularios (Fase 7), garantizando consistencia.</li>
+            <li><strong>match(true):</strong> Alternativa elegante a if/elseif para clasificación
+                por rangos (PHP 8.0+).</li>
+            <li><strong>Carbon como tipo:</strong> El trait exige objetos Carbon en los parámetros,
+                delegando el parsing a los observers.</li>
+            <li><strong>5 métodos / 5 observers:</strong> Cada observer usa 1-2 métodos del trait
+                según la sección que necesita actualizar.</li>
+        </ul>
+    </div>
+</div>
+
+<!-- ════════════════════════════════════════════ NAV ══════════════════════════════ -->
+<div class="lesson-nav">
+    <a href="39-formulario-causas.html">← 39 · Formulario Causas</a>
+    <a href="41-observers.html">41 · Observers →</a>
+</div>
+
+<!-- ════════════════════════════════════════════ FOOTER ════════════════════════════ -->
+<footer class="footer">
+    Tutorial SICSAL — Lección 40 de 58<br>
+    <small>SincronizaPrestacion · Trait · Clasificación etárea · Observers</small>
+</footer>
+
+</body>
+</html>

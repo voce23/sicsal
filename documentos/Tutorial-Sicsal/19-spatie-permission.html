@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Lección 19 — Spatie Permission: roles y permisos | Tutorial SICSAL</title>
+  <link rel="stylesheet" href="css/leccion.css">
+  <link rel="stylesheet" href="css/code.css">
+</head>
+<body>
+
+<!-- ═══ Top Bar ═══ -->
+<div class="topbar">
+  <div class="topbar-brand">
+    <span class="dot"></span> SICSAL — Tutorial Completo
+  </div>
+  <nav>
+    <a href="00-indice.html">Índice</a>
+  </nav>
+</div>
+
+<div class="page-wrapper">
+
+  <!-- ═══ Hero ═══ -->
+  <div class="lesson-hero">
+    <div class="lesson-badge">Fase 4 — Autenticación y Seguridad</div>
+    <div class="lesson-number">Lección 19 de 58</div>
+    <h1 class="lesson-title">Spatie Permission: roles y permisos</h1>
+    <p class="lesson-subtitle">3 roles, 0 permisos explícitos, control total. SICSAL usa RBAC puro con hasRole() en vez de permisos granulares.</p>
+    <div class="lesson-meta">
+      <span class="lesson-meta-item">📁 5 archivos</span>
+      <span class="lesson-meta-item">⏱️ ~20 min</span>
+      <span class="lesson-meta-item">🎯 Nivel: Intermedio</span>
+    </div>
+  </div>
+
+  <!-- ═══ Navegación ═══ -->
+  <div class="lesson-nav">
+    <a href="18-acciones-auth.html" class="lesson-nav-btn">← Lección 18</a>
+    <a href="20-traits-concerns.html" class="lesson-nav-btn">Lección 20 →</a>
+  </div>
+
+  <!-- ═══ TOC ═══ -->
+  <div class="toc">
+    <div class="toc-title">Contenido de esta lección</div>
+    <ol>
+      <li><a href="#spatie">¿Qué es Spatie Permission?</a></li>
+      <li><a href="#tablas">Las 5 tablas de permisos</a></li>
+      <li><a href="#roles-seeder">RolesSeeder — los 3 roles del sistema</a></li>
+      <li><a href="#user-seeder">UserSeeder — asignación con assignRole</a></li>
+      <li><a href="#uso-filament">Uso en Filament: canAccess, getEloquentQuery</a></li>
+      <li><a href="#patron">Patrón RBAC de SICSAL</a></li>
+    </ol>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 1: QUÉ ES SPATIE
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="spatie">
+    <h2 class="section-title"><span class="number">1</span> ¿Qué es Spatie Permission?</h2>
+
+    <p><strong>spatie/laravel-permission</strong> es el paquete estándar para RBAC (Role-Based Access Control) en Laravel. Agrega:</p>
+    <ul>
+      <li>Trait <code class="inline">HasRoles</code> al modelo User</li>
+      <li>Métodos: <code class="inline">assignRole()</code>, <code class="inline">hasRole()</code>, <code class="inline">hasAnyRole()</code>, <code class="inline">hasPermissionTo()</code></li>
+      <li>5 tablas pivote para roles y permisos</li>
+    </ul>
+
+    <div class="callout callout-info">
+      <span class="callout-icon">ℹ️</span>
+      <div>
+        <div class="callout-title">SICSAL usa solo roles, no permisos</div>
+        El paquete soporta permisos granulares (<code class="inline">can_edit_persona</code>, <code class="inline">can_delete_vacuna</code>), pero SICSAL solo usa 3 roles. Las verificaciones se hacen con <code class="inline">hasRole()</code> directamente en Resources y traits.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 2: TABLAS
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="tablas">
+    <h2 class="section-title"><span class="number">2</span> Las 5 tablas de permisos</h2>
+
+    <p>La migración <code class="inline">create_permission_tables</code> crea:</p>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Tabla</th>
+          <th>Columnas clave</th>
+          <th>Propósito</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code class="inline">roles</code></td>
+          <td>id, name, guard_name</td>
+          <td>Definición de roles</td>
+        </tr>
+        <tr>
+          <td><code class="inline">permissions</code></td>
+          <td>id, name, guard_name</td>
+          <td>Definición de permisos (vacía en SICSAL)</td>
+        </tr>
+        <tr>
+          <td><code class="inline">model_has_roles</code></td>
+          <td>role_id, model_type, model_id</td>
+          <td>Pivote: qué roles tiene cada usuario</td>
+        </tr>
+        <tr>
+          <td><code class="inline">model_has_permissions</code></td>
+          <td>permission_id, model_type, model_id</td>
+          <td>Pivote: permisos directos (no usado)</td>
+        </tr>
+        <tr>
+          <td><code class="inline">role_has_permissions</code></td>
+          <td>permission_id, role_id</td>
+          <td>Pivote: permisos por rol (no usado)</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <p>En la práctica, solo 2 tablas tienen datos: <code class="inline">roles</code> (3 registros) y <code class="inline">model_has_roles</code> (1 por usuario).</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 3: ROLES SEEDER
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="roles-seeder">
+    <h2 class="section-title"><span class="number">3</span> RolesSeeder — los 3 roles del sistema</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/seeders/RolesSeeder.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="kw">use</span> <span class="cls">Spatie\Permission\Models\Role</span>;
+
+<span class="kw">class</span> <span class="cls">RolesSeeder</span> <span class="kw">extends</span> <span class="cls">Seeder</span>
+{
+    <span class="kw">public function</span> <span class="fn">run</span>(): <span class="type">void</span>
+    {
+        <span class="cls">Role</span><span class="op">::</span><span class="fn">firstOrCreate</span>([<span class="str">'name'</span> <span class="op">=></span> <span class="str">'superadmin'</span>,  <span class="str">'guard_name'</span> <span class="op">=></span> <span class="str">'web'</span>]);
+        <span class="cls">Role</span><span class="op">::</span><span class="fn">firstOrCreate</span>([<span class="str">'name'</span> <span class="op">=></span> <span class="str">'admin'</span>,       <span class="str">'guard_name'</span> <span class="op">=></span> <span class="str">'web'</span>]);
+        <span class="cls">Role</span><span class="op">::</span><span class="fn">firstOrCreate</span>([<span class="str">'name'</span> <span class="op">=></span> <span class="str">'registrador'</span>, <span class="str">'guard_name'</span> <span class="op">=></span> <span class="str">'web'</span>]);
+    }
+}</pre>
+    </div>
+
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Rol</th>
+          <th>Acceso</th>
+          <th>Puede ver</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>superadmin</strong></td>
+          <td>Todo el sistema, todos los centros</td>
+          <td>Todos los Resources, selector de centro libre</td>
+        </tr>
+        <tr>
+          <td><strong>admin</strong></td>
+          <td>Su centro de salud</td>
+          <td>Gestión de registradores, datos de su centro</td>
+        </tr>
+        <tr>
+          <td><strong>registrador</strong></td>
+          <td>Su centro de salud</td>
+          <td>Registro de datos, sin gestión de usuarios</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">firstOrCreate — idempotente</div>
+        <code class="inline">firstOrCreate</code> busca el registro antes de crear. Puedes correr el seeder múltiples veces sin duplicar roles.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 4: USER SEEDER
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="user-seeder">
+    <h2 class="section-title"><span class="number">4</span> UserSeeder — asignación con assignRole</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">database/seeders/UserSeeder.php (extracto)</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// Superadmin — acceso total</span>
+<span class="var">$superadmin</span> = <span class="cls">User</span><span class="op">::</span><span class="fn">create</span>([
+    <span class="str">'name'</span> <span class="op">=></span> <span class="str">'Super'</span>, <span class="str">'apellidos'</span> <span class="op">=></span> <span class="str">'Admin'</span>,
+    <span class="str">'email'</span> <span class="op">=></span> <span class="str">'superadmin@sicsal.test'</span>,
+    <span class="str">'password'</span> <span class="op">=></span> <span class="str">'password'</span>,
+    <span class="str">'activo'</span> <span class="op">=></span> <span class="kw">true</span>,
+]);
+<span class="var">$superadmin</span><span class="op">-></span><span class="fn">assignRole</span>(<span class="str">'superadmin'</span>);
+
+<span class="cmt">// Admin — ve solo su centro</span>
+<span class="var">$admin</span> = <span class="cls">User</span><span class="op">::</span><span class="fn">create</span>([
+    <span class="str">'name'</span> <span class="op">=></span> <span class="str">'Médico'</span>, <span class="str">'apellidos'</span> <span class="op">=></span> <span class="str">'Hornoma'</span>,
+    <span class="str">'email'</span> <span class="op">=></span> <span class="str">'medico.hornoma@sicsal.test'</span>,
+    <span class="str">'centro_salud_id'</span> <span class="op">=></span> <span class="num">1</span>,
+    <span class="str">'activo'</span> <span class="op">=></span> <span class="kw">true</span>,
+]);
+<span class="var">$admin</span><span class="op">-></span><span class="fn">assignRole</span>(<span class="str">'admin'</span>);
+
+<span class="cmt">// Registrador — ve solo su centro, no gestiona usuarios</span>
+<span class="var">$registrador</span> = <span class="cls">User</span><span class="op">::</span><span class="fn">create</span>([...]);
+<span class="var">$registrador</span><span class="op">-></span><span class="fn">assignRole</span>(<span class="str">'registrador'</span>);</pre>
+    </div>
+
+    <p><code class="inline">DatabaseSeeder</code> llama los seeders en orden: <strong>RolesSeeder</strong> primero (crea roles), luego <strong>UserSeeder</strong> (asigna roles).</p>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 5: USO EN FILAMENT
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="uso-filament">
+    <h2 class="section-title"><span class="number">5</span> Uso en Filament: canAccess, getEloquentQuery</h2>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Ejemplo: CentroSaludResource.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// Solo superadmin puede ver el Resource de Centros de Salud</span>
+<span class="kw">public static function</span> <span class="fn">canAccess</span>(): <span class="type">bool</span>
+{
+    <span class="kw">return</span> <span class="fn">auth</span>()<span class="op">-></span><span class="fn">user</span>()<span class="op">-></span><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>);
+}</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Ejemplo: UserResource.php</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cmt">// Admin solo ve registradores de su centro</span>
+<span class="kw">public static function</span> <span class="fn">getEloquentQuery</span>(): <span class="type">Builder</span>
+{
+    <span class="var">$query</span> = <span class="kw">parent</span><span class="op">::</span><span class="fn">getEloquentQuery</span>();
+    <span class="var">$user</span>  = <span class="fn">auth</span>()<span class="op">-></span><span class="fn">user</span>();
+
+    <span class="kw">if</span> (<span class="var">$user</span><span class="op">-></span><span class="fn">hasRole</span>(<span class="str">'admin'</span>)) {
+        <span class="kw">return</span> <span class="var">$query</span>
+            <span class="op">-></span><span class="fn">where</span>(<span class="str">'centro_salud_id'</span>, <span class="var">$user</span><span class="op">-></span><span class="var">centro_salud_id</span>)
+            <span class="op">-></span><span class="fn">role</span>(<span class="str">'registrador'</span>);  <span class="cmt">// scope de Spatie</span>
+    }
+    <span class="kw">return</span> <span class="var">$query</span>;
+}</pre>
+    </div>
+
+    <div class="code-block">
+      <div class="code-header">
+        <div class="code-dots"><span class="d1"></span><span class="d2"></span><span class="d3"></span></div>
+        <span class="code-filename">Ejemplo: UserForm.php — campo condicional</span>
+        <span class="code-lang">php</span>
+      </div>
+      <pre class="code-body"><span class="cls">Select</span><span class="op">::</span><span class="fn">make</span>(<span class="str">'centro_salud_id'</span>)
+    <span class="op">-></span><span class="fn">visible</span>(<span class="kw">fn</span>() <span class="op">=></span> <span class="fn">auth</span>()<span class="op">-></span><span class="fn">user</span>()<span class="op">-></span><span class="fn">hasRole</span>(<span class="str">'superadmin'</span>))
+    <span class="op">-></span><span class="fn">default</span>(<span class="kw">fn</span>() <span class="op">=></span> <span class="fn">auth</span>()<span class="op">-></span><span class="fn">user</span>()<span class="op">-></span><span class="var">centro_salud_id</span>),</pre>
+    </div>
+
+    <p>Dónde se usa <code class="inline">hasRole()</code> en el proyecto:</p>
+    <table class="db-table">
+      <thead>
+        <tr>
+          <th>Archivo</th>
+          <th>Verificación</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td>User.php</td><td><code class="inline">hasAnyRole(['superadmin','admin','registrador'])</code></td></tr>
+        <tr><td>HasCentroSelector.php</td><td><code class="inline">hasRole('superadmin')</code> — 4 lugares</td></tr>
+        <tr><td>CentroSaludResource</td><td><code class="inline">canAccess</code> → solo superadmin</td></tr>
+        <tr><td>ComunidadResource</td><td><code class="inline">canAccess</code> → solo superadmin</td></tr>
+        <tr><td>CausaConsultaExternaResource</td><td><code class="inline">canAccess</code> → solo superadmin</td></tr>
+        <tr><td>UserResource</td><td><code class="inline">getEloquentQuery</code> → filtro por centro</td></tr>
+        <tr><td>PersonaResource</td><td>Filtro de datos por rol</td></tr>
+        <tr><td>MetaIneResource, DefuncionResource</td><td>Filtros similares</td></tr>
+        <tr><td>UserForm.php</td><td>Visibilidad condicional de campos</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       SECCIÓN 6: PATRÓN RBAC
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="section" id="patron">
+    <h2 class="section-title"><span class="number">6</span> Patrón RBAC de SICSAL</h2>
+
+    <div class="arch-diagram">
+      <div class="arch-box" style="background:#fee2e2;"><strong>superadmin</strong><br><small>Todo el sistema, todos los centros</small></div>
+      <div class="arch-arrow">↓ restringe</div>
+      <div class="arch-box" style="background:#fef3c7;"><strong>admin</strong><br><small>Su centro + gestión de registradores</small></div>
+      <div class="arch-arrow">↓ restringe</div>
+      <div class="arch-box" style="background:#dcfce7;"><strong>registrador</strong><br><small>Su centro + solo registro de datos</small></div>
+    </div>
+
+    <div class="callout callout-warn">
+      <span class="callout-icon">⚠️</span>
+      <div>
+        <div class="callout-title">Sin Policies — decisión deliberada</div>
+        SICSAL no tiene directorio <code class="inline">app/Policies/</code>. En lugar de Policies de Laravel, usa <code class="inline">canAccess()</code> y <code class="inline">getEloquentQuery()</code> de <strong>Filament</strong>. Esto simplifica el código: todo el control de acceso está en los Resources, no disperso en archivos de Policy separados.
+      </div>
+    </div>
+
+    <div class="callout callout-tip">
+      <span class="callout-icon">💡</span>
+      <div>
+        <div class="callout-title">¿Cuándo agregar permisos granulares?</div>
+        Si el sistema crece y necesitas control más fino (ej: "registrador puede ver pero no eliminar"), puedes agregar permisos al seeder y usar <code class="inline">hasPermissionTo()</code>. Spatie ya tiene la infraestructura — las tablas están creadas.
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══ Resumen ═══ -->
+  <div class="lesson-summary">
+    <h3>✅ Resumen de la Lección 19</h3>
+    <ul>
+      <li><strong>Spatie Permission</strong> agrega 5 tablas y el trait <code class="inline">HasRoles</code></li>
+      <li>3 roles: <strong>superadmin</strong>, <strong>admin</strong>, <strong>registrador</strong> — creados en RolesSeeder</li>
+      <li><code class="inline">assignRole()</code> en UserSeeder para asignar roles</li>
+      <li><code class="inline">hasRole()</code> usado en ~10 archivos: Resources, traits, User model</li>
+      <li>Sin permisos granulares ni Policies — todo vía <code class="inline">canAccess</code> y <code class="inline">getEloquentQuery</code> en Filament</li>
+      <li><code class="inline">firstOrCreate</code> hace los seeders idempotentes</li>
+    </ul>
+  </div>
+
+  <!-- ═══ Navegación inferior ═══ -->
+  <div class="lesson-nav" style="margin-top: 2.5rem;">
+    <a href="18-acciones-auth.html" class="lesson-nav-btn">← Lección 18: Actions de autenticación</a>
+    <a href="20-traits-concerns.html" class="lesson-nav-btn">Lección 20: Traits y Concerns →</a>
+  </div>
+
+  <!-- ═══ Footer ═══ -->
+  <div class="lesson-footer">
+    <span>SICSAL — Tutorial Completo · Lección 19 de 58</span>
+    <span>Siguiente: HasCentroSelector, PasswordValidationRules, ProfileValidationRules</span>
+  </div>
+
+</div><!-- page-wrapper -->
+</body>
+</html>
